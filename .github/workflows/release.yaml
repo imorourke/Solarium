@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - "v*"
-      - "latest"
+      - "t*"
 
 permissions:
   contents: write
@@ -12,20 +12,42 @@ permissions:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: fedora
+            version: 44
+            pkgs: g++ gcc clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel wayland-devel fuse3-devel cmake ninja-build curl
+          - os: debian
+            version: 13
+            pkgs: pkg-config build-essential libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev libfuse3-dev cmake ninja-build curl
+          - os: ubuntu
+            version: 26.04
+            pkgs: pkg-config build-essential libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev libfuse3-dev cmake ninja-build curl
+
+    container:
+      image: ${{ matrix.os }}:${{ matrix.version }}
+
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        if: ${{ matrix.os != 'fedora' }}
+        run: |
+          apt-get update
+          apt-get install -y ${{ matrix.pkgs }}
+
+      - name: Install dependencies
+        if: ${{ matrix.os == 'fedora' }}
+        run: |
+          dnf update -y
+          dnf install -y ${{ matrix.pkgs }}
+
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-gnu
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
-          sudo apt-get install -y libfuse3-dev
-
-      - name: Checkout the repository
-        uses: actions/checkout@v5
 
       - name: Test
         run: cargo test --workspace
@@ -55,22 +77,13 @@ jobs:
           cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
 
       - name: Package binary
-        run: tar -czvf solarium-linux-x86_64.tar.gz -C dist visual-jib cbfs cbfs-util cbc jib-term visual-jib.desktop visual-jib.svg
-
-      - name: Generate hard disk image
-        run: cargo run --release --target x86_64-unknown-linux-gnu -p jib-term -- -e dist/hd.cbfs
+        run: tar -czvf solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz -C dist visual-jib cbfs cbfs-util cbc jib-term visual-jib.desktop visual-jib.svg
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
         with:
-          name: solarium-linux-x86_64.tar.gz
-          path: solarium-linux-x86_64.tar.gz
-
-      - name: Upload hard disk image
-        uses: actions/upload-artifact@v7
-        with:
-          name: hd.cbfs
-          path: dist/hd.cbfs
+          name: solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz
+          path: solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz
 
   freebsd:
     runs-on: ubuntu-latest
@@ -227,13 +240,18 @@ jobs:
           name: solarium-windows.zip
           path: solarium-windows.zip
 
-  documentation:
+  common:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y texlive texlive-font-utils
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
 
       - name: Checkout the repository
         uses: actions/checkout@v5
@@ -256,9 +274,18 @@ jobs:
           name: LICENSE
           path: LICENSE
 
+      - name: Generate hard disk image
+        run: cargo run -p jib-term -- -e hd.cbfs
+
+      - name: Upload hard disk image
+        uses: actions/upload-artifact@v7
+        with:
+          name: hd.cbfs
+          path: hd.cbfs
+
   release:
     name: Publish release
-    needs: [macos, linux, windows, freebsd, documentation]
+    needs: [macos, linux, windows, freebsd, common]
     runs-on: ubuntu-latest
 
     steps:
