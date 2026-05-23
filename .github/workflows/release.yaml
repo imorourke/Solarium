@@ -17,13 +17,10 @@ jobs:
         include:
           - os: fedora
             version: 44
-            pkgs: g++ gcc clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel wayland-devel fuse3-devel cmake ninja-build curl
           - os: debian
             version: 13
-            pkgs: pkg-config build-essential libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev libfuse3-dev cmake ninja-build curl
           - os: ubuntu
             version: 26.04
-            pkgs: pkg-config build-essential libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev libfuse3-dev cmake ninja-build curl
 
     container:
       image: ${{ matrix.os }}:${{ matrix.version }}
@@ -32,17 +29,17 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v5
 
-      - name: Install dependencies
+      - name: Install dependencies (apt)
         if: ${{ matrix.os != 'fedora' }}
         run: |
           apt-get update
-          apt-get install -y ${{ matrix.pkgs }}
+          apt-get install -y pkg-config build-essential libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev libfuse3-dev cmake ninja-build curl
 
-      - name: Install dependencies
+      - name: Install dependencies (dnf)
         if: ${{ matrix.os == 'fedora' }}
         run: |
           dnf update -y
-          dnf install -y ${{ matrix.pkgs }}
+          dnf install -y g++ gcc clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel wayland-devel fuse3-devel cmake ninja-build curl
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
