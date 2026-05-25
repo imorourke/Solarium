@@ -68,8 +68,19 @@ impl JibComputer {
 
     fn create_hard_drive() -> Result<FileSystem, ComputerError> {
         // Read the kernel/app files
-        static CODE_APP: &str = include_str!("../../../cbos/app.cb");
         static CODE_OS: &str = include_str!("../../../cbos/os.cb");
+        static CODE_APPS: &[(&str, &str, &str)] = &[
+            (
+                "hello.exe",
+                "app_hello.cb",
+                include_str!("../../../cbos/app_hello.cb"),
+            ),
+            (
+                "hello_mem.exe",
+                "app_hello_mem.cb",
+                include_str!("../../../cbos/app_hello_mem.cb"),
+            ),
+        ];
 
         // Compile OS into a file
         let kernel_compiled = Self::compile_kernel_code(CODE_OS, None, false)?;
@@ -78,24 +89,19 @@ impl JibComputer {
         // Obtain the default interface value
         let mut interface_data = Vec::new();
         {
-            const KNOWN_PREFIXES: &[&str] = &["k_", "K_", "std_", "irq_", "mem_"];
-
             let mut writer = std::io::BufWriter::new(&mut interface_data);
             kernel_compiled
                 .get_exported_interface()?
-                .filter(|name| KNOWN_PREFIXES.iter().any(|prefix| name.starts_with(prefix)))
                 .write_interface(&mut writer)?;
         }
 
         const CBOS_INTF_GUARD: &str = "CBOS_DEFS";
         let interface_str = match String::from_utf8(interface_data) {
-            Ok(x) => format!("#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n\n{x}\n#endif // {CBOS_INTF_GUARD}\n"),
+            Ok(x) => format!(
+                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
+            ),
             Err(_) => return Err(ComputerError::Utf8Error),
         };
-
-        // Compile an example program
-        let app_data = Self::compile_app_code(CODE_APP, &interface_str)?;
-
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
         fs.create_entry(fs.root_sector(), "boot.bin", EntryType::File, &kernel_data)?;
         let home_dir = fs.create_entry(fs.root_sector(), "home", EntryType::Directory, &[])?;
@@ -107,12 +113,17 @@ impl JibComputer {
             EntryType::File,
             format!("CB/OS\nBuild Date\n{}\n", build_date).as_bytes(),
         )?;
-        fs.create_entry(
-            home_dir,
-            "hello.exe",
-            EntryType::File,
-            &app_data.get_assembler()?.bytes,
-        )?;
+
+        for (exec_name, _, code) in CODE_APPS {
+            fs.create_entry(
+                home_dir,
+                exec_name,
+                EntryType::File,
+                &Self::compile_app_code(code, &interface_str)?
+                    .get_assembler()?
+                    .bytes,
+            )?;
+        }
         fs.create_entry(
             home_dir,
             "script.run",
@@ -123,8 +134,16 @@ impl JibComputer {
         let src = fs.create_entry(fs.root_sector(), "src", EntryType::Directory, &[])?;
 
         fs.create_entry(src, "os.cb", EntryType::File, CODE_OS.as_bytes())?;
-        fs.create_entry(src, "cbos_defs.cb", EntryType::File, interface_str.as_bytes())?;
-        fs.create_entry(src, "app_hello.cb", EntryType::File, CODE_APP.as_bytes())?;
+        fs.create_entry(
+            src,
+            "cbos_defs.cb",
+            EntryType::File,
+            interface_str.as_bytes(),
+        )?;
+
+        for (_, code_name, code) in CODE_APPS {
+            fs.create_entry(src, code_name, EntryType::File, code.as_bytes())?;
+        }
 
         for (path, code) in cblang::DEFAULT_FILES.iter() {
             let mut current_dir = src;

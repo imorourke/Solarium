@@ -1,0 +1,13 @@
+#include cbos_defs.cb
+
+global HELLO_VAL: *u8 = "Hello, world!\n";
+
+fn _main() i32 {
+    def data: *u8 = k_malloc(100);
+    k_memset(data, 0, 100);
+    def len: u32 = 30;
+    k_memcpy(data, HELLO_VAL, len + 1);
+    k_io_print(data);
+    k_free(data);
+    return 0;
+}
