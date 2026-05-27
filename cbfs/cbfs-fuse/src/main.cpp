@@ -1,30 +1,31 @@
 #include <array>
-#include <assert.h>
+#include <cassert>
 #include <cerrno>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
 #include <fuse3/fuse.h>
 #include <fuse3/fuse_opt.h>
+#include <iostream>
 #include <limits>
 #include <memory>
-#include <span>
-#include <stddef.h>
-#include <stdio.h>
-#include <sys/stat.h>
-
-#include "cbfs.h"
-
-#include <iostream>
 #include <mutex>
 #include <shared_mutex>
+#include <span>
+#include <sys/stat.h>
 #include <unordered_map>
+
+#include "cbfs.h"
 
 #ifdef WIN32
 #define fuse_file_info_t fuse_file_info
 #define fuse_filler_t fuse_fill_dir_t
 #define fuse_statfs_t fuse_statvfs
 #else
+#include <limits.h>
 
 #ifdef __APPLE__
 #define fuse_stat fuse_darwin_attr
@@ -45,7 +46,6 @@
 #define fuse_filler_t fuse_fill_dir_t
 #define fuse_statfs_t fuse_statvfs
 #endif
-
 #endif
 
 struct cbfs_error {
