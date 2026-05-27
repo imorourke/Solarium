@@ -672,6 +672,17 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<CbFuseState> state = std::make_unique<CbFuseState>();
     state->base_file = options.base_file;
+
+#ifndef WIN32
+    {
+        std::array<char, PATH_MAX> qualified_name{};
+        char* resolved = realpath(state->base_file, qualified_name.data());
+        if (resolved != nullptr) {
+            state->base_file = resolved;
+        }
+    }
+#endif
+
     state->read_only = options.file_read_only != 0;
     state->fs = cbfs_open(state->base_file, options.randomize);
     if (state->fs == nullptr) {
