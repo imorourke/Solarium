@@ -5,6 +5,9 @@ use cbfs_lib::{
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
+const DEFAULT_SECTOR_SIZE: u16 = 256;
+const DEFAULT_SECTOR_COUNT: u16 = 32768;
+
 #[derive(Debug, Parser)]
 #[command(version, about)]
 struct Arguments {
@@ -29,14 +32,14 @@ struct CreateOptions {
         short = 's',
         long = "secsize",
         help = "sector size in bytes",
-        default_value_t = 256
+        default_value_t = DEFAULT_SECTOR_SIZE
     )]
     secsize: u16,
     #[arg(
         short = 'S',
         long = "seccount",
         help = "sector count",
-        default_value_t = 32768
+        default_value_t = DEFAULT_SECTOR_COUNT
     )]
     seccount: u16,
     #[arg(short = 'g', long = "gz", help = "enable gzip compression")]
@@ -99,14 +102,14 @@ struct ArchiveOptions {
         short = 's',
         long = "secsize",
         help = "sector size in bytes",
-        default_value_t = 256
+        default_value_t = DEFAULT_SECTOR_COUNT
     )]
     secsize: u16,
     #[arg(
         short = 'S',
         long = "seccount",
         help = "sector count",
-        default_value_t = 32768
+        default_value_t = DEFAULT_SECTOR_COUNT
     )]
     seccount: u16,
 }
