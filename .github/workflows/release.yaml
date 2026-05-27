@@ -20,6 +20,10 @@ jobs:
           - os: debian
             version: 13
           - os: ubuntu
+            version: 22.04
+          - os: ubuntu
+            version: 24.04
+          - os: ubuntu
             version: 26.04
 
     container:

@@ -1,5 +1,9 @@
-cmake_minimum_required(VERSION 3.31)
-cmake_policy(SET CMP0171 NEW)
+if(CMAKE_VERSION VERSION_LESS "3.31")
+    set(CBINDGEN_CODEGEN "")
+else()
+    cmake_policy(SET CMP0171 NEW)
+    set(CBINDGEN_CODEGEN CODEGEN)
+endif()
 
 add_executable(
     cbfs
@@ -20,13 +24,14 @@ endif()
 file(GLOB_RECURSE CBFS_COMPAT_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/compat/**/*.rs" "${CMAKE_CURRENT_SOURCE_DIR}/compat/*.toml")
 file(GLOB_RECURSE CBFS_LIB_SRC CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/**/*.rs" "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/*.toml")
 
+
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/cbfs.h
     COMMAND cbindgen --output ${CMAKE_CURRENT_BINARY_DIR}/include/cbfs.h
     DEPENDS ${CBFS_COMPAT_SRC}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/compat
-    CODEGEN
-  )
+    ${CBINDGEN_CODEGEN}
+    )
 
 if (WIN32)
     target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-x64.lib")
