@@ -83,41 +83,49 @@ struct cbfs_error {
 struct CbFuseState {
     CbFs* fs{};
     uint16_t block_size{};
-    std::shared_mutex lock{};
-    const char* base_file{};
+    mutable std::shared_mutex lock{};
+    std::string base_file{};
     bool read_only{ false };
     std::unordered_map<uint16_t, fuse_mode_t> current_modes{};
 
     bool save_fs() {
-        if (base_file != nullptr && !read_only) {
-            return cbfs_save(fs, base_file) == CbFsResult::Success;
+        std::shared_lock lk(lock);
+
+        if (!read_only) {
+            return cbfs_save(fs, base_file.c_str()) == CbFsResult::Success;
         } else {
             return true;
         }
     }
 
     CbFsEntry get_entry(const char* path) const {
+        std::shared_lock lk(lock);
         CbFsEntry entry{};
         cbfs_error::check_return(cbfs_get_entry_by_path(fs, path, &entry));
         return entry;
     }
 
     CbFsEntry get_entry(uint16_t id) const {
+        std::shared_lock lk(lock);
         CbFsEntry entry{};
         cbfs_error::check_return(cbfs_get_entry(fs, id, &entry));
         return entry;
     }
 
     static CbFuseState* get_instance() { return static_cast<CbFuseState*>(fuse_get_context()->private_data); }
+
+    ~CbFuseState() {
+        if (fs != nullptr) {
+            save_fs();
+            cbfs_destroy(fs);
+            fs = nullptr;
+        }
+    }
 };
 
 static void cbfs_fuse_destroy(void* private_data) {
     auto state = static_cast<CbFuseState*>(private_data);
-
     if (state != nullptr) {
-        state->save_fs();
-        cbfs_destroy(state->fs);
-
         delete state;
     }
 }
@@ -671,20 +679,23 @@ int main(int argc, char* argv[]) {
     }
 
     std::unique_ptr<CbFuseState> state = std::make_unique<CbFuseState>();
-    state->base_file = options.base_file;
 
 #ifndef WIN32
     {
-        std::array<char, PATH_MAX> qualified_name{};
-        char* resolved = realpath(state->base_file, qualified_name.data());
-        if (resolved != nullptr) {
-            state->base_file = resolved;
+        char* resolved_input = realpath(options.base_file, nullptr);
+        if (resolved_input != nullptr) {
+            state->base_file = resolved_input;
+            free(resolved_input);
+        } else {
+            state->base_file = options.base_file;
         }
     }
+#else
+    state->base_file = options.base_file;
 #endif
 
     state->read_only = options.file_read_only != 0;
-    state->fs = cbfs_open(state->base_file, options.randomize);
+    state->fs = cbfs_open(state->base_file.c_str(), options.randomize);
     if (state->fs == nullptr) {
         std::cerr << "Unable to open a valid filesystem\n";
         return 2;
