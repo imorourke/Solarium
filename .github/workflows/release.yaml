@@ -18,21 +18,31 @@ jobs:
           - os: fedora
             version: 43
             pkgmgr: dnf
+            toolchain: x86_64-unknown-linux-gnu
           - os: fedora
             version: 44
             pkgmgr: dnf
+            toolchain: x86_64-unknown-linux-gnu
           - os: debian
             version: 13
             pkgmgr: apt
+            toolchain: x86_64-unknown-linux-gnu
           - os: ubuntu
             version: 22.04
             pkgmgr: apt
+            toolchain: x86_64-unknown-linux-gnu
           - os: ubuntu
             version: 24.04
             pkgmgr: apt
+            toolchain: x86_64-unknown-linux-gnu
           - os: ubuntu
             version: 26.04
             pkgmgr: apt
+            toolchain: x86_64-unknown-linux-gnu
+          - os: alpine
+            version: 3.23
+            pkgmgr: apk
+            toolchain: x86_64-unknown-linux-musl
 
     container:
       image: ${{ matrix.os }}:${{ matrix.version }}
@@ -53,20 +63,26 @@ jobs:
           dnf update -y
           dnf install -y g++ gcc clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel wayland-devel fuse3-devel cmake ninja-build curl
 
+      - name: Install dependencies (apk)
+        if: ${{ matrix.pkgmgr == 'apk' }}
+        run: |
+          apk update
+          apk add g++ gcc cmake ninja fuse3-dev git curl bash
+
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-gnu
+          targets: ${{ matrix.toolchain }}
 
       - name: Test
         run: cargo test --workspace
 
       - name: Build the executable
         run: |
-          cargo build --release --target x86_64-unknown-linux-gnu -p visual-jib
-          cargo build --release --target x86_64-unknown-linux-gnu -p cbfs-util
-          cargo build --release --target x86_64-unknown-linux-gnu -p cbc
-          cargo build --release --target x86_64-unknown-linux-gnu -p jib-term
+          cargo build --release --target ${{ matrix.toolchain }} -p visual-jib
+          cargo build --release --target ${{ matrix.toolchain }} -p cbfs-util
+          cargo build --release --target ${{ matrix.toolchain }} -p cbc
+          cargo build --release --target ${{ matrix.toolchain }} -p jib-term
 
       - name: Build FUSE Driver
         run: |
@@ -77,10 +93,10 @@ jobs:
       - name: Copy executables
         run: |
           mkdir dist
-          cp target/x86_64-unknown-linux-gnu/release/visual-jib dist/visual-jib
-          cp target/x86_64-unknown-linux-gnu/release/cbfs-util dist/cbfs-util
-          cp target/x86_64-unknown-linux-gnu/release/cbc dist/cbc
-          cp target/x86_64-unknown-linux-gnu/release/jib-term dist/jib-term
+          cp target/${{ matrix.toolchain }}/release/visual-jib dist/visual-jib
+          cp target/${{ matrix.toolchain }}/release/cbfs-util dist/cbfs-util
+          cp target/${{ matrix.toolchain }}/release/cbc dist/cbc
+          cp target/${{ matrix.toolchain }}/release/jib-term dist/jib-term
           cp visual-jib/desktop/visual-jib.desktop dist/visual-jib.desktop
           cp doc/images/logo.svg dist/visual-jib.svg
           cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
