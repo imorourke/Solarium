@@ -11,14 +11,20 @@ add_executable(
     ${CMAKE_CURRENT_BINARY_DIR}/include/cbfs.h
     )
 
+set(CBFSLIB_BIN_DIR ${PROJECT_SOURCE_DIR}/target)
+
+if(DEFINED CARGO_TARGET)
+    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/${CARGO_TARGET}")
+    set(CBFS_CARGO_ARGS "--target" ${CARGO_TARGET})
+endif()
+
 set_target_properties(cbfs PROPERTIES CXX_STANDARD 20)
-if ((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (NOT CMAKE_BUILD_TYPE))
-    set(CBFSLIB_BIN_DIR "${PROJECT_SOURCE_DIR}/target/debug")
-    set(CBFS_CARGO_ARGS "")
+if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (NOT CMAKE_BUILD_TYPE))
+    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/debug")
 else()
-    set(CBFSLIB_BIN_DIR "${PROJECT_SOURCE_DIR}/target/release")
+    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/release")
     set(CBFS_RELEASE ON)
-    set(CBFS_CARGO_ARGS "--release")
+    set(CBFS_CARGO_ARGS ${CBFS_CARGO_ARGS} "--release")
 endif()
 
 file(GLOB_RECURSE CBFS_COMPAT_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/compat/**/*.rs" "${CMAKE_CURRENT_SOURCE_DIR}/compat/*.toml")
@@ -32,6 +38,8 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/compat
     ${CBINDGEN_CODEGEN}
     )
+
+
 
 if (WIN32)
     target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-x64.lib")
