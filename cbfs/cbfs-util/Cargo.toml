@@ -1,7 +1,10 @@
 [package]
 name = "cbfs-util"
-version = "0.1.0"
 edition = "2024"
+description = "CBFS utility program to create, edit, and inspect CBFS filesystem images"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]
 cbfs-lib = { workspace = true }

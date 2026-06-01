@@ -1,7 +1,10 @@
 [package]
 name = "cbc"
-version = "0.1.0"
 edition = "2024"
+description = "C/Buoy compiler for the Jib processor"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]
 cblang = { workspace = true }

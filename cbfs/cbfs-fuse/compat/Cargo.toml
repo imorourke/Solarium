@@ -1,7 +1,10 @@
 [package]
 name = "cbfs-compat"
-version = "0.1.0"
 edition = "2024"
+description = "Compatibility library to export CBFS functions via a C API"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
  [lib]
  crate-type = ["cdylib", "staticlib"]

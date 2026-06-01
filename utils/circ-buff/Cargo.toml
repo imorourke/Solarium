@@ -2,5 +2,8 @@
 name = "circ-buff"
 version = "0.1.0"
 edition = "2024"
+description = "Simple implementation of a circular buffer"
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]

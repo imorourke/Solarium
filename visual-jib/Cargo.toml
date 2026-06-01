@@ -1,7 +1,10 @@
 [package]
 name = "visual-jib"
-version = "0.1.0"
 edition = "2024"
+description = "Visual emulator of the standard Jib computer with code editing and debugging capabilities"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [features]
 nothread = []

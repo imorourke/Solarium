@@ -1,8 +1,10 @@
 [package]
 name = "jib-cpu"
-version = "0.1.0"
 edition = "2024"
-authors = ["Ian O'Rourke <cessna.ian@gmail.com>"]
+description = "Jib processor implementation and associated common computer devices"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]
 chrono = { workspace = true, optional = true }

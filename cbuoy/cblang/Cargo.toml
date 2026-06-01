@@ -1,7 +1,10 @@
 [package]
 name = "cblang"
-version = "0.1.0"
 edition = "2024"
+description = "Implementation of the C/Buoy language and Jib code export"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]
 regex = "1"

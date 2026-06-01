@@ -1,7 +1,10 @@
 [package]
 name = "jib-computer"
-version = "0.1.0"
 edition = "2024"
+description = "Implementation of a standard Jib computer"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
 
 [dependencies]
 jib-cpu = { workspace = true }
