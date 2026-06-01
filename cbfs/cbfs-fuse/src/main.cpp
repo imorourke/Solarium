@@ -13,7 +13,6 @@
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <shared_mutex>
 #include <span>
 #include <sys/stat.h>
 #include <unordered_map>
@@ -83,13 +82,13 @@ struct cbfs_error {
 struct CbFuseState {
     CbFs* fs{};
     uint16_t block_size{};
-    mutable std::shared_mutex lock{};
+    mutable std::recursive_mutex lock{};
     std::string base_file{};
     bool read_only{ false };
     std::unordered_map<uint16_t, fuse_mode_t> current_modes{};
 
     bool save_fs() {
-        std::shared_lock lk(lock);
+        std::lock_guard lk(lock);
 
         if (!read_only) {
             return cbfs_save(fs, base_file.c_str()) == CbFsResult::Success;
@@ -99,14 +98,14 @@ struct CbFuseState {
     }
 
     CbFsEntry get_entry(const char* path) const {
-        std::shared_lock lk(lock);
+        std::lock_guard lk(lock);
         CbFsEntry entry{};
         cbfs_error::check_return(cbfs_get_entry_by_path(fs, path, &entry));
         return entry;
     }
 
     CbFsEntry get_entry(uint16_t id) const {
-        std::shared_lock lk(lock);
+        std::lock_guard lk(lock);
         CbFsEntry entry{};
         cbfs_error::check_return(cbfs_get_entry(fs, id, &entry));
         return entry;
@@ -197,7 +196,7 @@ static struct fuse_stat util_getstat(const CbFuseState& state, uint16_t entry_va
 
 static int cbfs_fuse_getattr(const char* path, struct fuse_stat* stbuf, struct fuse_file_info*) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         *stbuf = util_getstat(*state, path);
@@ -210,7 +209,7 @@ static int cbfs_fuse_getattr(const char* path, struct fuse_stat* stbuf, struct f
 static int
 cbfs_fuse_readdir(const char*, void* buf, fuse_filler_t filler, fuse_off_t offset, struct fuse_file_info* fi, fuse_readdir_flags) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     CbFsDirectoryList* entries{};
 
@@ -266,7 +265,7 @@ cbfs_fuse_readdir(const char*, void* buf, fuse_filler_t filler, fuse_off_t offse
 
 static int cbfs_fuse_statfs(const char*, struct fuse_statfs_t* statfs) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         CbFsStats fs_stats{};
@@ -301,7 +300,7 @@ static int cbfs_fuse_statfs(const char*, struct fuse_statfs_t* statfs) {
 
 static int cbfs_fuse_open(const char* path, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         fi->fh = state->get_entry(path).entry_id;
@@ -314,7 +313,7 @@ static int cbfs_fuse_open(const char* path, struct fuse_file_info* fi) {
 
 static int cbfs_fuse_opendir(const char* path, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         CbFsEntry entry = state->get_entry(path);
@@ -332,7 +331,7 @@ static int cbfs_fuse_opendir(const char* path, struct fuse_file_info* fi) {
 
 static int cbfs_fuse_read(const char*, char* buf, size_t size, fuse_off_t offset, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::shared_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         if (static_cast<int32_t>(size) > std::numeric_limits<int32_t>::max()) {
@@ -353,7 +352,7 @@ static int cbfs_fuse_read(const char*, char* buf, size_t size, fuse_off_t offset
 
 static int cbfs_fuse_mkdir(const char* path, fuse_mode_t) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         cbfs_error::check_return(cbfs_create_entry(state->fs, path, CbFsEntryType::Directory, nullptr, false));
@@ -365,7 +364,7 @@ static int cbfs_fuse_mkdir(const char* path, fuse_mode_t) {
 
 static int cbfs_fuse_rename(const char* path, const char* new_path, [[maybe_unused]] unsigned int flags) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
 #ifdef RENAME_EXCHANGE
     if ((flags & RENAME_EXCHANGE) == RENAME_EXCHANGE) {
@@ -388,7 +387,7 @@ static int cbfs_fuse_rename(const char* path, const char* new_path, [[maybe_unus
 
 static int cbfs_fuse_unlink(const char* path) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         cbfs_error::check_return(cbfs_remove_entry(state->fs, path, CbFsEntryType::File));
@@ -400,7 +399,7 @@ static int cbfs_fuse_unlink(const char* path) {
 
 static int cbfs_fuse_rmdir(const char* path) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         cbfs_error::check_return(cbfs_remove_entry(state->fs, path, CbFsEntryType::Directory));
@@ -412,7 +411,7 @@ static int cbfs_fuse_rmdir(const char* path) {
 
 static int cbfs_fuse_fsync(const char*, int, struct fuse_file_info*) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     if (!state->save_fs()) {
         return -ENOSYS;
@@ -423,7 +422,7 @@ static int cbfs_fuse_fsync(const char*, int, struct fuse_file_info*) {
 
 static int cbfs_fuse_create(const char* path, fuse_mode_t mode, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     const bool can_truncate = (mode & (O_CREAT | O_TRUNC)) == (O_CREAT | O_TRUNC);
 
@@ -444,7 +443,7 @@ static int cbfs_fuse_mknod(const char* path, fuse_mode_t mode, dev_t) {
 
 static int cbfs_fuse_write(const char* path, const char* data, size_t size, fuse_off_t offset, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         uint16_t entry_val;
@@ -475,7 +474,7 @@ static int cbfs_fuse_write(const char* path, const char* data, size_t size, fuse
 
 static int cbfs_fuse_truncate(const char*, fuse_off_t size, fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         cbfs_error::check_return(cbfs_truncate(state->fs, static_cast<uint16_t>(fi->fh), static_cast<uint32_t>(size)));
@@ -487,7 +486,7 @@ static int cbfs_fuse_truncate(const char*, fuse_off_t size, fuse_file_info* fi) 
 
 static int cbfs_fuse_chmod(const char* path, fuse_mode_t, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         if (fi != nullptr) {
@@ -503,7 +502,7 @@ static int cbfs_fuse_chmod(const char* path, fuse_mode_t, struct fuse_file_info*
 
 static int cbfs_fuse_utimens(const char* path, const fuse_timespec* tv, fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
-    std::unique_lock lk(state->lock);
+    std::lock_guard lk(state->lock);
 
     try {
         uint16_t hdl{};
