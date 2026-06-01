@@ -3,8 +3,8 @@ name: Compiled
 on:
   push:
     tags:
-      - "v*"
-      - "t*"
+      - "release/*"
+      - "test/compiled"
 
 permissions:
   contents: write

@@ -3,7 +3,8 @@ name: Website
 on:
   push:
     tags:
-      - "v*"
+      - "release/*"
+      - "test/website"
 
 permissions:
   contents: read
