@@ -3,7 +3,7 @@ name: Compiled
 on:
   push:
     tags:
-      - "release/*"
+      - "v*"
       - "test/compiled"
 
 permissions:
