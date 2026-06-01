@@ -642,11 +642,13 @@ static void cbfs_print_usage(const char* prog) {
     fprintf(
         stdout,
         "usage: %s [options] <device|image> <mountpoint>\n"
+        "version: %s\n"
         "\n"
         "cbfs options:\n"
         "    -o mem                 operates only in memory\n"
         "    -o rand                randomizes used sectors\n",
-        prog
+        prog,
+        cbfs_get_version()
     );
 
     auto argvals = std::to_array<const char*>({

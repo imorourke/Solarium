@@ -1,7 +1,8 @@
 use std::{
-    ffi::{CStr, c_char},
+    ffi::{CStr, CString, c_char},
     fmt::Debug,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use cbfs_lib::{
@@ -57,6 +58,16 @@ pub struct CbFsTime {
     pub minute: u8,
     pub second: u8,
     pub hundredths: u8,
+}
+
+/// Provides the current package version
+/// # Safety
+/// This function should be checked for a null reference
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cbfs_get_version() -> *const c_char {
+    static VERSION: LazyLock<CString> =
+        LazyLock::new(|| CString::new(env!("CARGO_PKG_VERSION")).unwrap());
+    VERSION.as_c_str().as_ptr()
 }
 
 /// Converts the given time structure to a millisecond count
