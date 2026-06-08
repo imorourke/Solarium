@@ -146,16 +146,24 @@ static struct fuse_stat cbfs_util_getstat(const CbFuseState& state, const CbFsEn
 
 #ifdef WIN32
     constexpr fuse_mode_t FILE_MODE = S_IFREG | 0777;
+    constexpr fuse_mode_t FILE_EXEC_MODE = S_IFREG | 0777;
     constexpr fuse_mode_t FOLDER_MODE = S_IFDIR | 0777;
 #else
     constexpr fuse_mode_t FILE_MODE = S_IFREG | 0644;
+    constexpr fuse_mode_t FILE_EXEC_MODE = S_IFREG | 0755;
     constexpr fuse_mode_t FOLDER_MODE = S_IFDIR | 0755;
 #endif
 
     if (entry.entry_type == CbFsEntryType::Directory) {
         mode_val = FOLDER_MODE;
-    } else {
-        mode_val = FILE_MODE;
+    } else if (entry.entry_type == CbFsEntryType::File) {
+        bool is_executable{};
+        cbfs_error::check_return(cbfs_is_executable(state.fs, entry.entry_id, &is_executable));
+        if (is_executable) {
+            mode_val = FILE_EXEC_MODE;
+        } else {
+            mode_val = FILE_MODE;
+        }
     }
 
     constexpr uint32_t DEFAULT_BLOCK_SIZE = 512;
@@ -484,16 +492,22 @@ static int cbfs_fuse_truncate(const char*, fuse_off_t size, fuse_file_info* fi) 
     }
 }
 
-static int cbfs_fuse_chmod(const char* path, fuse_mode_t, struct fuse_file_info* fi) {
+static int cbfs_fuse_chmod(const char* path, fuse_mode_t file_mode, struct fuse_file_info* fi) {
     const auto state = CbFuseState::get_instance();
     std::lock_guard lk(state->lock);
 
     try {
+        CbFsEntry entry{};
         if (fi != nullptr) {
-            state->get_entry(static_cast<uint16_t>(fi->fh));
+            entry = state->get_entry(static_cast<uint16_t>(fi->fh));
         } else {
-            state->get_entry(path);
+            entry = state->get_entry(path);
         }
+
+        if (entry.entry_type == CbFsEntryType::File) {
+            cbfs_error::check_return(cbfs_set_executable(state->fs, entry.entry_id, (file_mode & 0100) != 0));
+        }
+
         return 0;
     } catch (const cbfs_error& err) {
         return err.get_return_code();

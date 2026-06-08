@@ -292,6 +292,54 @@ pub unsafe extern "C" fn cbfs_get_stats(fs: *const CbFs, stats: *mut CbFsStats) 
     }
 }
 
+/// Determines if the provided file entry is currently executable
+/// # Safety
+/// This function should be called with a non-null pointer to a CbFs structure and output boolean
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cbfs_is_executable(
+    fs: *const CbFs,
+    entry: u16,
+    output: *mut bool,
+) -> CbFsResult {
+    if let Some(fs) = unsafe { fs.as_ref() }
+        && let Some(output) = unsafe { output.as_mut() }
+    {
+        if let Ok(dir_entry) = fs.fs.directory_entry(entry) {
+            *output = dir_entry.attributes.is_executable();
+            CbFsResult::Success
+        } else {
+            CbFsResult::EntryNotFound
+        }
+    } else {
+        CbFsResult::NullProvided
+    }
+}
+
+/// Determines if the provided file entry is currently executable
+/// # Safety
+/// This function should be called with a non-null pointer to a CbFs structure,
+/// CbFsEntry structure, and output boolean
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cbfs_set_executable(
+    fs: *mut CbFs,
+    entry: u16,
+    setting: bool,
+) -> CbFsResult {
+    if let Some(fs) = unsafe { fs.as_mut() } {
+        if let Ok(mut dir_entry) = fs.fs.directory_entry(entry) {
+            dir_entry.attributes.set_executable(setting);
+            match fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
+                Ok(_) => CbFsResult::Success,
+                Err(e) => e.into(),
+            }
+        } else {
+            CbFsResult::EntryNotFound
+        }
+    } else {
+        CbFsResult::NullProvided
+    }
+}
+
 /// Provides the parent of a node, if one exists
 /// # Safety
 /// This function should be called with a non-null pointer to a CbFs structure and node pointer

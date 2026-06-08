@@ -105,6 +105,7 @@ impl JibComputer {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
         fs.create_entry(fs.root_sector(), "boot.bin", EntryType::File, &kernel_data)?;
         let home_dir = fs.create_entry(fs.root_sector(), "home", EntryType::Directory, &[])?;
+        let bin_dir = fs.create_entry(fs.root_sector(), "bin", EntryType::Directory, &[])?;
 
         let build_date: &'static str = env!("BUILD_DATE");
         fs.create_entry(
@@ -115,14 +116,20 @@ impl JibComputer {
         )?;
 
         for (exec_name, _, code) in CODE_APPS {
-            fs.create_entry(
-                home_dir,
+            // Create the file entry
+            let entry = fs.create_entry(
+                bin_dir,
                 exec_name,
                 EntryType::File,
                 &Self::compile_app_code(code, &interface_str)?
                     .get_assembler()?
                     .bytes,
             )?;
+
+            // Set the file as exectuable
+            let mut dir_vals = fs.directory_entry(entry)?;
+            dir_vals.attributes.set_executable(true);
+            fs.set_entry_attributes(entry, dir_vals.attributes)?;
         }
         fs.create_entry(
             home_dir,

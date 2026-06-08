@@ -12,7 +12,7 @@ use std::fmt::{Debug, Display};
 
 pub use crate::{
     datetime::{Date, DateTime, Time},
-    entries::{DirectoryEntry, EntryHeader, EntryType},
+    entries::{DirectoryAttributes, DirectoryEntry, EntryHeader, EntryType, PackedEntryType},
     names::{StringArrayError, string_to_array},
 };
 

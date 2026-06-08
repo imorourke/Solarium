@@ -15,7 +15,7 @@ use zerocopy::{
     big_endian::{U16, U32},
 };
 
-use crate::{FileSystemError, volume::VolumeHeader};
+use crate::{FileSystemError, entries::DirectoryAttributes, volume::VolumeHeader};
 use crate::{
     datetime::DateTime,
     entries::{DirectoryEntry, EntryHeader, EntryType},
@@ -85,7 +85,7 @@ impl FileSystem {
 
         let root_entry = EntryHeader {
             parent: U16::new(0),
-            entry_type: EntryType::Directory as u8,
+            entry_type: EntryType::Directory.into(),
             reserved: 0,
             payload_size: U32::new(0),
             modification_time,
@@ -108,8 +108,8 @@ impl FileSystem {
         fs.set_entry_data(fs.header.root_sector.get(), root_entry, &[])?;
 
         assert_eq!(
-            fs.entry_header(fs.header.root_sector.get())?.entry_type,
-            EntryType::Directory as u8
+            EntryType::from(fs.entry_header(fs.header.root_sector.get())?.entry_type),
+            EntryType::Directory
         );
         assert_eq!(
             fs.entry_header(fs.header.root_sector.get())?
@@ -432,6 +432,47 @@ impl FileSystem {
         }
     }
 
+    /// Writes the given directory entry for the given target entry
+    fn set_directory_entry(
+        &mut self,
+        target: u16,
+        dir_entry: DirectoryEntry,
+    ) -> Result<(), FileSystemError> {
+        let ent_hdr = self.entry_header(target)?;
+        if target == self.header.root_sector.get() {
+            Err(FileSystemError::EntryInvalid(target))
+        } else {
+            let parent_entry = ent_hdr.get_parent();
+
+            if !self.entry_is_dir(parent_entry)? {
+                return Err(FileSystemError::EntryNotDirectory(parent_entry));
+            }
+
+            let n = self.get_entry_valid(target)?;
+
+            let (parent_hdr, mut data) = self.entry_data(parent_entry)?;
+            let mut found = false;
+
+            for e in data
+                .chunks_mut(std::mem::size_of::<DirectoryEntry>())
+                .map(|x| DirectoryEntry::mut_from_bytes(x).unwrap())
+            {
+                if e.base_block.get() == n {
+                    *e = dir_entry;
+                    found = true;
+                    break;
+                }
+            }
+
+            if found {
+                self.set_entry_data(parent_entry, parent_hdr, &data)?;
+                Ok(())
+            } else {
+                Err(FileSystemError::EntryInvalid(target))
+            }
+        }
+    }
+
     /// Provides all the raw data (header and payload together) for the requested entry
     fn entry_data_raw(&self, mut entry: u16) -> Result<Vec<u8>, FileSystemError> {
         let mut raw_data = Vec::new();
@@ -682,14 +723,14 @@ impl FileSystem {
 
         let dir_ent = DirectoryEntry {
             base_block: U16::new(new_entry),
-            attributes: 0,
-            entry_type: entry_type as u8,
+            attributes: 0.into(),
+            entry_type: entry_type.into(),
             name: string_to_array(name)?,
         };
 
         let new_hdr = EntryHeader {
             parent: U16::new(parent),
-            entry_type: entry_type as u8,
+            entry_type: entry_type.into(),
             reserved: 0,
             modification_time,
             payload_size: U32::new(data.len() as u32),
@@ -863,6 +904,21 @@ impl FileSystem {
         self.add_entry_to_directory(new_parent, dir_hdr)?;
         self.set_entry_header(entry, ent_hdr)?;
         self.trim_directory(pnode)?;
+
+        Ok(())
+    }
+
+    /// Updates the directory entry to contain the new parameters
+    pub fn set_entry_attributes(
+        &mut self,
+        entry: u16,
+        attributes: DirectoryAttributes,
+    ) -> Result<(), FileSystemError> {
+        assert!(self.entry_is_primary(entry)?);
+
+        let mut dir_hdr = self.directory_entry(entry)?;
+        dir_hdr.attributes = attributes;
+        self.set_directory_entry(entry, dir_hdr)?;
 
         Ok(())
     }
