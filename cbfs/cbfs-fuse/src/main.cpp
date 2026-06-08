@@ -24,8 +24,6 @@
 #define fuse_filler_t fuse_fill_dir_t
 #define fuse_statfs_t fuse_statvfs
 #else
-#include <limits.h>
-
 #ifdef __APPLE__
 #define fuse_stat fuse_darwin_attr
 #define fuse_off_t off_t
