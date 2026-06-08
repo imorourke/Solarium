@@ -288,7 +288,7 @@ pub unsafe extern "C" fn cbfs_get_stats(fs: *const CbFs, stats: *mut CbFsStats) 
         stats.block_size = fs.fs.sector_size();
         stats.entry_blocks = fs.fs.base_entries.len() as u16;
         stats.free_blocks = fs.fs.num_free_sectors() as u16;
-        stats.name = fs.fs.vol_name_array().map(|x| x as i8);
+        stats.name = fs.fs.vol_name_array().map(|x| x as c_char);
         stats.root_node = fs.fs.root_sector();
 
         CbFsResult::Success
@@ -380,7 +380,7 @@ fn cbfs_entry_from_dir_val(
     Ok(CbFsEntry {
         entry_id: dir_hdr.base_block.get(),
         entry_type: dir_hdr.get_entry_type().into(),
-        name: dir_hdr.get_name_raw().map(|x| x as i8),
+        name: dir_hdr.get_name_raw().map(|x| x as c_char),
         size_bytes: hdr.get_payload_size() as u32,
         last_time: hdr.get_modification_time().into(),
         size_blocks: fs.num_sectors_for_entry(dir_hdr.base_block.get()) as u32,
@@ -488,7 +488,7 @@ pub unsafe extern "C" fn cbfs_read_dir(
                 size_blocks: 0,
                 entry_type: x.get_entry_type().into(),
                 size_bytes: 0,
-                name: x.name.map(|c| c as i8),
+                name: x.name.map(|c| c as c_char),
                 last_time: tv,
             })
         }
