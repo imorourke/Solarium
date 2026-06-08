@@ -235,6 +235,15 @@ impl FileSystem {
         Ok(data)
     }
 
+    pub fn root_directory_entry(&self) -> DirectoryEntry {
+        DirectoryEntry {
+            base_block: self.root_sector().into(),
+            attributes: DirectoryAttributes::default(),
+            entry_type: EntryType::Directory.into(),
+            name: [0; _],
+        }
+    }
+
     /// Provides the root sector for the drive
     pub fn root_sector(&self) -> u16 {
         self.header.root_sector.get()
@@ -398,12 +407,7 @@ impl FileSystem {
     pub fn directory_entry(&self, target: u16) -> Result<DirectoryEntry, FileSystemError> {
         let ent_hdr = self.entry_header(target)?;
         if target == self.header.root_sector.get() {
-            Ok(DirectoryEntry {
-                attributes: 0,
-                base_block: target.into(),
-                entry_type: EntryType::Directory as u8,
-                name: [0; _],
-            })
+            Ok(self.root_directory_entry())
         } else {
             let entry = ent_hdr.get_parent();
 

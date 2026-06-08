@@ -221,12 +221,7 @@ fn entry_for_path<T: AsRef<Path>>(
     path: Option<T>,
 ) -> Result<DirectoryEntry, FileSystemError> {
     if let Some(path) = path {
-        let mut current_entry = DirectoryEntry {
-            base_block: fs.fs.root_sector().into(),
-            attributes: 0,
-            entry_type: EntryType::Directory.into(),
-            name: [0; _],
-        };
+        let mut current_entry = fs.fs.root_directory_entry();
 
         if path.as_ref().has_root() {
             'parts: for p in path.as_ref().iter().skip(1) {
@@ -435,12 +430,7 @@ pub unsafe extern "C" fn cbfs_get_entry(
         };
 
         let dir_entry = if entry_hdr.parent.get() == 0 {
-            DirectoryEntry {
-                base_block: fs.fs.root_sector().into(),
-                attributes: 0,
-                entry_type: EntryType::Directory.into(),
-                name: [0; _],
-            }
+            fs.fs.root_directory_entry()
         } else {
             match fs.fs.directory_entry(id) {
                 Ok(v) => v,
