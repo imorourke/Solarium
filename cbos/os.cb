@@ -11,6 +11,8 @@
 #include <std/list.cb>
 #include <std/string.cb>
 
+global _OS_SHELL_STATE_GLOBAL: k_shell_state_global_t;
+
 fn os_main() void {
     k_io_print("Starting C/Buoy OS\n");
 
@@ -18,8 +20,12 @@ fn os_main() void {
     def arg_buffer: [K_SHELL_DEFAULT_ARG_SPLIT_SIZE]*u8;
 
     def run_shell: u8 = 1;
+    k_memset(&_OS_SHELL_STATE_GLOBAL, 0, sizeof(k_shell_state_global_t));
+
     def sh_state: k_shell_state_t;
     k_memset(&sh_state, 0, sizeof(k_shell_state_t));
+
+    sh_state.global_state = &_OS_SHELL_STATE_GLOBAL;
     sh_state.auto_halt = 1;
 
     while (run_shell) {
