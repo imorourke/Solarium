@@ -71,12 +71,12 @@ impl JibComputer {
         static CODE_OS: &str = include_str!("../../../cbos/os.cb");
         static CODE_APPS: &[(&str, &str, &str)] = &[
             (
-                "hello.exe",
+                "hello",
                 "app_hello.cb",
                 include_str!("../../../cbos/app_hello.cb"),
             ),
             (
-                "hello_mem.exe",
+                "hello_mem",
                 "app_hello_mem.cb",
                 include_str!("../../../cbos/app_hello_mem.cb"),
             ),
