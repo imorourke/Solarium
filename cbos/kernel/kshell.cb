@@ -33,33 +33,18 @@ fn _k_shell_get_disk(state: *k_shell_state_t) *k_fs_disk_t {
 
 fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32;
 
-fn k_shell_disk_open(state: *k_shell_state_t) i32 {
-    def disk: *k_fs_disk_t = _k_shell_get_disk(state);
+fn k_shell_disk_open(state: *k_shell_state_global_t, disk_num: i32) i32 {
+    if (state == 0) {
+        k_io_print("disk open state nullptr\n");
+        return 1;
+    }
+
+    def disk: *k_fs_disk_t = state->disks[disk_num];
     if (disk == 0) {
         k_io_print("Starting Mount...\n");
         disk = k_fs_disk_open(0);
+        state->disks[disk_num] = disk;
         if (disk != 0) {
-            k_io_print("Disk ");
-            k_io_print("Disk Mounted\n");
-            k_io_print("  ");
-            k_io_print_uint(disk->vol_hdr.sector_size : u32);
-            k_io_print(" # ");
-            k_io_print_uint(disk->vol_hdr.sector_count : u32);
-            k_io_print("\n");
-            state->cwd = disk->vol_hdr.root_sector;
-
-            def entry: k_fs_directory_entry_t;
-            if ((0 == k_fs_get_dir_entry_by_name(disk, disk->vol_hdr.root_sector, "bin", &entry)) && entry.entry_type == K_FS_ENTRY_TYPE_DIR) {
-                state->path_fd = entry.base_block;
-            }
-
-            if ((state == 0) || (state->global_state == 0)) {
-                k_io_print("Error with nullptr in state\n");
-                return 1;
-            }
-
-            state->global_state->disks[state->disk_index] = disk;
-
             return 0;
         } else {
             k_io_print("Error mounting disk\n");
@@ -71,16 +56,15 @@ fn k_shell_disk_open(state: *k_shell_state_t) i32 {
     }
 }
 
-fn k_shell_disk_close(state: *k_shell_state_t) i32 {
-    def disk: *k_fs_disk_t = _k_shell_get_disk(state);
+fn k_shell_disk_close(state: *k_shell_state_global_t, disk_num: i32) i32 {
+    if (state == 0) {
+        return 1;
+    }
+
+    def disk: *k_fs_disk_t = state->disks[disk_num];
     if (disk != 0) {
         k_fs_disk_close(disk);
-        state->cwd = 0;
-        state->path_fd = 0;
-
-        if (state->global_state != 0) {
-            state->global_state->disks[state->disk_index] = 0;
-        }
+        state->disks[disk_num] = 0;
     }
     return 0;
 }
@@ -425,25 +409,47 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 }
 
 fn k_shell_fn_reset(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
-    k_shell_disk_close(state);
+    k_shell_disk_close(state->global_state, state->disk_index);
     k_cpu_reset();
     return 0;
 }
 
 fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    state->disk_index = 0;
     def disk: *k_fs_disk_t = _k_shell_get_disk(state);
-    if (disk == 0) {
-        return k_shell_disk_open(state);
+    if ((disk == 0)) {
+        if ((k_shell_disk_open(state->global_state, state->disk_index) != 0)) {
+            k_io_print("unable to open disk\n");
+            return 1;
+        } else {
+            disk = _k_shell_get_disk(state);
+        }
+    }
+
+    if (disk != 0) {
+        state->cwd = disk->vol_hdr.root_sector;
+        def entry: k_fs_directory_entry_t;
+        if ((0 == k_fs_get_dir_entry_by_name(disk, disk->vol_hdr.root_sector, "bin", &entry)) && entry.entry_type == K_FS_ENTRY_TYPE_DIR) {
+            state->path_fd = entry.base_block;
+        } else {
+            state->path_fd = 0;
+        }
+
+        return 0;
     } else {
-        k_io_print("Disk already mounted\n");
+        state->cwd = 0;
+        state->path_fd = 0;
+        k_io_print("unable to mount disk\n");
         return 1;
     }
 }
 
 fn k_shell_fn_umount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    state->cwd = 0;
+    state->path_fd = 0;
     def disk: *k_fs_disk_t = _k_shell_get_disk(state);
     if (disk != 0) {
-        def res: i32 = k_shell_disk_close(state);
+        def res: i32 = k_shell_disk_close(state->global_state, state->disk_index);
         k_io_print("Disk Unmounted\n");
         return res;
     } else {
