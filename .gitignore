@@ -1,12 +1,13 @@
 # IDE Items
-/.vscode/
-/.idea/
-/.fleet/
+/.vscode
+/.idea
+/.fleet
 *.kate-swp
-build/
-.cache/
+build
+.cache
 
 target/
+__cmake_systeminformation
 /history.*
 .[Dd][Ss]_[Ss]tore
 dist
