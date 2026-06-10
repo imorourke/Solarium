@@ -11,42 +11,70 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.host }}
     strategy:
       matrix:
         include:
           - os: fedora
-            version: 43
-            pkgmgr: dnf
-            toolchain: x86_64-unknown-linux-gnu
-          - os: fedora
+            host: ubuntu-latest
             version: 44
             pkgmgr: dnf
             toolchain: x86_64-unknown-linux-gnu
+            arch: x86_64
           - os: debian
+            host: ubuntu-latest
             version: 13
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
+            arch: x86_64
           - os: ubuntu
+            host: ubuntu-latest
             version: 22.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
+            arch: x86_64
           - os: ubuntu
+            host: ubuntu-latest
             version: 24.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
+            arch: x86_64
           - os: ubuntu
+            host: ubuntu-latest
             version: 26.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
+            arch: x86_64
           - os: alpine
-            version: 3.23
-            pkgmgr: apk
-            toolchain: x86_64-unknown-linux-musl
-          - os: alpine
+            host: ubuntu-latest
             version: 3.24
             pkgmgr: apk
             toolchain: x86_64-unknown-linux-musl
+            arch: x86_64
+          - os: fedora
+            host: ubuntu-24.04-arm
+            version: 44
+            pkgmgr: dnf
+            toolchain: aarch64-unknown-linux-gnu
+            arch: aarch64
+          - os: debian
+            host: ubuntu-24.04-arm
+            version: 13
+            pkgmgr: apt
+            toolchain: aarch64-unknown-linux-gnu
+            arch: aarch64
+          - os: ubuntu
+            host: ubuntu-24.04-arm
+            version: 24.04
+            pkgmgr: apt
+            toolchain: aarch64-unknown-linux-gnu
+            arch: aarch64
+          - os: ubuntu
+            host: ubuntu-24.04-arm
+            version: 26.04
+            pkgmgr: apt
+            toolchain: aarch64-unknown-linux-gnu
+            arch: aarch64
 
     container:
       image: ${{ matrix.os }}:${{ matrix.version }}
@@ -106,13 +134,13 @@ jobs:
           cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
 
       - name: Package binary
-        run: tar -czvf solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz -C dist visual-jib cbfs cbfs-util cbc jib-term visual-jib.desktop visual-jib.svg
+        run: tar -czvf solarium-${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}.tar.gz -C dist visual-jib cbfs cbfs-util cbc jib-term visual-jib.desktop visual-jib.svg
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
         with:
-          name: solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz
-          path: solarium-${{ matrix.os }}-${{ matrix.version }}-x86_64.tar.gz
+          name: solarium-${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}.tar.gz
+          path: solarium-${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}.tar.gz
 
   freebsd:
     runs-on: ubuntu-latest
@@ -200,12 +228,23 @@ jobs:
           path: solarium-macos.tar.gz
 
   windows:
-    runs-on: windows-2025-vs2026
+    runs-on: ${{ matrix.host }}
+    strategy:
+      matrix:
+        include:
+          - host: windows-2025-vs2026
+            arch: x86_64
+            msarch: amd64
+            msvc: C:\Program Files\Microsoft Visual Studio\18\Enterprise
+          - host: windows-11-arm
+            arch: aarch64
+            msarch: arm64
+            msvc: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
     steps:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.arch }}-pc-windows-msvc
 
       - name: Checkout the repository
         uses: actions/checkout@v5
@@ -215,10 +254,10 @@ jobs:
 
       - name: Build the executable
         run: |
-          cargo build --release --target x86_64-pc-windows-msvc -p visual-jib
-          cargo build --release --target x86_64-pc-windows-msvc -p cbfs-util
-          cargo build --release --target x86_64-pc-windows-msvc -p cbc
-          cargo build --release --target x86_64-pc-windows-msvc -p jib-term
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p visual-jib
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs-util
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbc
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p jib-term
 
       - name: Install WinFSP
         shell: pwsh
@@ -233,26 +272,27 @@ jobs:
 
       - name: Build FUSE Driver
         run: |
-          Import-Module "C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
-          Enter-VsDevShell -VsInstallPath "C:\Program Files\Microsoft Visual Studio\18\Enterprise" -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
+          Import-Module "${{ matrix.msvc }}\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath "${{ matrix.msvc }}" -SkipAutomaticLocation -DevCmdArguments "-arch=${{ matrix.msarch }}"
           cargo install --locked cbindgen
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=x86_64-pc-windows-msvc -GNinja
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=${{ matrix.arch }}-pc-windows-msvc -DCBFS_WIN_ARCH=${{ matrix.msarch }} -GNinja
           ninja -C build
-          cargo build --release --target x86_64-pc-windows-msvc -p cbfs-compat
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs-compat
 
       - name: Copy binaries
         shell: pwsh
         run: |
           New-Item -Path . -Name dist -ItemType Directory
-          Copy-Item target\x86_64-pc-windows-msvc\release\visual-jib.exe dist
-          Copy-Item target\x86_64-pc-windows-msvc\release\cbfs-util.exe dist
-          Copy-Item target\x86_64-pc-windows-msvc\release\cbc.exe dist
-          Copy-Item target\x86_64-pc-windows-msvc\release\jib-term.exe dist
-          Copy-Item target\x86_64-pc-windows-msvc\release\cbfs_compat.dll dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\visual-jib.exe dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs-util.exe dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbc.exe dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\jib-term.exe dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs_compat.dll dist
           Copy-Item build\cbfs\cbfs-fuse\cbfs.exe dist
 
       - name: Update icon
         shell: pwsh
+        if: ${{ matrix.msarch != 'arm64' }}
         run: |
           magick -density 300 -define icon:auto-resize=256,128,96,64,48,32,16 -background none doc\images\logo.svg doc\images\logo.ico
           Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x64.exe" -OutFile ".\rcedit-x64.exe"
@@ -261,13 +301,13 @@ jobs:
       - name: Package artifacts
         shell: pwsh
         run: |
-          Compress-Archive -Path dist\* -DestinationPath solarium-windows.zip -Force
+          Compress-Archive -Path dist\* -DestinationPath solarium-windows-${{ matrix.arch }}.zip -Force
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
         with:
-          name: solarium-windows.zip
-          path: solarium-windows.zip
+          name: solarium-windows-${{ matrix.arch }}.zip
+          path: solarium-windows-${{ matrix.arch }}.zip
 
   common:
     runs-on: ubuntu-latest

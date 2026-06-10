@@ -1,8 +1,8 @@
 if(CMAKE_VERSION VERSION_LESS "3.31")
-    set(CBINDGEN_CODEGEN "")
+  set(CBINDGEN_CODEGEN "")
 else()
-    cmake_policy(SET CMP0171 NEW)
-    set(CBINDGEN_CODEGEN CODEGEN)
+  cmake_policy(SET CMP0171 NEW)
+  set(CBINDGEN_CODEGEN CODEGEN)
 endif()
 
 add_executable(
@@ -14,17 +14,17 @@ add_executable(
 set(CBFSLIB_BIN_DIR ${PROJECT_SOURCE_DIR}/target)
 
 if(DEFINED CARGO_TARGET)
-    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/${CARGO_TARGET}")
-    set(CBFS_CARGO_ARGS "--target" ${CARGO_TARGET})
+  set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/${CARGO_TARGET}")
+  set(CBFS_CARGO_ARGS "--target" ${CARGO_TARGET})
 endif()
 
 set_target_properties(cbfs PROPERTIES CXX_STANDARD 20)
 if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (NOT CMAKE_BUILD_TYPE))
-    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/debug")
+  set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/debug")
 else()
-    set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/release")
-    set(CBFS_RELEASE ON)
-    set(CBFS_CARGO_ARGS ${CBFS_CARGO_ARGS} "--release")
+  set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/release")
+  set(CBFS_RELEASE ON)
+  set(CBFS_CARGO_ARGS ${CBFS_CARGO_ARGS} "--release")
 endif()
 
 file(GLOB_RECURSE CBFS_COMPAT_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/compat/**/*.rs" "${CMAKE_CURRENT_SOURCE_DIR}/compat/*.toml")
@@ -39,53 +39,55 @@ add_custom_command(
     ${CBINDGEN_CODEGEN}
     )
 
-
-
 if (WIN32)
+  if(CBFS_WIN_ARCH STREQUAL "arm64")
+    target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-a64.lib")
+  else()
     target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-x64.lib")
-    target_include_directories(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\inc")
-    add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
-    add_custom_command(
+  endif()
+  target_include_directories(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\inc")
+  add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
+  add_custom_command(
         OUTPUT "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib"
         COMMAND cargo build ${CBFS_CARGO_ARGS}
         DEPENDS ${CBFS_COMPAT_SRC} ${CBFS_LIB_SRC}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/compat
     )
-    target_link_libraries(cbfs PUBLIC "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
-    add_dependencies(cbfs cbfs_lib)
+  target_link_libraries(cbfs PUBLIC "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
+  add_dependencies(cbfs cbfs_lib)
 else()
-    if(APPLE)
-        set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.dylib")
-    else()
-        set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.a")
-    endif()
+  if(APPLE)
+    set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.dylib")
+  else()
+    set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.a")
+  endif()
 
-    if(BSD)
-        target_include_directories(cbfs PUBLIC /usr/local/include)
-        target_link_directories(cbfs PUBLIC /usr/local/lib)
-        target_link_libraries(cbfs PUBLIC pthread)
-    endif()
+  if(BSD)
+    target_include_directories(cbfs PUBLIC /usr/local/include)
+    target_link_directories(cbfs PUBLIC /usr/local/lib)
+    target_link_libraries(cbfs PUBLIC pthread)
+  endif()
 
-    target_link_libraries(cbfs PUBLIC fuse3)
-    target_link_libraries(cbfs PUBLIC "${CBFSLIB_FILE}")
-    add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_FILE}")
-    add_custom_command(
+  target_link_libraries(cbfs PUBLIC fuse3)
+  target_link_libraries(cbfs PUBLIC "${CBFSLIB_FILE}")
+  add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_FILE}")
+  add_custom_command(
         OUTPUT "${CBFSLIB_FILE}"
         COMMAND cargo build ${CBFS_CARGO_ARGS}
         DEPENDS ${CBFS_COMPAT_SRC} ${CBFS_LIB_SRC}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/compat
     )
 
-    add_dependencies(cbfs cbfs_lib)
+  add_dependencies(cbfs cbfs_lib)
 
-    target_link_libraries(cbfs PUBLIC "${CBFSLIB_FILE}")
+  target_link_libraries(cbfs PUBLIC "${CBFSLIB_FILE}")
 endif()
 
 target_compile_definitions(cbfs PUBLIC _FILE_OFFSET_BITS=64 FUSE_USE_VERSION=35)
 target_include_directories(cbfs PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 if(MSVC)
-    target_compile_options(cbfs PRIVATE /W4 /WX)
+  target_compile_options(cbfs PRIVATE /W4 /WX)
 else()
-    target_compile_options(cbfs PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  target_compile_options(cbfs PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
