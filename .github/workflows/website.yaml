@@ -20,8 +20,10 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Install dependencies
-        run: cargo install --locked trunk
+      - name: trunk-action
+        uses: jetli/trunk-action@v0.5.1
+        with:
+          version: "latest"
 
       - name: Checkout the repository
         uses: actions/checkout@v5
