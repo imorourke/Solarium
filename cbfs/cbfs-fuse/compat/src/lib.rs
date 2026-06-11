@@ -327,14 +327,19 @@ pub unsafe extern "C" fn cbfs_set_executable(
 ) -> CbFsResult {
     if let Some(fs) = unsafe { fs.as_mut() } {
         let entry = SectorHandle(entry);
-        if let Ok(mut dir_entry) = fs.fs.directory_entry(entry) {
-            dir_entry.attributes.set_executable(setting);
-            match fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
-                Ok(_) => CbFsResult::Success,
-                Err(e) => e.into(),
-            }
+
+        let mut dir_entry = match fs.fs.directory_entry(entry) {
+            Ok(v) => v,
+            Err(e) => return e.into(),
+        };
+        dir_entry.attributes.set_executable(setting);
+
+        if let Err(e) = fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
+            e.into()
+        } else if let Err(e) = fs.fs.set_entry_time(entry, chrono::Utc::now().into()) {
+            e.into()
         } else {
-            CbFsResult::EntryNotFound
+            CbFsResult::Success
         }
     } else {
         CbFsResult::NullProvided
@@ -640,7 +645,7 @@ pub unsafe extern "C" fn cbfs_read_entry_data(
     }
 }
 
-/// Writes data to the provided entry in the filesystem
+/// Writes data to the provided entry in the filesystem, updating the modification time
 /// # Safety
 /// This function should be called with a non-null pointer to a CbFs struct and data
 #[unsafe(no_mangle)]
@@ -656,10 +661,11 @@ pub unsafe extern "C" fn cbfs_write_entry_data(
         && !size.is_null()
     {
         let id = SectorHandle(id);
-        let (hdr, mut entry_data) = match fs.fs.entry_data(id) {
+        let (mut hdr, mut entry_data) = match fs.fs.entry_data(id) {
             Ok(x) => x,
             Err(e) => return e.into(),
         };
+        hdr.modification_time = chrono::Utc::now().into();
 
         {
             let slice = entry_data
