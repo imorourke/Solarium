@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "cbc"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cblang",
  "clap",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-compat"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cbfs-lib",
  "chrono",
@@ -746,7 +746,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-lib"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chrono",
  "flate2",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-util"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -764,7 +764,7 @@ dependencies = [
 
 [[package]]
 name = "cblang"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "jib-asm",
  "jib-cpu",
@@ -1982,7 +1982,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jib-asm"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "jib-cpu",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "jib-computer"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cbfs-lib",
  "cblang",
@@ -2003,7 +2003,7 @@ dependencies = [
 
 [[package]]
 name = "jib-cpu"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chrono",
  "circ-buff",
@@ -2011,7 +2011,7 @@ dependencies = [
 
 [[package]]
 name = "jib-term"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -4032,7 +4032,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "visual-jib"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cbfs-lib",
  "cblang",
