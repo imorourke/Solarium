@@ -31,6 +31,20 @@ fn _k_shell_get_disk(state: *k_shell_state_t) *k_fs_disk_t {
     }
 }
 
+fn k_shell_print_date(dt: *k_datetime_t) void {
+    k_io_print_uint_width(dt->year, 4);
+    k_io_print("-");
+    k_io_print_uint_width(dt->month, 2);
+    k_io_print("-");
+    k_io_print_uint_width(dt->day + 1, 2);
+    k_io_print(" ");
+    k_io_print_uint_width(dt->hour, 2);
+    k_io_print(":");
+    k_io_print_uint_width(dt->minute, 2);
+    k_io_print(":");
+    k_io_print_uint_width(dt->second, 2);
+}
+
 fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32;
 
 fn k_shell_disk_open(state: *k_shell_state_global_t, disk_num: i32) i32 {
@@ -86,6 +100,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  reset         -> resets the processor\n");
     k_io_print("  pwd           -> prints the current directory\n");
     k_io_print("  ls            -> lists entries in the current directory\n");
+    k_io_print("  stat [file]   -> lists statistics for the file entry\n");
     k_io_print("  cat [file]    -> pipes the contents of the file into serial output\n");
     k_io_print("  exec [file]   -> executes the application binary provided by the compiled file,\n");
     k_io_print("                   compiled as an position-independent application file\n");
@@ -114,7 +129,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 def ent: *k_fs_directory_entry_t = &test_entries[ii];
                 k_memcpy(&name_tmp, &(ent->name), K_FS_ENTRY_NAME_LEN);
                 if (ent->entry_type == K_FS_ENTRY_TYPE_FILE) {
-                    if ((ent->attributes & 1) != 0) {
+                    if (ent->attributes & K_FS_ATTRIBUTE_EXECUTABLE) {
                         k_io_print("f:* ");
                     } else {
                         k_io_print("f:  ");
@@ -192,6 +207,70 @@ fn k_shell_fn_cd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("unexpected number of entries for ");
         k_io_print(argv[0]);
         k_io_print("\n");
+    }
+}
+
+fn k_shell_fn_stat(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    def disk: *k_fs_disk_t = _k_shell_get_disk(state);
+    if (disk == 0) {
+        return -1;
+    }
+
+    if (argc == 2) {
+        def filename: *u8 = argv[1];
+        def out_entry: k_fs_directory_entry_t;
+        def out_header: k_fs_entry_header_t;
+        if ((k_fs_get_dir_entry_by_name(disk, state->cwd, filename, &out_entry) == 0) && (k_fs_read_entry_header(disk, out_entry.base_block, &out_header) == 0)) {
+            if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
+                k_io_print("  file:        ");
+                k_io_print(filename);
+                k_io_print("\n");
+                k_io_print("  size:        ");
+                k_io_print_uint(out_header.payload_size);
+                k_io_print(" / ");
+                k_io_print_uint(out_header.payload_size / 1024);
+                k_io_print("k\n");
+                k_io_print("  executable:  ");
+                if (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) {
+                    k_io_print("y");
+                } else {
+                    k_io_print("n");
+                }
+                k_io_print("\n");
+            } else if (out_entry.entry_type == K_FS_ENTRY_TYPE_DIR) {
+                k_io_print("  directory:   ");
+                k_io_print(filename);
+                k_io_print("\n");
+                k_io_print("  entry count: ");
+                k_io_print_uint(out_header.payload_size / sizeof(k_fs_directory_entry_t));
+                k_io_print("\n");
+            } else {
+                k_io_print("unknown entry type\n");
+                return -2;
+            }
+
+            k_io_print("  node:        ");
+            k_io_print_uint(out_entry.base_block);
+            k_io_print("\n");
+
+            k_io_print("  date:        ");
+            k_shell_print_date(&out_header.modification_time);
+            k_io_print("\n");
+
+            return 0;
+        } else {
+            k_io_print("unable to find entry with name '");
+            k_io_print(argv[1]);
+            k_io_print("'\n");
+            return -3;
+        }
+    } else {
+        k_io_print("unexpected number of entries for ");
+        k_io_print(argv[0]);
+        k_io_print("\n");
+        k_io_print_uint(argc);
+        k_io_print("\n");
+        return -1;
     }
 }
 
@@ -303,7 +382,7 @@ fn k_shell_fn_exec(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         def out_entry: k_fs_directory_entry_t;
         if (k_fs_get_dir_entry_by_name(disk, state->cwd, argv[1], &out_entry) == 0) {
             if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
-                if ((out_entry.attributes & 1) == 0) {
+                if ((out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) == 0) {
                     k_io_print("file is not marked as executable\n");
                     return -3;
                 }
@@ -341,7 +420,7 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         (argc >= 1) &&
         (k_fs_get_dir_entry_by_name(disk, state->path_fd, argv[0], &out_entry) == 0) &&
         (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) &&
-        ((out_entry.attributes & 1) != 0)
+        (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE)
         ) {
         return _k_shell_start_executable(disk, out_entry.base_block);
     } else {
@@ -464,17 +543,7 @@ fn k_shell_fn_umount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
 fn k_shell_fn_date(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def dt: k_datetime_t = k_rtc_current();
-    k_io_print_uint_width(dt.year, 4);
-    k_io_print("-");
-    k_io_print_uint_width(dt.month, 2);
-    k_io_print("-");
-    k_io_print_uint_width(dt.day + 1, 2);
-    k_io_print(" ");
-    k_io_print_uint_width(dt.hour, 2);
-    k_io_print(":");
-    k_io_print_uint_width(dt.minute, 2);
-    k_io_print(":");
-    k_io_print_uint_width(dt.second, 2);
+    k_shell_print_date(&dt);
     k_io_print("\n");
     return 0;
 }
@@ -643,6 +712,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_help;
         } else if (strcmp(cmd, "ls") == 0) {
             sh_fn = k_shell_fn_ls;
+        } else if (strcmp(cmd, "stat") == 0) {
+            sh_fn = k_shell_fn_stat;
         } else if (strcmp(cmd, "cd") == 0) {
             sh_fn = k_shell_fn_cd;
         } else if (strcmp(cmd, "cat") == 0) {

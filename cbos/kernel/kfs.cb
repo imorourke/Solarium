@@ -11,6 +11,8 @@
 
 const K_FS_ENTRY_END: u16 = 0xFFFF;
 
+const K_FS_ATTRIBUTE_EXECUTABLE: u8 = 0x1;
+
 const K_FS_VOL_NAME_LEN: u32 = 32;
 const K_FS_ENTRY_NAME_LEN: u32 = 60;
 
