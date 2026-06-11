@@ -953,6 +953,21 @@ impl FileSystem {
 
         Ok(())
     }
+
+    /// Updates the directory with the input time
+    pub fn set_entry_time(
+        &mut self,
+        entry: SectorHandle,
+        dt: DateTime,
+    ) -> Result<(), FileSystemError> {
+        assert!(self.entry_is_primary(entry)?);
+
+        let mut hdr = self.entry_header(entry)?;
+        hdr.modification_time = dt;
+        self.set_entry_header(entry, hdr)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
