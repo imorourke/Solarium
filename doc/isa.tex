@@ -561,7 +561,7 @@ Listing  \ref{listing:hello-world} provides a program that will infinitely write
 
 \subsection{Serial Echo}
 
-Listing \ref{listing:serial-echo} provides a serial echo program, which echos any text provided by the default serial input device back out via the serial echo device. This serial device is expected to be provided at the starting location \texttt{0xFFFFA000}.
+Listing \ref{listing:serial-echo} provides a serial echo program, which echos any text provided by the default serial input device back out via the serial echo device. This serial device is expected to be provided at the starting location \texttt{0xFFFFA000} for this example.
 
 \lstinputlisting[caption={Serial echo program reads in text characters and immediately outputs via the output device}, label={listing:serial-echo}]{../jib/jib-asm/examples/serial_echo.jsm}
 
@@ -651,9 +651,23 @@ Programs compiled in kernel mode should be loaded into memory at the specific lo
 
 When compiling in kernel mode, functions, types, constants, and globals may be exported as a sort of header file that can be used in application-mode applications. Any supported type that does not start with an underscore will be exported and made available for use in the generated header file. This allows for sharing of common library functions between different applications more easily.
 
+When in kernel mode functions, structures, variables, and constants that do not start with an underscore (\texttt{\_}) can be exported into a header file providing the definition and location. This allows common code to be shared between multiple applications.
+
 \subsubsection{Application Mode}
 
 Programs compiled in application mode require additional information while loading, as they are position-independent. A program compiled in application mode must have the program base address provided in the \texttt{Load Offset} register (Section \ref{sec:registers}), as address references are made relative to that location. This allows a kernel to load multiple applications in different positions at runtime, allowing for more complicated program interactions, such as simultaneous application running/threading, by the base operating system, transparent to the running application.
+
+When in application mode, exported kernel functions may be used to link into shared functionality for things like memory allocation/deallocation, standard library functions, and more.
+
+A very simple ``hello world'' application is shown below in Listing \ref{listing:cbuoy-hello-world}.
+
+\lstinputlisting[label={listing:cbuoy-hello-world},caption={Example ``hello world'' application links into OS functionality to perform the printing}]{../cbos/bin/hello.cb}
+
+A more complicated example is shown in Listing \ref{listing:cbuoy-hello-world-memory}, that will allocate and copy memory. Note that, due to the simplified memory model, unless the allocator is tracking the application or performing garbage collection, the running application is responsible for freeing or otherwise closing any resources that it has used during the runtime before returning functionality to the kernel.
+
+\lstinputlisting[label={listing:cbuoy-hello-world-memory},caption={Example ``hello world'' application links into OS functionality to perform the printing and allocate memory from the shared kernel allocator}]{../cbos/bin/hello_mem.cb}
+
+\newpage
 
 \subsection{Assembly Integration}
 
@@ -678,7 +692,7 @@ To allow for additional optimization, Jib assembly code can also be mixed in wit
 
 For example, the above listing could have the print function replaced by the print function in List \ref{listing:example-cbuoy-print-asm} and be considerably more efficient.
 
-\lstinputlisting[label={listing:example-cbuoy-print-asm},caption={Replacement print function to improve the speed of the resulting output}]{../cbos/kernel/kserialio.cb}
+\lstinputlisting[label={listing:example-cbuoy-print-asm},caption={Replacement print function to improve the speed of the resulting output}]{code/kserialio.cb}
 
 The original program in Listing \ref{listing:example-cbuoy} runs to a halt in 1320 CPU cycles. After replacing the print function with the one in Listing \ref{listing:example-cbuoy-print-asm}, the same program completes to a halt in 1010 CPU cycles. Used appropriately, similar optimizations can be made throughout program code to target and improve execution time for different functions as-needed. This also the programmer to slowly learn assembly language by starting with a higher-level programming language as an entry-point, and then working to the lower-level functionality gradually over time as they get familiar with the system. Assembly language is required for several key pieces of functionality, including setting up things to manage the stack directly - such as creating threads - and for interfacing more efficiently with hardware input/output devices.
 
