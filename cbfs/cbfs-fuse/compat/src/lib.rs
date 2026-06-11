@@ -334,12 +334,9 @@ pub unsafe extern "C" fn cbfs_set_executable(
         };
         dir_entry.attributes.set_executable(setting);
 
-        if let Err(e) = fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
-            e.into()
-        } else if let Err(e) = fs.fs.set_entry_time(entry, chrono::Utc::now().into()) {
-            e.into()
-        } else {
-            CbFsResult::Success
+        match fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
+            Err(e) => e.into(),
+            Ok(_) => CbFsResult::Success,
         }
     } else {
         CbFsResult::NullProvided
@@ -401,22 +398,17 @@ pub unsafe extern "C" fn cbfs_entry_set_time(
 ) -> CbFsResult {
     let id = SectorHandle(id);
     if let Some(fs) = unsafe { fs.as_mut() } {
-        let mut hdr = match fs.fs.entry_header(id) {
-            Err(e) => return e.into(),
-            Ok(h) => h,
-        };
-        if let Some(time) = unsafe { time.as_ref() } {
-            hdr.modification_time = (*time).into();
-        } else {
-            hdr.modification_time = chrono::Utc::now().into();
+        match fs.fs.set_entry_time(
+            id,
+            if let Some(time) = unsafe { time.as_ref() } {
+                (*time).into()
+            } else {
+                chrono::Utc::now().into()
+            },
+        ) {
+            Ok(_) => CbFsResult::Success,
+            Err(e) => e.into(),
         }
-
-        match fs.fs.set_entry_header(id, hdr) {
-            Ok(_) => (),
-            Err(e) => return e.into(),
-        };
-
-        CbFsResult::Success
     } else {
         CbFsResult::NullProvided
     }
@@ -661,11 +653,10 @@ pub unsafe extern "C" fn cbfs_write_entry_data(
         && !size.is_null()
     {
         let id = SectorHandle(id);
-        let (mut hdr, mut entry_data) = match fs.fs.entry_data(id) {
+        let (hdr, mut entry_data) = match fs.fs.entry_data(id) {
             Ok(x) => x,
             Err(e) => return e.into(),
         };
-        hdr.modification_time = chrono::Utc::now().into();
 
         {
             let slice = entry_data
