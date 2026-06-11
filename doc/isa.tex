@@ -620,7 +620,7 @@ Note that, in this case, both functions and variables share the same namespace. 
 
 This makes use of a few extra conventions. At the start of each function, stack space is reserved both for any local variables, as well as any temporary variables, that are required. A few extra registers are defined in the Table \ref{table:register-setup}.
 
-When returning a parameter, if the parameter is a primitive, it is returned by value in the return register directly. However, if it is a structure, the address of the temporary to write into is written into the return register before the function call. This is typically a temporary allocated on the stack, as mentioned above.
+When returning a parameter, if the parameter is a primitive, it is returned by value in the return register directly. However, if it is a structure, the address of the temporary to write into is written into the return register before the function call. This is typically a temporary allocated on the stack, as mentioned above. Therefore, the programmer is usually responsible for allocating sufficient space for a structure return value before passing into another function, as the compiler will not create space for the lifetime of a temporary variable automatically.
 
 A simple preprocessor allows for mixing multiple files into one source unit. This follows a similar syntax to the C preprocessor, albeit much simpler.
 
