@@ -139,16 +139,39 @@ impl JibOsImage {
         Ok(os_image)
     }
 
+    fn build_datetime() -> cbfs_lib::DateTime {
+        let (year, rest) = Self::BUILD_DATE.split_once('-').unwrap();
+        let (month, rest) = rest.split_once('-').unwrap();
+        let (day, rest) = rest.split_once(' ').unwrap();
+        let (hour, rest) = rest.split_once(':').unwrap();
+        let (minute, second) = rest.split_once(':').unwrap();
+
+        cbfs_lib::DateTime {
+            date: cbfs_lib::Date {
+                year: year.parse().unwrap_or(0i16).into(),
+                month: month.parse().unwrap_or(0),
+                day: day.parse().unwrap_or(0),
+            },
+            time: cbfs_lib::Time {
+                hour: hour.parse().unwrap_or(0),
+                minute: minute.parse().unwrap_or(0),
+                second: second.parse().unwrap_or(0),
+                hundredths: 0,
+            },
+        }
+    }
+
     fn create_hard_drive(&self) -> Result<FileSystem, ComputerError> {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
+
         fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
 
         fs.create_file(
             home_dir,
-            "version",
-            format!("CB/OS\nBuild Date\n{}\n", Self::BUILD_DATE).as_bytes(),
+            "hello.txt",
+            format!("Welcome to CB/OS!\n").as_bytes(),
         )?;
 
         for (name, binary) in self.applications.iter() {
@@ -202,6 +225,11 @@ impl JibOsImage {
             {
                 fs.create_file(current_dir, name, code.as_bytes())?;
             }
+        }
+
+        let nodes = fs.base_entries.clone();
+        for n in nodes {
+            fs.set_entry_time(n, JibOsImage::build_datetime())?;
         }
 
         Ok(fs)
