@@ -37,4 +37,5 @@ jobs:
 
       - name: Deploy to pages
         id: deployment
+        if: ${{ startsWith(github.ref_name, 'v') && github.ref_type == 'tag' }}
         uses: actions/deploy-pages@v5
