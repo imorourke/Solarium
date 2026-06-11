@@ -1,4 +1,4 @@
-use cbfs_lib::{EntryType, FileSystem, FileSystemError, VolumeHeader};
+use cbfs_lib::{FileSystem, FileSystemError, VolumeHeader};
 use cblang::{
     CodeGenerationOptions, CompilerError, CompilingState, PreprocessorError, ProgramType,
     TokenError, VirtualFilesystem,
@@ -24,11 +24,196 @@ use std::{
     vec::Vec,
 };
 
+#[derive(Debug, Clone)]
+pub struct JibOsImage {
+    pub build_date: String,
+    pub kernel: Vec<u8>,
+    pub kernel_header: String,
+    pub applications: Vec<(String, Vec<u8>)>,
+}
+
+struct JibApplication {
+    exec: &'static str,
+    filename: &'static str,
+    code: &'static str,
+}
+
+impl JibOsImage {
+    /// OS Code
+    const CODE_OS: &str = include_str!("../../../cbos/os.cb");
+
+    /// Application Code
+    const CODE_APPS: &[JibApplication] = &[
+        JibApplication {
+            exec: "hello",
+            filename: "hello.cb",
+            code: include_str!("../../../cbos/bin/hello.cb"),
+        },
+        JibApplication {
+            exec: "hello_mem",
+            filename: "hello_mem.cb",
+            code: include_str!("../../../cbos/bin/hello_mem.cb"),
+        },
+    ];
+
+    /// Get the build date
+    const BUILD_DATE: &'static str = env!("BUILD_DATE");
+
+    pub fn compile_kernel_code(
+        code: &str,
+        start_offset: Option<u32>,
+        trim_code: bool,
+    ) -> Result<CompilingState, ComputerError> {
+        let preprocessed =
+            cblang::preprocess_code_as_file(code, Path::new("input.cb"), [].into_iter())?;
+
+        let tokens = preprocessed.tokenize()?;
+
+        let options = CodeGenerationOptions {
+            prog_type: ProgramType::Kernel {
+                stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
+                base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
+            },
+            trim_code,
+            ..Default::default()
+        };
+
+        Ok(cblang::compile(tokens, options)?)
+    }
+
+    pub fn compile_app_code(&self, code: &str) -> Result<CompilingState, ComputerError> {
+        let mut fs = VirtualFilesystem::default();
+        fs.add_file(Path::new("main.cb"), code)?;
+        fs.add_file(Path::new("cbos_defs.cb"), &self.kernel_header)?;
+
+        let preprocessed =
+            cblang::preprocess_code_with_fs(Path::new("main.cb"), fs, [].into_iter())?;
+
+        let tokens = preprocessed.tokenize()?;
+
+        let options = CodeGenerationOptions {
+            prog_type: ProgramType::Application,
+            trim_code: true,
+            ..Default::default()
+        };
+
+        Ok(cblang::compile(tokens, options)?)
+    }
+
+    fn compile_os_image() -> Result<JibOsImage, ComputerError> {
+        // Compile OS into a file
+        let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, None, false)?;
+        let kernel_data = kernel_compiled.get_assembler()?.bytes;
+
+        // Obtain the default interface value
+        let mut interface_data = Vec::new();
+        {
+            let mut writer = std::io::BufWriter::new(&mut interface_data);
+            kernel_compiled
+                .get_exported_interface()?
+                .write_interface(&mut writer)?;
+        }
+
+        const CBOS_INTF_GUARD: &str = "CBOS_DEFS";
+        let interface_str = match String::from_utf8(interface_data) {
+            Ok(x) => format!(
+                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
+            ),
+            Err(_) => return Err(ComputerError::Utf8Error),
+        };
+
+        let mut os_image = JibOsImage {
+            kernel: kernel_data,
+            kernel_header: interface_str.into(),
+            build_date: Self::BUILD_DATE.into(),
+            applications: Vec::new(),
+        };
+
+        for app in Self::CODE_APPS {
+            os_image.applications.push((
+                app.exec.into(),
+                os_image.compile_app_code(app.code)?.get_assembler()?.bytes,
+            ));
+        }
+
+        Ok(os_image)
+    }
+
+    fn create_hard_drive(&self) -> Result<FileSystem, ComputerError> {
+        let mut fs = FileSystem::new("cbos", 256, 4096)?;
+        fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
+        let home_dir = fs.create_directory(fs.root_sector(), "home")?;
+        let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
+
+        fs.create_file(
+            home_dir,
+            "version",
+            format!("CB/OS\nBuild Date\n{}\n", Self::BUILD_DATE).as_bytes(),
+        )?;
+
+        for (name, binary) in self.applications.iter() {
+            // Create the file entry
+            let entry = fs.create_file(bin_dir, name, binary)?;
+
+            // Set the file as exectuable
+            let mut dir_vals = fs.directory_entry(entry)?;
+            dir_vals.attributes.set_executable(true);
+            fs.set_entry_attributes(entry, dir_vals.attributes)?;
+        }
+        fs.create_file(
+            home_dir,
+            "script.run",
+            b"date\nmem\n\npwd\ncat hello.txt\ncat hello.txt",
+        )?;
+
+        let src = fs.create_directory(fs.root_sector(), "src")?;
+
+        fs.create_file(src, "os.cb", Self::CODE_OS.as_bytes())?;
+        fs.create_file(src, "cbos_defs.cb", self.kernel_header.as_bytes())?;
+
+        for app in Self::CODE_APPS {
+            fs.create_file(src, app.filename, app.code.as_bytes())?;
+        }
+
+        for (path, code) in cblang::DEFAULT_FILES.iter() {
+            let mut current_dir = src;
+            let path_val = Path::new(path);
+
+            for p in path_val.parent().unwrap().components() {
+                if let Component::Normal(os_name) = &p
+                    && let Some(name) = os_name.to_str()
+                {
+                    current_dir = if let Some(existing) = fs
+                        .directory_listing(current_dir)?
+                        .iter()
+                        .find(|x| x.get_name() == name)
+                    {
+                        existing.get_base_sector()
+                    } else {
+                        fs.create_directory(current_dir, name)?
+                    };
+                } else {
+                    panic!("unsupported name value");
+                }
+            }
+
+            if let Some(name) = path_val.file_name().and_then(|x| x.to_str())
+                && name.len() < VolumeHeader::VOLUME_NAME_SIZE
+            {
+                fs.create_file(current_dir, name, code.as_bytes())?;
+            }
+        }
+
+        Ok(fs)
+    }
+}
+
 pub struct JibComputer {
     running: bool,
     running_requested: bool,
     bootloader: bool,
     cpu: Processor,
+    os_image: JibOsImage,
     dev_serial_io: Rc<RefCell<SerialInputOutputDevice>>,
     #[cfg(not(target_arch = "wasm32"))]
     dev_rtc_timer: Rc<RefCell<RtcTimerDevice>>,
@@ -48,140 +233,25 @@ impl JibComputer {
     pub const THREAD_LOOP_MS: u64 = 50;
 
     pub fn new() -> Result<Self, ComputerError> {
+        let os_image = JibOsImage::compile_os_image()?;
+        let hd = os_image.create_hard_drive()?;
         let mut s = Self {
             running: false,
             running_requested: false,
             bootloader: false,
+            os_image,
             cpu: Processor::default(),
             dev_serial_io: Rc::new(RefCell::new(SerialInputOutputDevice::new(2048))),
             #[cfg(not(target_arch = "wasm32"))]
             dev_rtc_timer: Rc::new(RefCell::new(RtcTimerDevice::default())),
             inst_history: Default::default(),
-            hard_drive: Self::create_block_device(&Self::create_hard_drive()?)?,
+            hard_drive: Self::create_block_device(&hd)?,
             #[cfg(test)]
             step_count: 0,
         };
 
         s.reset(None)?;
         Ok(s)
-    }
-
-    fn create_hard_drive() -> Result<FileSystem, ComputerError> {
-        // Read the kernel/app files
-        static CODE_OS: &str = include_str!("../../../cbos/os.cb");
-        static CODE_APPS: &[(&str, &str, &str)] = &[
-            (
-                "hello",
-                "app_hello.cb",
-                include_str!("../../../cbos/app_hello.cb"),
-            ),
-            (
-                "hello_mem",
-                "app_hello_mem.cb",
-                include_str!("../../../cbos/app_hello_mem.cb"),
-            ),
-        ];
-
-        // Compile OS into a file
-        let kernel_compiled = Self::compile_kernel_code(CODE_OS, None, false)?;
-        let kernel_data = kernel_compiled.get_assembler()?.bytes;
-
-        // Obtain the default interface value
-        let mut interface_data = Vec::new();
-        {
-            let mut writer = std::io::BufWriter::new(&mut interface_data);
-            kernel_compiled
-                .get_exported_interface()?
-                .write_interface(&mut writer)?;
-        }
-
-        const CBOS_INTF_GUARD: &str = "CBOS_DEFS";
-        let interface_str = match String::from_utf8(interface_data) {
-            Ok(x) => format!(
-                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
-            ),
-            Err(_) => return Err(ComputerError::Utf8Error),
-        };
-        let mut fs = FileSystem::new("cbos", 256, 4096)?;
-        fs.create_entry(fs.root_sector(), "boot.bin", EntryType::File, &kernel_data)?;
-        let home_dir = fs.create_entry(fs.root_sector(), "home", EntryType::Directory, &[])?;
-        let bin_dir = fs.create_entry(fs.root_sector(), "bin", EntryType::Directory, &[])?;
-
-        let build_date: &'static str = env!("BUILD_DATE");
-        fs.create_entry(
-            home_dir,
-            "version",
-            EntryType::File,
-            format!("CB/OS\nBuild Date\n{}\n", build_date).as_bytes(),
-        )?;
-
-        for (exec_name, _, code) in CODE_APPS {
-            // Create the file entry
-            let entry = fs.create_entry(
-                bin_dir,
-                exec_name,
-                EntryType::File,
-                &Self::compile_app_code(code, &interface_str)?
-                    .get_assembler()?
-                    .bytes,
-            )?;
-
-            // Set the file as exectuable
-            let mut dir_vals = fs.directory_entry(entry)?;
-            dir_vals.attributes.set_executable(true);
-            fs.set_entry_attributes(entry, dir_vals.attributes)?;
-        }
-        fs.create_entry(
-            home_dir,
-            "script.run",
-            EntryType::File,
-            b"date\nmem\n\npwd\ncat hello.txt\ncat hello.txt",
-        )?;
-
-        let src = fs.create_entry(fs.root_sector(), "src", EntryType::Directory, &[])?;
-
-        fs.create_entry(src, "os.cb", EntryType::File, CODE_OS.as_bytes())?;
-        fs.create_entry(
-            src,
-            "cbos_defs.cb",
-            EntryType::File,
-            interface_str.as_bytes(),
-        )?;
-
-        for (_, code_name, code) in CODE_APPS {
-            fs.create_entry(src, code_name, EntryType::File, code.as_bytes())?;
-        }
-
-        for (path, code) in cblang::DEFAULT_FILES.iter() {
-            let mut current_dir = src;
-            let path_val = Path::new(path);
-
-            for p in path_val.parent().unwrap().components() {
-                if let Component::Normal(os_name) = &p
-                    && let Some(name) = os_name.to_str()
-                {
-                    current_dir = if let Some(existing) = fs
-                        .directory_listing(current_dir)?
-                        .iter()
-                        .find(|x| x.get_name() == name)
-                    {
-                        existing.base_block.get()
-                    } else {
-                        fs.create_entry(current_dir, name, EntryType::Directory, &[])?
-                    };
-                } else {
-                    panic!("unsupported name value");
-                }
-            }
-
-            if let Some(name) = path_val.file_name().and_then(|x| x.to_str())
-                && name.len() < VolumeHeader::VOLUME_NAME_SIZE
-            {
-                fs.create_entry(current_dir, name, EntryType::File, code.as_bytes())?;
-            }
-        }
-
-        Ok(fs)
     }
 
     fn create_block_device(fs: &FileSystem) -> Result<Rc<RefCell<BlockDevice>>, ComputerError> {
@@ -242,50 +312,6 @@ impl JibComputer {
         Ok(true)
     }
 
-    pub fn compile_app_code(
-        code: &str,
-        os_interface: &str,
-    ) -> Result<CompilingState, ComputerError> {
-        let mut fs = VirtualFilesystem::default();
-        fs.add_file(Path::new("main.cb"), code)?;
-        fs.add_file(Path::new("cbos_defs.cb"), os_interface)?;
-
-        let preprocessed =
-            cblang::preprocess_code_with_fs(Path::new("main.cb"), fs, [].into_iter())?;
-
-        let tokens = preprocessed.tokenize()?;
-
-        let options = CodeGenerationOptions {
-            prog_type: ProgramType::Application,
-            trim_code: true,
-            ..Default::default()
-        };
-
-        Ok(cblang::compile(tokens, options)?)
-    }
-
-    pub fn compile_kernel_code(
-        code: &str,
-        start_offset: Option<u32>,
-        trim_code: bool,
-    ) -> Result<CompilingState, ComputerError> {
-        let preprocessed =
-            cblang::preprocess_code_as_file(code, Path::new("input.cb"), [].into_iter())?;
-
-        let tokens = preprocessed.tokenize()?;
-
-        let options = CodeGenerationOptions {
-            prog_type: ProgramType::Kernel {
-                stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
-            },
-            trim_code,
-            ..Default::default()
-        };
-
-        Ok(cblang::compile(tokens, options)?)
-    }
-
     pub fn soft_reset(&mut self) -> Result<(), ComputerError> {
         self.cpu.reset(ResetType::Soft)?;
         Ok(())
@@ -296,7 +322,7 @@ impl JibComputer {
 
         self.cpu = Processor::default();
         self.dev_serial_io.borrow_mut().reset();
-        self.hard_drive = Self::create_block_device(&Self::create_hard_drive()?)?;
+        self.hard_drive = Self::create_block_device(&self.os_image.create_hard_drive()?)?;
 
         self.inst_history.clear();
 
@@ -367,7 +393,7 @@ impl JibComputer {
         self.cpu.reset(ResetType::Hard)?;
 
         // Compile and setup bootloader
-        for (i, x) in Self::compile_kernel_code(
+        for (i, x) in JibOsImage::compile_kernel_code(
             include_str!("../../../cbos/bootloader.cb"),
             Some(Self::BOOTLOADER_START),
             true,
@@ -574,11 +600,13 @@ impl From<std::io::Error> for ComputerError {
 
 #[cfg(test)]
 mod test {
+    use crate::JibOsImage;
+
     use super::JibComputer;
     use jib_cpu::cpu::Processor;
 
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
-        let asm = JibComputer::compile_kernel_code(in_code, None, true)
+        let asm = JibOsImage::compile_kernel_code(in_code, None, true)
             .unwrap()
             .get_assembler()
             .unwrap();

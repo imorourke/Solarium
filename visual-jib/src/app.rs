@@ -349,6 +349,24 @@ impl eframe::App for VisualJib {
                         );
                     }
 
+                    ui.menu_button("Applications", |ui| {
+                        if ui.button("Hello World").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/hello.cb").to_string(),
+                                Some("hello.cb"),
+                            );
+                        }
+
+                        if ui.button("Hello World (malloc)").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/hello_mem.cb").to_string(),
+                                Some("hello_mem.cb"),
+                            );
+                        }
+                    });
+
                     ui.menu_button("Examples", |ui| {
                         static CB_CODES: &[(&str, &str, &str)] = &[
                             (

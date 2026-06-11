@@ -23,12 +23,38 @@ pub use container::{
 pub use filesystem::FileSystem;
 pub use volume::VolumeHeader;
 
+/// Provides the file handle
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SectorHandle(pub u16);
+
+impl SectorHandle {
+    /// Sentinel for the end of a node
+    pub const NODE_END: SectorHandle = SectorHandle(0xFFFF);
+
+    /// Null node value
+    pub const NODE_NULL: SectorHandle = SectorHandle(0);
+
+    pub const fn is_null(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn is_end(&self) -> bool {
+        self.0 == Self::NODE_END.0
+    }
+}
+
+impl Display for SectorHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Provides error message information regarding issues with the filesystem
 #[derive(Debug, Clone)]
 pub enum FileSystemError {
-    EntryInvalid(u16),
-    EntryNotFile(u16),
-    EntryNotDirectory(u16),
+    EntryInvalid(SectorHandle),
+    EntryNotFile(SectorHandle),
+    EntryNotDirectory(SectorHandle),
     NonZeroDirectoryData,
     NameExists(String),
     PathNotFound(String),

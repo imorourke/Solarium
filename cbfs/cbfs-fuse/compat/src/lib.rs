@@ -6,8 +6,8 @@ use std::{
 };
 
 use cbfs_lib::{
-    ContainerHeader, Date, DateTime, DirectoryEntry, EntryType, FileSystem, FileSystemError, Time,
-    open_container, save_container,
+    ContainerHeader, Date, DateTime, DirectoryEntry, EntryType, FileSystem, FileSystemError,
+    SectorHandle, Time, open_container, save_container,
 };
 
 pub const CBFS_VOLUME_NAME_SIZE: usize = 32;
@@ -225,7 +225,7 @@ fn entry_for_path<T: AsRef<Path>>(
 
         if path.as_ref().has_root() {
             'parts: for p in path.as_ref().iter().skip(1) {
-                let dirs = fs.fs.directory_listing(current_entry.base_block.get())?;
+                let dirs = fs.fs.directory_listing(current_entry.get_base_sector())?;
                 for d in dirs {
                     if d.get_name() == p.to_str().unwrap() {
                         current_entry = d;
@@ -284,7 +284,7 @@ pub unsafe extern "C" fn cbfs_get_stats(fs: *const CbFs, stats: *mut CbFsStats) 
         stats.entry_blocks = fs.fs.base_entries.len() as u16;
         stats.free_blocks = fs.fs.num_free_sectors() as u16;
         stats.name = fs.fs.vol_name_array().map(|x| x as c_char);
-        stats.root_node = fs.fs.root_sector();
+        stats.root_node = fs.fs.root_sector().0;
 
         CbFsResult::Success
     } else {
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn cbfs_is_executable(
     if let Some(fs) = unsafe { fs.as_ref() }
         && let Some(output) = unsafe { output.as_mut() }
     {
-        if let Ok(dir_entry) = fs.fs.directory_entry(entry) {
+        if let Ok(dir_entry) = fs.fs.directory_entry(SectorHandle(entry)) {
             *output = dir_entry.attributes.is_executable();
             CbFsResult::Success
         } else {
@@ -326,6 +326,7 @@ pub unsafe extern "C" fn cbfs_set_executable(
     setting: bool,
 ) -> CbFsResult {
     if let Some(fs) = unsafe { fs.as_mut() } {
+        let entry = SectorHandle(entry);
         if let Ok(mut dir_entry) = fs.fs.directory_entry(entry) {
             dir_entry.attributes.set_executable(setting);
             match fs.fs.set_entry_attributes(entry, dir_entry.attributes) {
@@ -352,11 +353,12 @@ pub unsafe extern "C" fn cbfs_get_parent_node(
     if let Some(fs) = unsafe { fs.as_ref() }
         && let Some(parent) = unsafe { parent.as_mut() }
     {
+        let node = SectorHandle(node);
         *parent = if node == fs.fs.root_sector() {
             0
         } else {
             match fs.fs.entry_header(node) {
-                Ok(x) => x.get_parent(),
+                Ok(x) => x.get_parent().0,
                 Err(e) => return e.into(),
             }
         };
@@ -373,6 +375,7 @@ pub unsafe extern "C" fn cbfs_get_parent_node(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cbfs_truncate(fs: *mut CbFs, id: u16, size: u32) -> CbFsResult {
     if let Some(fs) = unsafe { fs.as_mut() } {
+        let id = SectorHandle(id);
         match fs.fs.set_entry_payload_byte_size(id, size) {
             Ok(_) => CbFsResult::Success,
             Err(e) => e.into(),
@@ -391,6 +394,7 @@ pub unsafe extern "C" fn cbfs_entry_set_time(
     id: u16,
     time: *const CbFsTime,
 ) -> CbFsResult {
+    let id = SectorHandle(id);
     if let Some(fs) = unsafe { fs.as_mut() } {
         let mut hdr = match fs.fs.entry_header(id) {
             Err(e) => return e.into(),
@@ -418,7 +422,7 @@ fn cbfs_entry_from_dir_val(
     fs: &FileSystem,
     dir_hdr: &DirectoryEntry,
 ) -> Result<CbFsEntry, FileSystemError> {
-    let hdr = fs.entry_header(dir_hdr.base_block.get())?;
+    let hdr = fs.entry_header(dir_hdr.get_base_sector())?;
 
     Ok(CbFsEntry {
         entry_id: dir_hdr.base_block.get(),
@@ -426,7 +430,7 @@ fn cbfs_entry_from_dir_val(
         name: dir_hdr.get_name_raw().map(|x| x as c_char),
         size_bytes: hdr.get_payload_size() as u32,
         last_time: hdr.get_modification_time().into(),
-        size_blocks: fs.num_sectors_for_entry(dir_hdr.base_block.get()) as u32,
+        size_blocks: fs.num_sectors_for_entry(dir_hdr.get_base_sector()) as u32,
     })
 }
 
@@ -472,6 +476,7 @@ pub unsafe extern "C" fn cbfs_get_entry(
     entry: *mut CbFsEntry,
 ) -> CbFsResult {
     if let Some(fs) = unsafe { fs.as_ref() } {
+        let id = SectorHandle(id);
         let entry_hdr = match fs.fs.entry_header(id) {
             Ok(v) => v,
             Err(e) => return e.into(),
@@ -517,7 +522,7 @@ pub unsafe extern "C" fn cbfs_read_dir(
         fn compat_gen(fs: &CbFs, x: DirectoryEntry) -> Result<CbFsEntry, FileSystemError> {
             let tv: CbFsTime = fs
                 .fs
-                .entry_header(x.base_block.get())?
+                .entry_header(x.get_base_sector())?
                 .get_modification_time()
                 .into();
 
@@ -531,6 +536,7 @@ pub unsafe extern "C" fn cbfs_read_dir(
             })
         }
 
+        let dir = SectorHandle(dir);
         let dirs = match fs.fs.directory_listing(dir) {
             Ok(x) => x,
             Err(e) => return e.into(),
@@ -612,6 +618,7 @@ pub unsafe extern "C" fn cbfs_read_entry_data(
         && !data.is_null()
         && !size.is_null()
     {
+        let id = SectorHandle(id);
         let (_, entry_data) = match fs.fs.entry_data(id) {
             Ok(x) => x,
             Err(e) => return e.into(),
@@ -648,6 +655,7 @@ pub unsafe extern "C" fn cbfs_write_entry_data(
         && !data.is_null()
         && !size.is_null()
     {
+        let id = SectorHandle(id);
         let (hdr, mut entry_data) = match fs.fs.entry_data(id) {
             Ok(x) => x,
             Err(e) => return e.into(),
@@ -711,7 +719,10 @@ pub unsafe extern "C" fn cbfs_create_entry(
             if truncate {
                 if entry_type == entry.get_entry_type().into() {
                     if entry.get_entry_type() == EntryType::File {
-                        match fs.fs.set_entry_payload_byte_size(entry.base_block.get(), 0) {
+                        match fs
+                            .fs
+                            .set_entry_payload_byte_size(entry.get_base_sector(), 0)
+                        {
                             Ok(()) => (),
                             Err(e) => return e.into(),
                         };
@@ -728,14 +739,14 @@ pub unsafe extern "C" fn cbfs_create_entry(
             let id_val =
                 match fs
                     .fs
-                    .create_entry(parent.base_block.get(), new_name, entry_type.into(), &[])
+                    .create_entry(parent.get_base_sector(), new_name, entry_type.into(), &[])
                 {
                     Ok(x) => x,
                     Err(e) => return e.into(),
                 };
 
             if let Some(eo) = unsafe { entry_out.as_mut() } {
-                eo.entry_id = id_val;
+                eo.entry_id = id_val.0;
             }
 
             CbFsResult::Success
@@ -767,8 +778,8 @@ pub unsafe extern "C" fn cbfs_rename_entry(
             && let Ok(parent) = entry_for_path(fs, new_path.parent())
         {
             match fs.fs.move_entry(
-                entry.base_block.get(),
-                parent.base_block.get(),
+                entry.get_base_sector(),
+                parent.get_base_sector(),
                 Some(new_path.file_name().unwrap().to_str().unwrap()),
                 replace,
             ) {
@@ -801,7 +812,7 @@ pub unsafe extern "C" fn cbfs_remove_entry(
         };
 
         if entry_type == CbFsEntryType::Unknown || (entry_type == entry.get_entry_type().into()) {
-            match fs.fs.delete_entry(entry.base_block.get()) {
+            match fs.fs.delete_entry(entry.get_base_sector()) {
                 Ok(_) => CbFsResult::Success,
                 Err(e) => e.into(),
             }

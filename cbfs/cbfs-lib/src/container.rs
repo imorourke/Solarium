@@ -10,7 +10,7 @@ use zerocopy::{
     big_endian::{U16, U32},
 };
 
-use crate::{FileSystem, FileSystemError, VolumeHeader};
+use crate::{FileSystem, FileSystemError, SectorHandle, VolumeHeader};
 
 /// Reads a container from a given writer
 pub fn read_container<T: Read>(
@@ -125,7 +125,7 @@ pub fn write_container<T: Write>(
             f.write_all(fs.header.as_bytes())?;
 
             for n in fs.entries.iter().copied() {
-                f.write_all(&U16::new(n).to_bytes())?;
+                f.write_all(&U16::new(n.0).to_bytes())?;
             }
 
             assert_eq!(fs.header.sector_count.get() as usize, fs.entries.len());
@@ -133,15 +133,15 @@ pub fn write_container<T: Write>(
                 .entries
                 .iter()
                 .enumerate()
-                .skip(fs.header.root_sector.get() as usize)
-                .filter(|(_, x)| **x != 0)
-                .map(|(i, _)| i as u16)
+                .skip(fs.root_sector().0 as usize)
+                .filter(|(_, x)| !x.is_null())
+                .map(|(i, _)| SectorHandle(i as u16))
                 .collect();
 
             f.write_all(&U16::new(sectors_to_write.len() as u16).to_bytes())?;
 
             for s in sectors_to_write {
-                f.write_all(&U16::new(s).to_bytes())?;
+                f.write_all(&U16::new(s.0).to_bytes())?;
                 f.write_all(fs.get_sector_data(s)?)?;
             }
         } else {
@@ -320,35 +320,16 @@ mod test {
         let mut fs = FileSystem::new("test", 1024, 512).unwrap();
         fs.randomize_sectors(true);
 
-        let dir_abc = fs
-            .create_entry(
-                fs.header.root_sector.get(),
-                "abc",
-                EntryType::Directory,
-                &[],
-            )
-            .unwrap();
-        fs.create_entry(
-            fs.header.root_sector.get(),
-            "defg",
-            EntryType::Directory,
-            &[],
-        )
-        .unwrap();
+        let dir_abc = fs.create_directory(fs.root_sector(), "abc").unwrap();
+        fs.create_directory(fs.root_sector(), "defg").unwrap();
 
         let file_a_data_in = "Hello, world!\n".bytes().collect::<Vec<_>>();
 
-        fs.create_entry(
-            fs.header.root_sector.get(),
-            "a.txt",
-            EntryType::File,
-            &file_a_data_in,
-        )
-        .unwrap();
+        fs.create_file(fs.root_sector(), "a.txt", &file_a_data_in)
+            .unwrap();
 
         let file_b_data_in = "Hello, ABC!\n".bytes().collect::<Vec<_>>();
-        fs.create_entry(dir_abc, "a.txt", EntryType::File, &file_b_data_in)
-            .unwrap();
+        fs.create_file(dir_abc, "a.txt", &file_b_data_in).unwrap();
 
         fs
     }

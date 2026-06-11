@@ -1,6 +1,6 @@
 use cbfs_lib::{
-    CbContainerOptions, ContainerHeader, EntryType, FileSystem, FileSystemError, open_container,
-    save_container,
+    CbContainerOptions, ContainerHeader, EntryType, FileSystem, FileSystemError, SectorHandle,
+    open_container, save_container,
 };
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
@@ -152,7 +152,7 @@ fn main() {
             fn folder_entry_vals(
                 path_so_far: &str,
                 fs: &FileSystem,
-                node: u16,
+                node: SectorHandle,
                 opt: &ListOptions,
             ) -> Result<(), FileSystemError> {
                 if opt.folders {
@@ -172,7 +172,7 @@ fn main() {
                             folder_entry_vals(
                                 &format!("{path_so_far}/{}", n.get_name()),
                                 fs,
-                                n.base_block.get(),
+                                n.get_base_sector(),
                                 opt,
                             )?;
                         }
@@ -237,17 +237,17 @@ fn main() {
             fn write_entries(
                 fs: &FileSystem,
                 current_path: &Path,
-                current_directory: u16,
+                current_directory: SectorHandle,
             ) -> Result<(), cbfs_lib::FileSystemError> {
                 for n in fs.directory_listing(current_directory)? {
                     let path = current_path.join(n.get_name());
                     match n.get_entry_type() {
                         EntryType::Directory => {
                             std::fs::create_dir(&path).expect("unable to create directory");
-                            write_entries(fs, &path, n.base_block.get())?;
+                            write_entries(fs, &path, n.get_base_sector())?;
                         }
                         EntryType::File => {
-                            let (_, data) = fs.entry_data(n.base_block.get())?;
+                            let (_, data) = fs.entry_data(n.get_base_sector())?;
                             std::fs::write(&path, data).expect("unable to write data for file");
                         }
                         _ => panic!("unexpected entry data type"),
@@ -271,7 +271,7 @@ fn main() {
             fn read_fs_entries(
                 fs: &mut FileSystem,
                 current_path: &Path,
-                current_directory: u16,
+                current_directory: SectorHandle,
             ) -> Result<(), cbfs_lib::FileSystemError> {
                 for n in current_path
                     .read_dir()
@@ -287,14 +287,11 @@ fn main() {
                     let path = current_path.join(&name);
 
                     if entry.path().is_dir() {
-                        let new_block = fs
-                            .create_entry(current_directory, &name, EntryType::Directory, &[])
-                            .unwrap();
+                        let new_block = fs.create_directory(current_directory, &name).unwrap();
                         read_fs_entries(fs, &path, new_block)?;
                     } else if entry.path().is_file() {
                         let data = std::fs::read(path).expect("unable to read file data");
-                        fs.create_entry(current_directory, &name, EntryType::File, &data)
-                            .unwrap();
+                        fs.create_file(current_directory, &name, &data).unwrap();
                     } else {
                         panic!("unexpected entry data type");
                     }

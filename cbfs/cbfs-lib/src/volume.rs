@@ -5,7 +5,7 @@ use zerocopy::{
     big_endian::{U16, U32},
 };
 
-use crate::{FileSystemError, filesystem::FileSystem, names::array_to_string};
+use crate::{FileSystemError, SectorHandle, names::array_to_string};
 pub use crate::{
     entries::{DirectoryEntry, EntryHeader},
     names::string_to_array,
@@ -44,7 +44,7 @@ impl VolumeHeader {
 
         if (sector_size as usize) < min_sector_size {
             return Err(FileSystemError::SectorSizeTooSmall(sector_size));
-        } else if sector_count == FileSystem::NODE_END {
+        } else if sector_count == SectorHandle::NODE_END.0 {
             return Err(FileSystemError::InvalidSectorCount(sector_count));
         }
 
@@ -82,6 +82,11 @@ impl VolumeHeader {
     /// Provides the raw volume name array
     pub fn get_name_raw(&self) -> [u8; Self::VOLUME_NAME_SIZE] {
         self.volume_name
+    }
+
+    /// Provides the root sector
+    pub const fn get_root_sector(&self) -> SectorHandle {
+        SectorHandle(self.root_sector.get())
     }
 
     /// Provides the overall volume byte size

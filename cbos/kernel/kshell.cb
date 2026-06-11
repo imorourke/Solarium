@@ -41,10 +41,12 @@ fn k_shell_disk_open(state: *k_shell_state_global_t, disk_num: i32) i32 {
 
     def disk: *k_fs_disk_t = state->disks[disk_num];
     if (disk == 0) {
-        k_io_print("Starting Mount...\n");
-        disk = k_fs_disk_open(0);
+        disk = k_fs_disk_open(disk_num);
         state->disks[disk_num] = disk;
         if (disk != 0) {
+            k_io_print("Mounted disk ");
+            k_io_print_int(disk_num);
+            k_io_print("\n");
             return 0;
         } else {
             k_io_print("Error mounting disk\n");

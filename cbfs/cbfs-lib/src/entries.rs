@@ -5,7 +5,9 @@ use zerocopy::{
     big_endian::{U16, U32},
 };
 
-use crate::{FileSystemError, datetime::DateTime, names::array_to_string, string_to_array};
+use crate::{
+    FileSystemError, SectorHandle, datetime::DateTime, names::array_to_string, string_to_array,
+};
 
 #[repr(u8)]
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
@@ -81,8 +83,8 @@ impl EntryHeader {
         std::mem::size_of::<EntryHeader>()
     }
 
-    pub fn get_parent(&self) -> u16 {
-        self.parent.get()
+    pub fn get_parent(&self) -> SectorHandle {
+        SectorHandle(self.parent.get())
     }
 
     pub fn get_total_size(&self) -> usize {
@@ -150,6 +152,10 @@ pub struct DirectoryEntry {
 
 impl DirectoryEntry {
     pub const DIRECTORY_NAME_SIZE: usize = 60;
+
+    pub fn get_base_sector(&self) -> SectorHandle {
+        SectorHandle(self.base_block.get())
+    }
 
     pub fn get_entry_type(&self) -> EntryType {
         EntryType::from(self.entry_type)
