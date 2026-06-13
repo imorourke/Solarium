@@ -513,8 +513,7 @@ impl JibComputer {
     pub fn get_serial_output(&mut self) -> Result<Vec<char>, ComputerError> {
         let mut char_vec = Vec::new();
         while let Some(w) = self.dev_serial_io.borrow_mut().pop_output() {
-            let c = byte_to_character(w)?;
-            char_vec.push(c);
+            char_vec.push(byte_to_character(w)?);
         }
         Ok(char_vec)
     }
