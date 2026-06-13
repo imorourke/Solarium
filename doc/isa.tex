@@ -704,7 +704,7 @@ Through direct modification of the stack, we can create a set of utilities to sw
 
 \pagebreak
 
-\section{Filesystem}
+\section{CBFS Filesystem}
 
 The CBFS filesystem provides basic I/O capabilities for the Jib computer. It is based on a file allocation table and provides 16-bit integer identification for file sectors. A fuse driver exists for usage of the filesystem on POSIX systems.
 
@@ -855,11 +855,11 @@ The \texttt{DateTime} type combines both a date and a time together into a singl
 
 \section{Tools}
 
-Several tools can help in the development of Jib programs.
+Several tools can help in the development of Jib computers and programs.
 
-\subsection{V/Jib}
+\subsection{Visual/Jib}
 
-One useful tool is \texttt{V/Jib}, combines together a basic assembler, CPU emulator, and memory inspector into a single program. The main window can be seen in Figure \ref{fig:visual-jib-main-page}.
+One useful tool is \texttt{Visual/Jib}, combines together a basic assembler, CPU emulator, and memory inspector into a single program. The main window can be seen in Figure \ref{fig:visual-jib-main-page}.
 
 \begin{figure}[h!]
     \centering
@@ -867,6 +867,22 @@ One useful tool is \texttt{V/Jib}, combines together a basic assembler, CPU emul
     \caption{Main window of \texttt{V/Jib} provides common tools for program writing}
     \label{fig:visual-jib-main-page}
 \end{figure}
+
+\subsection{Jib/Term}
+
+Another useful tool is \texttt{Jib/Term}, which provides a text-based version of \texttt{Visual/Jib}, albeit without the helpful diagnostic tools and built-in samples. It will boot and allow execution of the Cb/OS operating system.
+
+\subsection{cbfs}
+
+The \texttt{cbfs} program provides a FUSE driver for POSIX systems, and Windows systems through WinFSP, to be able to mount and explore a CBFS filesystem within a container.
+
+\subsection{cbfs-util}
+
+The \texttt{cbfs-util} program allows for modification of a CBFS container, and also allows extracting an image into raw files, or vise-versa, where a particular host directory is bundled into a CBFS image. \texttt{cbfs-util} also provides a means to analyze the usage and statistical values for a CBFS filesystem image.
+
+\subsection{cbc}
+
+The \texttt{cbc} program is the front-end to the C/Buoy compiler, allowing for compilation of programs in both kernel and application space into binary executable files.
 
 
 \end{document}
