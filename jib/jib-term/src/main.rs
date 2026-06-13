@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::{io::Write, path::PathBuf, time::Duration};
 
 use cbfs_lib::CbContainerOptions;
 use clap::Parser;
@@ -43,12 +43,14 @@ fn main() -> Result<(), ComputerError> {
     let stdin_channel = spawn_stdin_channel();
 
     loop {
-        match stdin_channel.try_recv() {
-            Ok(input) => {
-                computer.set_serial_input(&input)?;
+        for _ in 0..1000 {
+            match stdin_channel.try_recv() {
+                Ok(input) => {
+                    computer.set_serial_input(&input)?;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => panic!("stdin disconnected"),
             }
-            Err(std::sync::mpsc::TryRecvError::Empty) => (),
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => panic!("stdin disconnected"),
         }
 
         if computer.get_running() {
@@ -65,8 +67,12 @@ fn main() -> Result<(), ComputerError> {
             computer.set_running_request(true);
         }
 
-        for c in computer.get_serial_output_unknown() {
-            print!("{c}");
+        let chars = computer.get_serial_output_unknown();
+        if !chars.is_empty() {
+            let mut s = std::io::stdout();
+            s.write(&chars.into_iter().map(|x| x as u8).collect::<Vec<_>>())
+                .unwrap();
+            s.flush().unwrap();
         }
     }
 }
@@ -77,7 +83,7 @@ fn spawn_stdin_channel() -> std::sync::mpsc::Receiver<String> {
         loop {
             let mut buffer = String::new();
             std::io::stdin().read_line(&mut buffer).unwrap();
-            tx.send(buffer).unwrap();
+            tx.send(buffer.trim().to_owned()).unwrap();
         }
     });
     rx
