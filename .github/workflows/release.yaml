@@ -152,6 +152,7 @@ jobs:
         id: vm
         uses: vmactions/freebsd-vm@v1
         with:
+          release: "15.0"
           sync: rsync
           prepare: pkg install -y cmake fusefs-libs3 rust ninja
           run: |
