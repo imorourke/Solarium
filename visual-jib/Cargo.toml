@@ -15,7 +15,7 @@ jib-computer = { workspace = true }
 jib-asm = { workspace = true }
 cblang = { workspace = true }
 cbfs-lib = { path = "../cbfs/cbfs-lib", version = "*", default-features = false }
-eframe = "0.34"
+eframe = "0.35"
 image = "0.25"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
