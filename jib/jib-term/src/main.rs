@@ -70,7 +70,7 @@ fn main() -> Result<(), ComputerError> {
         let chars = computer.get_serial_output_unknown();
         if !chars.is_empty() {
             let mut s = std::io::stdout();
-            s.write(&chars.into_iter().map(|x| x as u8).collect::<Vec<_>>())
+            s.write_all(&chars.into_iter().map(|x| x as u8).collect::<Vec<_>>())
                 .unwrap();
             s.flush().unwrap();
         }

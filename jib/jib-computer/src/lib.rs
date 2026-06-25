@@ -124,7 +124,7 @@ impl JibOsImage {
 
         let mut os_image = JibOsImage {
             kernel: kernel_data,
-            kernel_header: interface_str.into(),
+            kernel_header: interface_str,
             build_date: Self::BUILD_DATE.into(),
             applications: Vec::new(),
         };
@@ -168,11 +168,7 @@ impl JibOsImage {
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
 
-        fs.create_file(
-            home_dir,
-            "hello.txt",
-            format!("Welcome to CB/OS!\n").as_bytes(),
-        )?;
+        fs.create_file(home_dir, "hello.txt", b"Welcome to CB/OS!\n")?;
 
         for (name, binary) in self.applications.iter() {
             // Create the file entry

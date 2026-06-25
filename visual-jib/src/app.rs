@@ -319,7 +319,7 @@ impl eframe::App for VisualJib {
             }
         }
 
-        CentralPanel::default().show_inside(ui, |ui| {
+        CentralPanel::default().show(ui, |ui| {
             MenuBar::new().ui(ui, |ui| {
                 #[cfg(not(target_arch = "wasm32"))]
                 ui.menu_button("File", |ui| {
