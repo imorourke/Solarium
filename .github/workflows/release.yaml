@@ -204,16 +204,20 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      - name: Build the executable
+      - name: Build the executables
         run: |
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p visual-jib
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbfs-util
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbc
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p jib-term
-          cmake -S . -B build_x64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCARGO_TARGET=x86_64-apple-darwin -GNinja
-          ninja -Cbuild_x64
-          cmake -S . -B build_arm64 -DCMAKE_OSX_ARCHITECTURES=arm64 -DCARGO_TARGET=aarch64-apple-darwin -GNinja
-          ninja -Cbuild_arm64
+
+      - name: Build FUSE Driver
+        run: |
+          cargo install --locked cbindgen
+          cmake -S . -B build/x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCARGO_TARGET=x86_64-apple-darwin -GNinja
+          ninja -Cbuild/x64
+          cmake -S . -B build/arm64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCARGO_TARGET=aarch64-apple-darwin -GNinja
+          ninja -Cbuild/arm64
 
       - name: Create a fat executable for all targets
         run: |
@@ -223,7 +227,7 @@ jobs:
           lipo -create -output dist/cbc target/x86_64-apple-darwin/release/cbc target/aarch64-apple-darwin/release/cbc
           lipo -create -output dist/jib-term target/x86_64-apple-darwin/release/jib-term target/aarch64-apple-darwin/release/jib-term
           lipo -create -output dist/libcbfs_compat.dylib target/x86_64-apple-darwin/release/libcbfs_compat.dylib target/aarch64-apple-darwin/release/libcbfs_compat.dylib
-          lipo -create -output dist/cbfs build_x64/cbfs/cbfs-fuse/cbfs build_arm64/cbfs/cbfs-fuse/cbfs
+          lipo -create -output dist/cbfs build/x64/cbfs/cbfs-fuse/cbfs build/arm64/cbfs/cbfs-fuse/cbfs
 
       - name: Create a bundle
         run: |
@@ -234,7 +238,7 @@ jobs:
 
       - name: Package binary
         run: |
-          tar -czvf solarium-macos.tar.gz -C dist cbfs-util cbc jib-term VisualJib.app
+          tar -czvf solarium-macos.tar.gz -C dist cbfs-util cbc jib-term VisualJib.app cbfs libcbfs_compat.dylib
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
