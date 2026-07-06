@@ -7,7 +7,7 @@ authors.workspace = true
 documentation.workspace = true
 
  [lib]
- crate-type = ["cdylib", "staticlib"]
+ crate-type = ["staticlib"]
 
 [dependencies]
 cbfs-lib = { workspace = true }

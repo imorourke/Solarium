@@ -296,7 +296,6 @@ jobs:
           cargo install --locked cbindgen
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=${{ matrix.arch }}-pc-windows-msvc -DCBFS_WIN_ARCH=${{ matrix.msarch }} -GNinja
           ninja -C build
-          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs-compat
 
       - name: Copy binaries
         shell: pwsh
@@ -306,7 +305,6 @@ jobs:
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs-util.exe dist
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbc.exe dist
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\jib-term.exe dist
-          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs_compat.dll dist
           Copy-Item build\cbfs\cbfs-fuse\cbfs.exe dist
 
       - name: Update icon
