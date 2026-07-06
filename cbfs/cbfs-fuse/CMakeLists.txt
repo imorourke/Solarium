@@ -19,6 +19,8 @@ if(DEFINED CARGO_TARGET)
 endif()
 
 set_target_properties(cbfs PROPERTIES CXX_STANDARD 20)
+set_target_properties(cbfs PROPERTIES CXX_STANDARD_REQUIRED TRUE)
+
 if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (NOT CMAKE_BUILD_TYPE))
   set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/debug")
 else()
@@ -27,9 +29,14 @@ else()
   set(CBFS_CARGO_ARGS ${CBFS_CARGO_ARGS} "--release")
 endif()
 
-file(GLOB_RECURSE CBFS_COMPAT_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/compat/**/*.rs" "${CMAKE_CURRENT_SOURCE_DIR}/compat/*.toml")
-file(GLOB_RECURSE CBFS_LIB_SRC CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/**/*.rs" "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/*.toml")
-
+file(
+  GLOB_RECURSE CBFS_COMPAT_SRC CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/compat/**/*.rs"
+  "${CMAKE_CURRENT_SOURCE_DIR}/compat/*.toml")
+file(
+  GLOB_RECURSE CBFS_LIB_SRC CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/**/*.rs"
+  "${PROJECT_SOURCE_DIR}/cbfs/cbfs-lib/*.toml")
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/cbfs.h
@@ -41,9 +48,11 @@ add_custom_command(
 
 if (WIN32)
   if(CBFS_WIN_ARCH STREQUAL "arm64")
-    target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-a64.lib")
+    target_link_libraries(
+      cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-a64.lib")
   else()
-    target_link_libraries(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-x64.lib")
+    target_link_libraries(
+      cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\lib\\winfsp-x64.lib")
   endif()
   target_include_directories(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\inc")
   add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
@@ -88,6 +97,6 @@ target_include_directories(cbfs PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 if(MSVC)
   target_compile_options(cbfs PRIVATE /W4 /WX)
-else()
+elseif(NOT APPLE)
   target_compile_options(cbfs PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
