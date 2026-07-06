@@ -57,7 +57,7 @@ if (WIN32)
   target_include_directories(cbfs PUBLIC "C:\\Program Files (x86)\\WinFsp\\inc")
   add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_BIN_DIR}/cbfs_compat.lib")
   add_custom_command(
-        OUTPUT "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib"
+        OUTPUT "${CBFSLIB_BIN_DIR}/cbfs_compat.lib"
         COMMAND cargo build ${CBFS_CARGO_ARGS}
         DEPENDS ${CBFS_COMPAT_SRC} ${CBFS_LIB_SRC}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/compat

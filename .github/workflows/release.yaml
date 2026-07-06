@@ -226,7 +226,6 @@ jobs:
           lipo -create -output dist/cbfs-util target/x86_64-apple-darwin/release/cbfs-util target/aarch64-apple-darwin/release/cbfs-util
           lipo -create -output dist/cbc target/x86_64-apple-darwin/release/cbc target/aarch64-apple-darwin/release/cbc
           lipo -create -output dist/jib-term target/x86_64-apple-darwin/release/jib-term target/aarch64-apple-darwin/release/jib-term
-          lipo -create -output dist/libcbfs_compat.dylib target/x86_64-apple-darwin/release/libcbfs_compat.dylib target/aarch64-apple-darwin/release/libcbfs_compat.dylib
           lipo -create -output dist/cbfs build/x64/cbfs/cbfs-fuse/cbfs build/arm64/cbfs/cbfs-fuse/cbfs
 
       - name: Create a bundle
@@ -238,7 +237,7 @@ jobs:
 
       - name: Package binary
         run: |
-          tar -czvf solarium-macos.tar.gz -C dist cbfs-util cbc jib-term VisualJib.app cbfs libcbfs_compat.dylib
+          tar -czvf solarium-macos.tar.gz -C dist cbfs-util cbc jib-term VisualJib.app cbfs
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
