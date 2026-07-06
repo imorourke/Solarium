@@ -210,9 +210,6 @@ jobs:
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbfs-util
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbc
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p jib-term
-
-      - name: Build cbfs
-        run: |
           cmake -S . -B build_x64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCARGO_TARGET=x86_64-apple-darwin -GNinja
           ninja -Cbuild_x64
           cmake -S . -B build_arm64 -DCMAKE_OSX_ARCHITECTURES=arm64 -DCARGO_TARGET=aarch64-apple-darwin -GNinja
