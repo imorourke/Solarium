@@ -3,10 +3,10 @@
 /.idea
 /.fleet
 *.kate-swp
-build
+build*
 .cache
 
-target/
+target
 __cmake_systeminformation
 /history.*
 .[Dd][Ss]_[Ss]tore

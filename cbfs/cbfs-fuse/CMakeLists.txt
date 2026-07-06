@@ -13,20 +13,20 @@ add_executable(
 
 set(CBFSLIB_BIN_DIR ${PROJECT_SOURCE_DIR}/target)
 
-if(DEFINED CARGO_TARGET)
-  set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/${CARGO_TARGET}")
-  set(CBFS_CARGO_ARGS "--target" ${CARGO_TARGET})
-endif()
-
 set_target_properties(cbfs PROPERTIES CXX_STANDARD 20)
 set_target_properties(cbfs PROPERTIES CXX_STANDARD_REQUIRED TRUE)
+
+if(DEFINED CARGO_TARGET)
+  set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/${CARGO_TARGET}")
+  set(CBFS_CARGO_ARGS "--target" "${CARGO_TARGET}")
+endif()
 
 if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (NOT CMAKE_BUILD_TYPE))
   set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/debug")
 else()
   set(CBFSLIB_BIN_DIR "${CBFSLIB_BIN_DIR}/release")
   set(CBFS_RELEASE ON)
-  set(CBFS_CARGO_ARGS ${CBFS_CARGO_ARGS} "--release")
+  set(CBFS_CARGO_ARGS "${CBFS_CARGO_ARGS}" "--release")
 endif()
 
 file(
