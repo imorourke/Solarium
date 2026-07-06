@@ -65,10 +65,10 @@ if (WIN32)
   target_link_libraries(cbfs PUBLIC "${CBFSLIB_BIN_DIR}/cbfs_compat.dll.lib")
   add_dependencies(cbfs cbfs_lib)
 else()
+  set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.a")
+
   if(APPLE)
-    set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.dylib")
-  else()
-    set(CBFSLIB_FILE "${CBFSLIB_BIN_DIR}/libcbfs_compat.a")
+    target_link_libraries(cbfs PUBLIC "-framework CoreFoundation")
   endif()
 
   if(BSD)
@@ -78,7 +78,6 @@ else()
   endif()
 
   target_link_libraries(cbfs PUBLIC fuse3)
-  target_link_libraries(cbfs PUBLIC "${CBFSLIB_FILE}")
   add_custom_target(cbfs_lib DEPENDS "${CBFSLIB_FILE}")
   add_custom_command(
         OUTPUT "${CBFSLIB_FILE}"
