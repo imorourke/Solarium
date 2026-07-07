@@ -739,7 +739,7 @@ dependencies = [
 
 [[package]]
 name = "cbc"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cblang",
  "clap",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-compat"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cbfs-lib",
  "chrono",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-lib"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "flate2",
@@ -766,7 +766,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-util"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "cblang"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "jib-asm",
  "jib-cpu",
@@ -2015,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "jib-asm"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "jib-cpu",
@@ -2024,7 +2024,7 @@ dependencies = [
 
 [[package]]
 name = "jib-computer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cbfs-lib",
  "cblang",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "jib-cpu"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "circ-buff",
@@ -2044,7 +2044,7 @@ dependencies = [
 
 [[package]]
 name = "jib-term"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -3431,9 +3431,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.22"
+version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
+checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "same-file"
@@ -4038,7 +4038,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "visual-jib"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cbfs-lib",
  "cblang",
