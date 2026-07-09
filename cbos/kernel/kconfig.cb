@@ -1,6 +1,8 @@
 #ifndef K_CONFIG
 #define K_CONFIG
 
+#include kdef.cb
+
 const K_LOC_DEVICE_START: u32 = 0xFFFFA000u32;
 const K_LOC_DEVICE_HD_START: u32 = 0xFFFFB000u32;
 
