@@ -47,7 +47,9 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
             vals.insert(o.to_string());
         }
 
-        for o in ["(", ")", ",", ";", ":", "{", "}", "[", "]", ".", "->"] {
+        for o in [
+            "(", ")", ",", ";", ":", "{", "}", "[", "]", ".", "->", "/*", "*/",
+        ] {
             vals.insert(o.to_string());
         }
 
@@ -213,8 +215,30 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
         }
     }
 
+    let mut in_block_comment = Vec::new();
+    let mut block_tokens = Vec::new();
+    for t in tokens.into_iter() {
+        if t.get_value() == "/*" {
+            in_block_comment.push(t);
+        } else if t.get_value() == "*/" {
+            if in_block_comment.is_empty() {
+                return Err(t.into_err("unexpected closing block comment"));
+            } else {
+                in_block_comment.pop();
+            }
+        } else if in_block_comment.is_empty() {
+            block_tokens.push(t);
+        }
+    }
+
+    if let Some(t) = in_block_comment.last() {
+        return Err(t
+            .clone()
+            .into_err("open block comment not matched by closing bracket"));
+    }
+
     // Return the resulting tokens
-    Ok(tokens)
+    Ok(block_tokens)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
