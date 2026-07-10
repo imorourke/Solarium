@@ -13,6 +13,13 @@ struct Args {
         help = "exports the hard disk image if provided to a file"
     )]
     export_hd: Option<PathBuf>,
+    #[cfg(debug_assertions)]
+    #[arg(
+        short = 't',
+        long = "test",
+        help = "tests only the compiling phase, but does not proceed to boot"
+    )]
+    test: bool,
 }
 
 fn main() -> Result<(), ComputerError> {
@@ -39,6 +46,11 @@ fn main() -> Result<(), ComputerError> {
     computer.use_bootloader(true)?;
     computer.reset(None)?;
     computer.set_running_request(true);
+
+    #[cfg(debug_assertions)]
+    if args.test {
+        return Ok(());
+    }
 
     let stdin_channel = spawn_stdin_channel();
 
