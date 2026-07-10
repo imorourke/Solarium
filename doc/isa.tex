@@ -3,6 +3,7 @@
 
 \usepackage{listings}
 \usepackage{graphicx}
+\usepackage{hyperref}
 
 \usepackage{amsmath}
 
@@ -765,9 +766,9 @@ A filesystem entry may either be a file or a directory entry. The base entry for
         \hline
         Byte Offset & Type & Description \\
         \hline
-        0 & \texttt{EntryType} & Entry Type \\
+        0 & \hyperref[sec:type-entrytype]{\texttt{EntryType}} & Entry Type \\
         2 & \texttt{u16} & Parent Directory Entry ID \\
-        4 & \texttt{DateTime} & Modification Time \\
+        4 & \hyperref[sec:type-datetime]{\texttt{DateTime}} & Modification Time \\
         8 & \texttt{u32} & Payload Size \\
         \hline
     \end{tabular}
@@ -785,7 +786,7 @@ After the entry header, data is provided for each of the entry types. For a file
         \hline
         0 & \texttt{u16} & Base Block / Data Entry ID \\
         2 & \texttt{u8} & Attributes \\
-        3 & \texttt{EntryType} & Entry Type \\
+        3 & \hyperref[sec:type-entrytype]{\texttt{EntryType}} & Entry Type \\
         8 & \texttt{u8\charmap{[}60\charmap{]}} & File Name \\
         \hline
     \end{tabular}
@@ -800,10 +801,12 @@ Note that the root entry, as specified in the volume header, must always be a di
 \subsection{Additional Types}
 
 \subsubsection{EntryType}
+\label{sec:type-entrytype}
 
-The \texttt{EntryType} is an enumeration of size \texttt{u8}, where a value of \texttt{1} represents a directory entry, while a value of \texttt{2} is a file entry. Any other value is not valid.
+The \texttt{EntryType} enumeration is of size \texttt{u8}, where a value of \texttt{1} represents a directory entry, while a value of \texttt{2} is a file entry. Any other value is not valid.
 
 \subsubsection{Date}
+\label{sec:type-date}
 
 The \texttt{Date} type represents a calendar date entry.
 
@@ -821,6 +824,7 @@ The \texttt{Date} type represents a calendar date entry.
 \end{table}
 
 \subsubsection{Time}
+\label{sec:type-time}
 
 The \texttt{Time} type represents a calendar time entry.
 
@@ -839,6 +843,7 @@ The \texttt{Time} type represents a calendar time entry.
 \end{table}
 
 \subsubsection{DateTime}
+\label{sec:type-datetime}
 
 The \texttt{DateTime} type combines both a date and a time together into a single type to provide a precise time instance.
 \begin{table}[h!]
@@ -847,8 +852,8 @@ The \texttt{DateTime} type combines both a date and a time together into a singl
         \hline
         Byte Offset & Type & Description \\
         \hline
-        0 & \texttt{Date} & Date \\
-        4 & \texttt{Time} & Time \\
+        0 & \texttt{Date} & \hyperref[sec:type-date]{Date} \\
+        4 & \texttt{Time} & \hyperref[sec:type-time]{Time} \\
         \hline
     \end{tabular}
 \end{table}
