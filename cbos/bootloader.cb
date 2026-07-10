@@ -33,10 +33,10 @@ fn _main() void {
             def state: k_fs_io_state_t;
 
             k_io_print("initing state...\n");
-            if (k_fs_read_state_init(disk, out_entry.base_block, 0, 0, &state) >= 0) {
+            if (k_fs_io_state_init(disk, out_entry.base_block, 0, 0, &state) >= 0) {
                 k_io_print("state inited\n");
                 def read_size: u32 = DATA_SIZE;
-                while (k_fs_read_state_next_section(&state, &run_data, &read_size) > 0) {
+                while (k_fs_io_state_read_next_section(&state, &run_data, &read_size) > 0) {
                     def i: i32 = 0;
                     while (i < read_size) {
                         *(loc : *u32) = *((&run_data[i]) : *u32);

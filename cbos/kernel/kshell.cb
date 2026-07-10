@@ -286,13 +286,13 @@ fn k_shell_fn_cat(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         if (k_fs_get_dir_entry_by_name(disk, state->cwd, argv[1], &out_entry) == 0) {
             if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
                 def read_state: k_fs_io_state_t;
-                if (k_fs_read_state_init(disk, out_entry.base_block, 0, 0, &read_state) >= 0) {
+                if (k_fs_io_state_init(disk, out_entry.base_block, 0, 0, &read_state) >= 0) {
                     // Add one to the data size for null character in the array
                     const DATA_SIZE: u32 = 128;
                     def run_data: [DATA_SIZE + 1]u8;
                     def read_size: u32 = DATA_SIZE;
 
-                    while (k_fs_read_state_next_section(&read_state, &run_data, &read_size) > 0) {
+                    while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
                         // Add the null character to the end
                         run_data[read_size] = 0;
 
@@ -330,7 +330,7 @@ fn k_shell_fn_cat(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
 fn _k_shell_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
     def read_state: k_fs_io_state_t;
-    if (k_fs_read_state_init(disk, entry, 0, 0, &read_state) >= 0) {
+    if (k_fs_io_state_init(disk, entry, 0, 0, &read_state) >= 0) {
         const DATA_SIZE: u32 = 128;
         def run_data: [DATA_SIZE]u8;
         def read_size: u32 = DATA_SIZE;
@@ -350,7 +350,7 @@ fn _k_shell_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
         def init_loc: *u8 = copy_loc;
 
         // Copy code into location
-        while (k_fs_read_state_next_section(&read_state, &run_data, &read_size) > 0) {
+        while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
             // Copy memory in
             k_memcpy(copy_loc, &run_data[0], read_size);
             copy_loc = copy_loc + read_size;
@@ -640,13 +640,13 @@ fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         if (k_fs_get_dir_entry_by_name(disk, state->cwd, argv[1], &out_entry) == 0) {
             if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
                 def read_state: k_fs_io_state_t;
-                if (k_fs_read_state_init(disk, out_entry.base_block, 0, 0, &read_state) >= 0) {
+                if (k_fs_io_state_init(disk, out_entry.base_block, 0, 0, &read_state) >= 0) {
                     // Add one to the data size for null character in the array
                     const DATA_SIZE: u32 = 128;
                     def run_data: [DATA_SIZE + 1]u8;
                     def read_size: u32 = DATA_SIZE;
 
-                    while (k_fs_read_state_next_section_until(&read_state, &run_data, &read_size, '\n') > 0) {
+                    while (k_fs_io_state_read_next_section_until(&read_state, &run_data, &read_size, '\n') > 0) {
                         // Add the null character to the end
                         run_data[read_size] = 0;
                         def input_data: *u8 = run_data;

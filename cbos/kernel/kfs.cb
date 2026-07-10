@@ -222,7 +222,7 @@ struct k_fs_io_state_t {
     span_size: u32;
 }
 
-fn k_fs_read_state_init_hdr(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
+fn k_fs_io_state_init_hdr(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
     if (!k_fs_entry_valid(entry)) {
         k_io_print("\nInvalid Entry: ");
         k_io_print_uint(entry);
@@ -269,12 +269,12 @@ fn k_fs_read_state_init_hdr(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u3
     return state->span_size;
 }
 
-fn k_fs_read_state_init(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t) i32 {
+fn k_fs_io_state_init(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t) i32 {
     def entry_hdr: k_fs_entry_header_t;
-    return k_fs_read_state_init_hdr(dev, entry, offset, size, state, &entry_hdr);
+    return k_fs_io_state_init_hdr(dev, entry, offset, size, state, &entry_hdr);
 }
 
-fn k_fs_read_state_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, size: *u32, until: *u8) i32 {
+fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, size: *u32, until: *u8) i32 {
     if (state == 0) {
         return -1;
     }
@@ -357,124 +357,12 @@ fn k_fs_read_state_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, si
     return data_size;
 }
 
-fn k_fs_read_state_next_section(state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
-    return k_fs_read_state_next_section_until_ptr(state, data, size, 0);
+fn k_fs_io_state_read_next_section(state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
+    return k_fs_io_state_read_next_section_until_ptr(state, data, size, 0);
 }
 
-fn k_fs_read_state_next_section_until(state: *k_fs_io_state_t, data: *u8, size: *u32, until: u8) i32 {
-    return k_fs_read_state_next_section_until_ptr(state, data, size, &until);
-}
-
-fn k_fs_read_entry_data_until_ptr(dev: *k_fs_disk_t, entry: u16, data: *u8, size: *u32, offset: u32, until: *u8) i32 {
-    if (!k_fs_entry_valid(entry)) {
-        *size = 0;
-        k_io_print("\nInvalid Entry: ");
-        k_io_print_uint(entry);
-        k_io_print("\n");
-        return -1;
-    }
-
-    dev->ctl->memory_size = 0;
-
-    def entry_hdr: k_fs_entry_header_t;
-    if (k_fs_read_entry_header(dev, entry, &entry_hdr) != 0) {
-        *size = 0;
-        return -1;
-    }
-
-    if (offset > entry_hdr.payload_size) {
-        *size = 0;
-        return 0;
-    }
-
-    def sector_size: u32 = dev->vol_hdr.sector_size : u32;
-    def total_offset: u32 = offset + sizeof(k_fs_entry_header_t);
-    while (total_offset >= sector_size) {
-        entry = k_fs_next_sector(dev, entry);
-        if (entry == 0) {
-            *size = 0;
-            return -1;
-        }
-        total_offset = total_offset - sector_size;
-    }
-
-    if (offset + *size > entry_hdr.payload_size) {
-        *size = entry_hdr.payload_size - offset;
-    }
-
-    def data_size: u32 = *size;
-    def sector_base: u32 = sector_size * (entry : u32);
-    def disk_offset: u32 = total_offset;
-    def local_offset: u32 = 0;
-    *size = 0;
-
-    while (local_offset < data_size) {
-        def copy_size: u32 = data_size;
-        def move_sector: u8 = 0;
-        if (copy_size > dev->ctl->memory_size) {
-            copy_size = dev->ctl->memory_size;
-        }
-
-        if (local_offset + copy_size > data_size) {
-            copy_size = data_size - local_offset;
-        }
-
-        if (disk_offset + copy_size > sector_size) {
-            copy_size = sector_size - disk_offset;
-            move_sector = 1;
-        }
-
-        k_fs_disk_move(dev->ctl, sector_base + disk_offset);
-
-        def k_found: u8 = 0;
-        if (until != 0) {
-            if (K_DBG_ENABLED) {
-                k_io_print("Searching for : ");
-                k_io_print_uint(*until);
-                k_io_print("\n");
-            }
-            def i: u32 = 0;
-            def x: u8 = *until;
-            while (i < copy_size) {
-                if (dev->ctl->data[i] == x) {
-                    copy_size = i + 1;
-                    k_found = 1;
-                    break;
-                } else {
-                    i = i + 1;
-                }
-            }
-        }
-
-        k_memcpy(data + local_offset, &dev->ctl->data[0], copy_size);
-        *size = *size + copy_size;
-
-        if (k_found) {
-            return 0;
-        }
-
-        local_offset = local_offset + copy_size;
-        disk_offset = disk_offset + copy_size;
-
-        if (move_sector) {
-            disk_offset = disk_offset - sector_size;
-            entry = k_fs_next_sector(dev, entry);
-            if (entry == 0) {
-                return -1;
-            }
-            sector_base = sector_size * entry;
-        }
-    }
-
-    return 0;
-}
-
-fn k_fs_read_entry_data_until(dev: *k_fs_disk_t, entry: u16, data: *u8, size: *u32, offset: u32, until: u8) i32 {
-    return k_fs_read_entry_data_until_ptr(dev, entry, data, size, offset, &until);
-}
-
-fn k_fs_read_entry_data(dev: *k_fs_disk_t, entry: u16, data: *u8, size: *u32, offset: u32) i32 {
-    return k_fs_read_entry_data_until_ptr(dev, entry, data, size, offset, 0);
+fn k_fs_io_state_read_next_section_until(state: *k_fs_io_state_t, data: *u8, size: *u32, until: u8) i32 {
+    return k_fs_io_state_read_next_section_until_ptr(state, data, size, &until);
 }
 
 fn k_fs_next_free_entry(dev: *k_fs_disk_t) u16 {
@@ -508,11 +396,14 @@ fn k_fs_set_entry_size(dev: *k_fs_disk_t, entry: u16, hdr: *k_fs_entry_header_t)
                     k_io_print("disk full!\n");
                     return -1;
                 }
+                dev->entry_table[sector] = next;
                 dev->entry_table[next] = K_FS_ENTRY_END;
                 dev->entry_table_dirty = 1;
             }
         } else if ((i + 1) >= required_sectors) {
-            // TODO: FINISH HERE!
+            if (next == 0) {
+                break;
+            } else {
         }
         sector = next;
         i = i + 1;
@@ -549,27 +440,13 @@ fn k_fs_set_entry_size(dev: *k_fs_disk_t, entry: u16, hdr: *k_fs_entry_header_t)
     return 0;
 }
 
-fn k_fs_write_entry_data(dev: *k_fs_disk_t, entry: u16, data: *u8, size: u32, offset: u32) i32 {
-    if (!k_fs_entry_valid(entry)) {
-        k_io_print("\nInvalid Entry: ");
-        k_io_print_uint(entry);
-        k_io_print("\n");
-        return -1;
-    }
-
-    def entry_hdr: k_fs_entry_header_t;
-    if (k_fs_read_entry_header(dev, entry, &entry_hdr) != 0) {
-        return -1;
-    }
-
-    if (offset + size > entry_hdr.payload_size) {
-        return -1;
-    }
-
-    return -1;
-}
-
-fn k_fs_read_directory_entries(dev: *k_fs_disk_t, entry: u16, entries: *k_fs_directory_entry_t, entry_size: *u32, entry_offset: u32) i32 {
+fn k_fs_read_directory_entries(
+    dev: *k_fs_disk_t,
+    entry: u16,
+    entries: *k_fs_directory_entry_t,
+    entry_size: *u32,
+    entry_offset: u32) i32
+{
     if (entries == NULL) {
         return -1;
     } else if (dev->entry_table[entry] == 0) {
@@ -582,20 +459,19 @@ fn k_fs_read_directory_entries(dev: *k_fs_disk_t, entry: u16, entries: *k_fs_dir
 
     def header: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    if (k_fs_read_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, *entry_size * DATA_SIZE, &state, &header) < 0) {
+    if (k_fs_io_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, *entry_size * DATA_SIZE, &state, &header) < 0) {
         return -1;
     } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return -1;
     }
 
-    // Add one to the data size for null character in the array
     def run_data: [DATA_SIZE]u8;
     def read_size: u32 = DATA_SIZE;
 
     def current_ind: u32 = 0;
     def current: *k_fs_directory_entry_t = entries;
 
-    while (k_fs_read_state_next_section(&state, current, &read_size) > 0) {
+    while (k_fs_io_state_read_next_section(&state, current, &read_size) > 0) {
         if (read_size != DATA_SIZE) {
             return -1;
         }
@@ -609,8 +485,9 @@ fn k_fs_read_directory_entries(dev: *k_fs_disk_t, entry: u16, entries: *k_fs_dir
     return 0;
 }
 
+// TODO - Swap the last entry with the deleted entry?
 fn k_fs_delete_entry(dev: *k_fs_disk_t, entry: u16) i32 {
-    return -1;
+    return k_fs_set_entry_size(dev, entry, 0);
 }
 
 fn k_fs_get_dir_entry_by_name(dev: *k_fs_disk_t, parent: u16, name: *u8, entry: *k_fs_directory_entry_t) i32 {
@@ -650,10 +527,17 @@ fn k_fs_get_dir_entry_by_id(dev: *k_fs_disk_t, parent: u16, base_block: u16, ent
     return -1;
 }
 
-fn k_fs_disk_close(dev: *k_fs_disk_t) void {
+fn k_fs_disk_flush(dev: *k_fs_disk_t) i32 {
     if (dev->entry_table_dirty) {
         k_fs_write_disk_table(dev);
+        return 1;
+    } else {
+        return 0;
     }
+}
+
+fn k_fs_disk_close(dev: *k_fs_disk_t) void {
+    k_fs_disk_flush(dev);
     k_free(dev->entry_table);
     k_free(dev);
 }
