@@ -4,6 +4,7 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage[T1]{fontenc}
 
 \usepackage{amsmath}
 
@@ -376,9 +377,9 @@ Jib computers, by default, utilize the following character map. This is similar 
         18 & {} & 38 & \charmap{8} & 58 & \charmap{X} & 78 & \charmap{x} \\
         19 & {} & 39 & \charmap{9} & 59 & \charmap{Y} & 79 & \charmap{y} \\
         1A & {} & 3A & \charmap{:} & 5A & \charmap{Z} & 7A & \charmap{z} \\
-        1B & {} & 3B & \charmap{;} & 5B & \charmap{[} & 7B & \charmap{\{} \\
+        1B & {} & 3B & \charmap{;} & 5B & \charmap{[} & 7B & \charmap{\textbraceleft} \\
         1C & {} & 3C & \charmap{<} & 5C & \charmap{\charslash} & 7C & \charmap{|} \\
-        1D & {} & 3D & \charmap{=} & 5D & \charmap{]} & 7D & \charmap{\}} \\
+        1D & {} & 3D & \charmap{=} & 5D & \charmap{]} & 7D & \charmap{\textbraceright} \\
         1E & {} & 3E & \charmap{>} & 5E & \charmap{\textasciicircum} & 7E & \charmap{\textasciitilde} \\
         1F & {} & 3F & \charmap{?} & 5F & \charmap{\textunderscore} & 7F & {} \\
         \hline
@@ -580,12 +581,12 @@ Note that, in this case, both functions and variables share the same namespace. 
     & \textlangle BaseStatement\textrangle \\
     BaseStatement & $\rightarrow$ \\
     & \textlangle BaseStatement\textrangle \textlangle BaseStatement\textrangle \\
-    & fn \texttt{FunctionName}(\texttt{Variable}[, \texttt{Variable}\dots]) \{ \textlangle StatementList\textrangle \} \\
-    & fnint \texttt{FunctionName}(\texttt{Variable}[, \texttt{Variable}\dots]) \{ \textlangle StatementList\textrangle \} \\
-    & asmfn \texttt{FunctionName}(\texttt{Variable}[, \texttt{Variable}\dots) \{ [\textlangle WordLiteral; \textrangle \dots] \} \\
-    & global VarType \texttt{Variable}[ = \textlangle BaseExpression\textrangle]; \\
+    & fn \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots]) \{ \textlangle StatementList\textrangle \} \\
+    & fnint \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots]) \{ \textlangle StatementList\textrangle \} \\
+    & asmfn \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots) \{ [\textlangle WordLiteral; \textrangle \dots] \} \\
+    & global \texttt{Var}: \texttt{VarType}[ = \textlangle BaseExpression\textrangle]; \\
     Statement & $\rightarrow$ \\
-    & def \texttt{Variable}: \textlangle VarType\textrangle [ = \textlangle BaseExpression\textrangle]; \\
+    & def \texttt{Var}: \textlangle VarType\textrangle [ = \textlangle BaseExpression\textrangle]; \\
     & return; \\
     & return \textlangle BaseExpression\textrangle; \\
     & \textlangle BaseExpression\textrangle; \\
