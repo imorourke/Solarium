@@ -585,6 +585,7 @@ Note that, in this case, both functions and variables share the same namespace. 
     & fnint \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots]) \{ \textlangle StatementList\textrangle \} \\
     & asmfn \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots) \{ [\textlangle WordLiteral; \textrangle \dots] \} \\
     & global \texttt{Var}: \texttt{VarType}[ = \textlangle BaseExpression\textrangle]; \\
+    & const \texttt{Var}: \texttt{VarType}[ = \textlangle BaseExpression\textrangle]; \\
     Statement & $\rightarrow$ \\
     & def \texttt{Var}: \textlangle VarType\textrangle [ = \textlangle BaseExpression\textrangle]; \\
     & return; \\
@@ -606,7 +607,7 @@ Note that, in this case, both functions and variables share the same namespace. 
     & \texttt{Variable} \\
     & \textlangle Literal\textrangle \\
     & \textlangle UnaryOp\textrangle \textlangle Expression\textrangle \\
-    & \texttt{FunctionName}([\textlangle BaseExpression\textrangle[, \textlangle BaseExpression\textrangle,\dots]]) \\
+    & \texttt{FuncName}([\textlangle BaseExpression\textrangle[, \textlangle BaseExpression\textrangle,\dots]]) \\
     & (\textlangle BaseExpression\textrangle) \\
     & \textlangle Expression\textrangle[\textlangle Expression\textrangle] \\
     BinaryOp & $\rightarrow$  \\
@@ -618,7 +619,7 @@ Note that, in this case, both functions and variables share the same namespace. 
     & *\textlangle VarType\textrangle \\
     & [\textlangle NumericValue\textrangle]\textlangle VarType\textrangle \\
     LineComment & \textlangle Line\textrangle \texttt{\slash\slash \textlangle Comment\textrangle} \\
-    LineComment & \texttt{\slash*\textlangle Comment\textrangle *\slash} \\
+    BlockComment & \texttt{\slash*\textlangle Comment\textrangle *\slash} \\
 \end{tabular}
 \end{table}
 
