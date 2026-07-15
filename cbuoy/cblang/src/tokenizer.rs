@@ -645,6 +645,15 @@ mod tests {
     }
 
     #[test]
+    fn line_comment() {
+        static TEXT: &str = r"def a: u32 = 5;\
+        def b: f32 = 10.0; // THIS is a super odd thingy\
+        ";
+
+        assert!(tokenize_str(TEXT).is_ok());
+    }
+
+    #[test]
     fn identifiers() {
         let identifiers = [
             ("_asdf", true),
