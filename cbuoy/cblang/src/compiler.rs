@@ -1031,8 +1031,8 @@ impl CompilingState {
         }
 
         // Add user type statements
-        for (_, i) in self.global_scope.iter() {
-            if let (used, GlobalType::UserType(_, ut)) = i
+        for val in self.global_scope.values() {
+            if let (used, GlobalType::UserType(_, ut)) = val
                 && self.is_used(&used.borrow().own)
             {
                 match ut {
@@ -1045,8 +1045,8 @@ impl CompilingState {
         }
 
         // Add global variable statements
-        for (_, i) in self.global_scope.iter() {
-            if let (used, GlobalType::Variable(v)) = i
+        for val in self.global_scope.values() {
+            if let (used, GlobalType::Variable(v)) = val
                 && self.is_used(&used.borrow().own)
             {
                 statements.push(format!("{};", GlobalVariableStatement::new(v.clone())));
@@ -1054,8 +1054,8 @@ impl CompilingState {
         }
 
         // Add function statements
-        for (_, i) in self.global_scope.iter() {
-            if let (used, GlobalType::Function(f)) = i
+        for val in self.global_scope.values() {
+            if let (used, GlobalType::Function(f)) = val
                 && self.is_used(&used.borrow().own)
             {
                 statements.push(format!("{f}"))
