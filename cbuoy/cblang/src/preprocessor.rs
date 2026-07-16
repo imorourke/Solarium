@@ -1,6 +1,12 @@
+//! C/Buoy Preprocessor
+//!
+//! Provides simple macros and preprocessing logic to handle comments and similar items
+//! to help with C/Buoy code compilation.
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Display},
+    ops::RangeInclusive,
     path::{Path, PathBuf},
     rc::Rc,
     sync::LazyLock,
@@ -10,6 +16,7 @@ use regex::Regex;
 
 use crate::{TokenError, tokenize, tokenizer::Token};
 
+/// Provides default files that should be included within the compiler standard library
 pub static DEFAULT_FILES: &[(&str, &str)] = &[
     (
         "kernel/kconfig.cb",
@@ -71,6 +78,7 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Provides the ouptut of the preprocessor
 #[derive(Debug, Clone)]
 pub struct PreprocessorOutput {
     lines: Vec<PreprocessorLine>,
@@ -121,6 +129,120 @@ impl PreprocessorState {
         self.read_file_inner(file, 0, false)
     }
 
+    fn find_comment_spans(
+        s: &str,
+        file: &str,
+    ) -> Result<Vec<RangeInclusive<usize>>, PreprocessorError> {
+        enum CommentType {
+            Line(usize),
+            Block(usize, i32),
+        }
+
+        let mut within_comment: Option<CommentType> = None;
+        let mut within_string = if let Some(c) = s.chars().next()
+            && (c == '\'' || c == '"')
+        {
+            Some(c)
+        } else {
+            None
+        };
+
+        let mut comment_spans = Vec::new();
+        let mut line_num = 1;
+
+        for ((i0, c0), (i1, c1)) in s.char_indices().zip(s.char_indices().skip(1)) {
+            match (c0, c1) {
+                ('/', '/') if within_string.is_none() && within_comment.is_none() => {
+                    within_comment = Some(CommentType::Line(i0));
+                }
+                ('/', '*') if within_string.is_none() => {
+                    if within_comment.is_none() {
+                        within_comment = Some(CommentType::Block(i0, 1));
+                    } else if let Some(CommentType::Block(i, blks)) = within_comment {
+                        within_comment = Some(CommentType::Block(i, blks + 1));
+                    }
+                }
+                ('*', '/') => {
+                    if let Some(CommentType::Block(i, blks)) = within_comment {
+                        if (blks - 1).max(0) == 0 {
+                            comment_spans.push(i..=i1);
+                            within_comment = None;
+                        } else {
+                            within_comment = Some(CommentType::Block(i, blks - 1));
+                        }
+                    }
+                }
+                (_, '\n') => {
+                    line_num += 1;
+                    if let Some(CommentType::Line(i)) = within_comment {
+                        comment_spans.push(i..=i0);
+                        within_comment = None;
+                    }
+                }
+                (_, '"') | (_, '\'') if within_comment.is_none() => {
+                    if within_string.is_none() {
+                        within_string = Some(c1);
+                    } else if let Some(c) = within_string
+                        && c1 == c
+                        && c0 != '\\'
+                    {
+                        within_string = None;
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        match within_comment {
+            Some(CommentType::Line(i)) => comment_spans.push(i..=s.len()),
+            Some(CommentType::Block(_, _)) => {
+                return Err(PreprocessorError {
+                    loc: Some(PreprocessorLocation {
+                        file: file.into(),
+                        line: line_num,
+                    }),
+                    text: "".into(),
+                    error: "unclosed block comment found".into(),
+                });
+            }
+            _ => (),
+        };
+
+        Ok(comment_spans)
+    }
+
+    fn remove_comments(s: &str, file: &str) -> Result<String, PreprocessorError> {
+        let blocks = Self::find_comment_spans(s, file)?;
+
+        if blocks.is_empty() {
+            return Ok(s.to_string());
+        }
+
+        let mut blk_i = 0;
+        let mut current = &blocks[0];
+
+        let mut char_vec = s.chars().collect::<Vec<_>>();
+
+        'outer: for (i, c) in char_vec.iter_mut().enumerate() {
+            while i > *current.end() {
+                blk_i += 1;
+                if blk_i < blocks.len() {
+                    current = &blocks[blk_i];
+                } else {
+                    break 'outer;
+                }
+            }
+
+            if i < *current.start() {
+                continue;
+            } else if current.contains(&i) && *c != '\n' {
+                *c = ' ';
+            }
+        }
+
+        Ok(char_vec.into_iter().collect())
+    }
+
     fn read_file_inner(
         &mut self,
         file: &Path,
@@ -129,11 +251,15 @@ impl PreprocessorState {
     ) -> Result<PreprocessorOutput, PreprocessorError> {
         let fname: Rc<str> = file.to_str().unwrap().into();
 
-        let file_text = if use_system_fs {
+        let file_text_orig = if use_system_fs {
             self.system_fs.read_file(file)?
         } else {
             self.filesystem.read_file(file)?
         };
+        let file_text = Self::remove_comments(
+            file_text_orig.as_ref(),
+            file.as_os_str().to_str().unwrap_or(""),
+        )?;
 
         let mut lines = Vec::new();
 
@@ -144,13 +270,7 @@ impl PreprocessorState {
 
                 if let Some((first, second)) = after.split_once(' ') {
                     verb = first;
-                    let tmp = second.trim();
-
-                    if let Some(i) = tmp.find("//") {
-                        arg = tmp[..i].trim()
-                    } else {
-                        arg = tmp
-                    }
+                    arg = second.trim();
                 } else {
                     verb = after;
                     arg = "";

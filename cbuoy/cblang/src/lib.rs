@@ -34,6 +34,7 @@ mod test {
         "examples/threading.cb",
         "tests/test_kmalloc.cb",
         "tests/test_struct_ptr.cb",
+        "tests/test_comment.cb",
     ];
 
     #[test]

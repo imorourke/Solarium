@@ -374,6 +374,20 @@ fn update_comment_values(s: &str) -> String {
     s.replace('\n', "\\n")
 }
 
+fn add_escape_chars(s: &str) -> String {
+    let mut chars = s.chars().collect::<Vec<_>>();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '"' {
+            chars.insert(i, '\\');
+            i += 1;
+        }
+        i += 1;
+    }
+    chars.into_iter().collect()
+}
+
 impl Display for AsmToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -386,7 +400,7 @@ impl Display for AsmToken {
             Self::Literal2(x) => write!(f, ".u16 {x:#x}"),
             Self::Literal4(x) => write!(f, ".u32 {x:#x}"),
             Self::Reserve(x) => write!(f, ".reserve {x:#x}"),
-            Self::LiteralText(t) => write!(f, ".text \"{t}\""),
+            Self::LiteralText(t) => write!(f, ".text \"{}\"", add_escape_chars(t)),
             Self::CreateLabel(lbl) => write!(f, ":{lbl}"),
             Self::Operation(_, name, args) => {
                 write!(f, "{name}")?;

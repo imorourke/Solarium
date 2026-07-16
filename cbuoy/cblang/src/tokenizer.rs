@@ -12,14 +12,6 @@ use crate::{
     read_and_preprocess,
 };
 
-fn strip_comments(s: &str) -> &str {
-    if let Some(i) = s.find("//") {
-        &s[0..i]
-    } else {
-        s
-    }
-}
-
 pub fn tokenize_str(s: &str) -> Result<Vec<Token>, TokenError> {
     tokenize(s.lines().map(|x| (x.to_string(), None)))
 }
@@ -47,9 +39,7 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
             vals.insert(o.to_string());
         }
 
-        for o in [
-            "(", ")", ",", ";", ":", "{", "}", "[", "]", ".", "->", "/*", "*/",
-        ] {
+        for o in ["(", ")", ",", ";", ":", "{", "}", "[", "]", ".", "->"] {
             vals.insert(o.to_string());
         }
 
@@ -104,7 +94,7 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
         let mut current_state = None;
 
         // Remove comments
-        let l = strip_comments(&line_str);
+        let l = line_str;
 
         let get_loc = |start: usize| TokenLocation {
             line: loc.as_ref().map(|x| x.line).unwrap_or(line_num),
@@ -645,9 +635,12 @@ mod tests {
     }
 
     #[test]
-    fn line_comment() {
+    fn comments() {
         static TEXT: &str = r"def a: u32 = 5;\
-        def b: f32 = 10.0; // THIS is a super odd thingy\
+        def b: f32 = 10.0; // This is a test of a line comment\
+        /*\
+        def c: f32 = 10.0;\
+        */\
         ";
 
         assert!(tokenize_str(TEXT).is_ok());
