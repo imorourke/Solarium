@@ -535,11 +535,11 @@ impl CompilingState {
                         && let Some(offset) = asm.labels.get(var.access_label())
                     {
                         let name_bytes = k.as_bytes();
-                        link_sec.write_all(&4u32.to_be_bytes()).unwrap();
-                        link_sec.write_all(&offset.to_be_bytes()).unwrap();
+                        link_sec.write_all(&4u8.to_be_bytes()).unwrap();
                         link_sec
-                            .write_all(&((name_bytes.len() + 1) as u32).to_be_bytes())
+                            .write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())
                             .unwrap();
+                        link_sec.write_all(&offset.to_be_bytes()).unwrap();
                         link_sec.write_all(name_bytes).unwrap();
                         link_sec.write_all(&[b'\0']).unwrap();
                     }

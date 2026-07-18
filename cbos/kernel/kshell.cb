@@ -340,9 +340,9 @@ struct k_exec_hdr_t {
 const K_EXEC_MAGIC_HDR: u32 = 1128415568;
 
 struct k_link_rgn_t {
-    copy_size: u32;
+    data_size: u8;
+    name_size: u8;
     offset: u32;
-    name_size: u32;
 }
 
 fn _k_shell_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
