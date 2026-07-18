@@ -86,7 +86,7 @@ impl JibOsImage {
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
         // Compile OS into a file
         let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, None, false)?;
-        let kernel_data = kernel_compiled.get_assembler()?.bytes;
+        let kernel_data = kernel_compiled.get_binary()?;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();
@@ -114,7 +114,7 @@ impl JibOsImage {
         for app in Self::CODE_APPS {
             os_image.applications.push((
                 app.exec.into(),
-                os_image.compile_app_code(app.code)?.get_assembler()?.bytes,
+                os_image.compile_app_code(app.code)?.get_binary()?,
             ));
         }
 

@@ -3,6 +3,7 @@
 
 #include kdbg.cb
 #include kfs.cb
+#include klink.cb
 #include kmalloc.cb
 #include kmalloc_dbg.cb
 #include kserialio.cb
@@ -328,26 +329,66 @@ fn k_shell_fn_cat(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     }
 }
 
+struct k_exec_hdr_t {
+    magic_num: u32;
+    link_offset: u32;
+    link_size: u32;
+    prog_offset: u32;
+    prog_size: u32;
+}
+
+const K_EXEC_MAGIC_HDR: u32 = 1128415568;
+
+struct k_link_rgn_t {
+    copy_size: u32;
+    offset: u32;
+    name_size: u32;
+}
+
 fn _k_shell_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
     def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(disk, entry, 0, 0, &read_state) >= 0) {
+    def exec_hdr: k_exec_hdr_t;
+
+    if (k_fs_io_state_init(disk, entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
+        def read_size: u32 = sizeof(exec_hdr);
+        def read_remaining: u32 = sizeof(exec_hdr);
+        def copy_loc: *u8 = &exec_hdr;
+        while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
+            copy_loc = copy_loc + read_size;
+            read_remaining = read_remaining - read_size;
+            read_size = read_remaining;
+        }
+    } else {
+        k_io_print("unable to find application header\n");
+        return -5;
+    }
+
+    if (exec_hdr.magic_num != K_EXEC_MAGIC_HDR) {
+        k_io_print("unknown executable format found\n");
+        return -6;
+    }
+
+    def app_data: *u8 = NULL;
+    def init_loc: *u8 = NULL;
+
+    if (k_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
         const DATA_SIZE: u32 = 128;
         def run_data: [DATA_SIZE]u8;
         def read_size: u32 = DATA_SIZE;
 
         // Add 3 to allow for alignment
-        def app_loc: *u8 = k_malloc(read_state.span_size + 3);
-        if (app_loc == 0) {
+        app_data = k_malloc(read_state.span_size + 3);
+        if (app_data == NULL) {
             k_io_print("unable to allocate application memory\n");
             return -4;
         }
 
         // Ensure that the location is aligned
-        def copy_loc: *u8 = app_loc;
+        def copy_loc: *u8 = app_data;
         while ((copy_loc : u32) % 4 != 0) {
             copy_loc = copy_loc + 1;
         }
-        def init_loc: *u8 = copy_loc;
+        init_loc = copy_loc;
 
         // Copy code into location
         while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
@@ -357,18 +398,81 @@ fn _k_shell_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
 
             read_size = DATA_SIZE;
         }
+    } else {
+        k_io_print("unable to load binary into memory\n");
+        return -6;
+    }
 
+    def link_success: u8 = 1;
+
+    if (exec_hdr.link_size > 0) {
+        def link_data: *u8 = k_malloc(exec_hdr.link_size);
+
+        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.link_offset, exec_hdr.link_size, &read_state) >= 0)) {
+            const DATA_SIZE: u32 = 128;
+            def run_data: [DATA_SIZE]u8;
+            def read_size: u32 = DATA_SIZE;
+
+            // Ensure that the location is aligned
+            def copy_loc: *u8 = link_data;
+
+            // Copy code into location
+            while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
+                // Copy memory in
+                k_memcpy(copy_loc, &run_data[0], read_size);
+                copy_loc = copy_loc + read_size;
+
+                read_size = DATA_SIZE;
+            }
+        } else {
+            k_io_print("unable to load link region into memory\n");
+            link_success = 0;
+        }
+
+        if (link_success) {
+            // Read the link data and apply
+            def current_loc: *u8 = link_data;
+            def end_loc: *u8 = link_data + exec_hdr.link_size;
+
+            while (current_loc < end_loc) {
+                def rgn: *k_link_rgn_t = current_loc;
+                current_loc = current_loc + sizeof(k_link_rgn_t);
+
+                def name: *u8 = current_loc;
+                current_loc = current_loc + rgn->name_size;
+
+                def addr: u32 = k_link_executable_get_addr(name);
+                if (addr != NULL) {
+                    *((init_loc + rgn->offset) : *u32) = addr;
+                } else {
+                    k_io_print("unable to find location for symbol '");
+                    k_io_print(name);
+                    k_io_print("'\n");
+                    link_success = 0;
+                }
+            }
+        }
+
+        if (link_data != NULL) {
+            k_free(link_data);
+        }
+    }
+
+    // Only run the application on success
+    if (link_success) {
         // Create the application stack
         def app_stack: *u8 = k_malloc(1024);
 
         // Define the calling function and enter the location
-        def app_func: fn(*u8) i32 = init_loc;
-        app_func(app_stack);
-
-        // Free the application memory
-        k_free(app_loc);
-        k_free(app_stack);
+        if (app_stack != NULL) {
+            def app_func: fn(*u8) i32 = init_loc;
+            app_func(app_stack);
+            k_free(app_stack);
+        }
     }
+
+    // Free the application memory
+    k_free(app_data);
 
     return 0;
 }

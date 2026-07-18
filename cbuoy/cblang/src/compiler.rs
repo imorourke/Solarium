@@ -520,6 +520,51 @@ impl CompilingState {
         }
     }
 
+    pub fn get_binary(&self) -> Result<Vec<u8>, CompilerError> {
+        let asm = self.get_assembler()?;
+
+        Ok(
+            if matches!(self.options.prog_type, ProgramType::Application) {
+                const MAGIC_NUM: [u8; 4] = [b'C', b'B', b'A', b'P'];
+
+                let mut link_sec = Vec::new();
+
+                for (k, v) in self.global_scope.iter() {
+                    if let GlobalType::Variable(var) = &v.value
+                        && v.visibility == Visiblity::Import
+                        && let Some(offset) = asm.labels.get(var.access_label())
+                    {
+                        let name_bytes = k.as_bytes();
+                        link_sec.write_all(&4u32.to_be_bytes()).unwrap();
+                        link_sec.write_all(&offset.to_be_bytes()).unwrap();
+                        link_sec
+                            .write_all(&((name_bytes.len() + 1) as u32).to_be_bytes())
+                            .unwrap();
+                        link_sec.write_all(name_bytes).unwrap();
+                        link_sec.write_all(&[b'\0']).unwrap();
+                    }
+                }
+
+                let link_offset: u32 = 5 * std::mem::size_of::<u32>() as u32;
+                let link_size: u32 = link_sec.len() as u32;
+                let prog_offset: u32 = link_offset + link_size;
+                let prog_size: u32 = asm.bytes.len() as u32;
+
+                let mut f = Vec::new();
+                f.write_all(&MAGIC_NUM).unwrap();
+                f.write_all(&link_offset.to_be_bytes()).unwrap();
+                f.write_all(&link_size.to_be_bytes()).unwrap();
+                f.write_all(&prog_offset.to_be_bytes()).unwrap();
+                f.write_all(&prog_size.to_be_bytes()).unwrap();
+                f.write_all(&link_sec).unwrap();
+                f.write_all(&asm.bytes).unwrap();
+                f
+            } else {
+                asm.bytes
+            },
+        )
+    }
+
     pub fn get_assembler(&self) -> Result<AssemblerOutput, CompilerError> {
         Ok(assemble_tokens(self.get_assembler_tokens()?)?)
     }
@@ -1349,7 +1394,7 @@ impl InterfaceDefinition {
                         .as_ref()
                         .map(|x| x.to_string())
                         .unwrap_or("void".into()),
-                    i.loc * 0,
+                    i.loc,
                 )?;
             }
         }

@@ -52,6 +52,10 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
         include_str!("../../../cbos/kernel/kmalloc.cb"),
     ),
     (
+        "kernel/klink.cb",
+        include_str!("../../../cbos/kernel/klink.cb"),
+    ),
+    (
         "kernel/kmalloc_dbg.cb",
         include_str!("../../../cbos/kernel/kmalloc_dbg.cb"),
     ),

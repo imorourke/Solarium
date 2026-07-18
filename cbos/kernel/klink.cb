@@ -1,0 +1,28 @@
+#ifndef K_LINK
+#define K_LINK
+
+#include kdef.cb
+#include kfs.cb
+#include kserialio.cb
+#include <std/list.cb>
+#include <std/string.cb>
+
+// Returns an executable location, or null if there is no location
+// for the requested symbol
+fn k_link_executable_get_addr(symbol: *u8) u32 {
+    if (strcmp(symbol, "k_io_print") == 0) {
+        return &k_io_print;
+    } else if (strcmp(symbol, "k_malloc") == 0) {
+        return &k_malloc;
+    } else if (strcmp(symbol, "k_free") == 0) {
+        return &k_free;
+    } else if (strcmp(symbol, "k_memset") == 0) {
+        return &k_memset;
+    } else if (strcmp(symbol, "k_memcpy") == 0) {
+        return &k_memcpy;
+    } else {
+        return NULL;
+    }
+}
+
+#endif // K_LINK

@@ -228,8 +228,16 @@ fn main() -> std::process::ExitCode {
 
     // Output the binary if requested
     if let Some(out) = args.output_binary {
+        let data = match cbstate.get_binary() {
+            Ok(v) => v,
+            Err(e) => {
+                print_error(preprocessed.get_lines(), &e);
+                return std::process::ExitCode::FAILURE;
+            }
+        };
+
         match std::fs::File::create(out) {
-            Ok(mut f) => f.write_all(&asm.bytes).unwrap(),
+            Ok(mut f) => f.write_all(&data).unwrap(),
             Err(e) => {
                 eprintln!("{e}");
                 return std::process::ExitCode::FAILURE;
