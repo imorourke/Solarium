@@ -546,18 +546,25 @@ impl CompilingState {
                     }
                 }
 
-                let link_offset: u32 = 5 * std::mem::size_of::<u32>() as u32;
+                let export_sec = Vec::new();
+
+                let link_offset: u32 = 7 * std::mem::size_of::<u32>() as u32;
                 let link_size: u32 = link_sec.len() as u32;
-                let prog_offset: u32 = link_offset + link_size;
+                let export_offset: u32 = link_offset + link_size;
+                let export_size: u32 = export_sec.len() as u32;
+                let prog_offset: u32 = export_offset + export_size;
                 let prog_size: u32 = asm.bytes.len() as u32;
 
                 let mut f = Vec::new();
                 f.write_all(&MAGIC_NUM).unwrap();
                 f.write_all(&link_offset.to_be_bytes()).unwrap();
                 f.write_all(&link_size.to_be_bytes()).unwrap();
+                f.write_all(&export_offset.to_be_bytes()).unwrap();
+                f.write_all(&export_size.to_be_bytes()).unwrap();
                 f.write_all(&prog_offset.to_be_bytes()).unwrap();
                 f.write_all(&prog_size.to_be_bytes()).unwrap();
                 f.write_all(&link_sec).unwrap();
+                f.write_all(&export_sec).unwrap();
                 f.write_all(&asm.bytes).unwrap();
                 f
             } else {
