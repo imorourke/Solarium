@@ -58,6 +58,7 @@ impl JibOsImage {
                 base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
             },
             trim_code,
+            zero_locations: true,
             ..Default::default()
         };
 

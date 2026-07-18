@@ -98,6 +98,12 @@ struct CompilerArguments {
         help = "Writes an interface file for the provided symbols"
     )]
     write_interface_file: Option<PathBuf>,
+    #[arg(
+        short = 'z',
+        long = "zero-locations",
+        help = "Zeros locations for functions and variables in generated interface files"
+    )]
+    zero_locations: bool,
 }
 
 impl CompilerArguments {
@@ -114,6 +120,7 @@ impl CompilerArguments {
             },
             debug_locations: self.include_locations,
             trim_code: self.trim_unused,
+            zero_locations: self.zero_locations,
         }
     }
 }

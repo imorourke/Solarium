@@ -378,6 +378,7 @@ pub struct CodeGenerationOptions {
     pub prog_type: ProgramType,
     pub debug_locations: bool,
     pub trim_code: bool,
+    pub zero_locations: bool,
 }
 
 impl CodeGenerationOptions {
@@ -1198,7 +1199,7 @@ impl CompilingState {
                     if let Some(loc) = asm.labels.get(func.get_entry_label()).cloned() {
                         let def = func.get_func_def();
                         interface.functions.push(InterfaceFunction {
-                            loc,
+                            loc: if self.options.zero_locations { 0 } else { loc },
                             name: name.clone(),
                             def: def.clone(),
                         });
@@ -1217,7 +1218,7 @@ impl CompilingState {
                         interface.variables.push(InterfaceVariable {
                             name: name.clone(),
                             def: var.get_type()?.clone(),
-                            loc,
+                            loc: if self.options.zero_locations { 0 } else { loc },
                         })
                     }
                 }
