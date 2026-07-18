@@ -546,7 +546,28 @@ impl CompilingState {
                     }
                 }
 
-                let export_sec = Vec::new();
+                let mut export_sec = Vec::new();
+
+                for (k, v) in self.global_scope.iter() {
+                    if v.visibility == Visiblity::Export {
+                        let access_label = match &v.value {
+                            GlobalType::Variable(var) => var.access_label(),
+                            GlobalType::Function(func) => func.get_entry_label(),
+                            _ => continue,
+                        };
+
+                        if let Some(offset) = asm.labels.get(access_label) {
+                            let name_bytes = k.as_bytes();
+                            export_sec.write_all(&4u8.to_be_bytes()).unwrap();
+                            export_sec
+                                .write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())
+                                .unwrap();
+                            export_sec.write_all(&offset.to_be_bytes()).unwrap();
+                            export_sec.write_all(name_bytes).unwrap();
+                            export_sec.write_all(&[b'\0']).unwrap();
+                        }
+                    }
+                }
 
                 let link_offset: u32 = 7 * std::mem::size_of::<u32>() as u32;
                 let link_size: u32 = link_sec.len() as u32;
