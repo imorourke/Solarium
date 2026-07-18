@@ -17,10 +17,15 @@ use crate::{
     expressions::{Expression, RegisterDef, TemporaryStackTracker},
     functions::{FunctionDeclaration, FunctionDefinition},
     literals::{Literal, StringLiteral},
-    tokenizer::{Token, TokenIter, get_identifier, is_identifier, tokenize_str},
+    tokenizer::{
+        KEYWORD_CONST, KEYWORD_GLOBAL, KEYWORD_IMPORT, KEYWORD_STRUCT, Token, TokenIter,
+        get_identifier, is_identifier, tokenize_str,
+    },
     typing::{Function, FunctionParameter, StructDefinition, Type},
     utilities::load_to_register,
-    variables::{GlobalVariable, GlobalVariableStatement, LocalVariable, VariableDefinition},
+    variables::{
+        GlobalVariable, GlobalVariableStatement, LocalVariable, VariableDefinition, Visiblity,
+    },
 };
 
 pub trait Statement: Debug + Display {
@@ -440,11 +445,18 @@ impl From<TokenError> for CompilerError {
     }
 }
 
+#[derive(Debug)]
+struct GlobalScopeValue {
+    value: GlobalType,
+    access_state: Rc<RefCell<AccessState>>,
+    visibility: Visiblity,
+}
+
 #[derive(Debug, Default)]
 pub struct CompilingState {
     statements: Vec<(Rc<str>, Rc<dyn GlobalStatement>)>,
     struct_defs: Vec<(Token, Rc<StructDefinition>)>,
-    global_scope: HashMap<String, (Rc<RefCell<AccessState>>, GlobalType)>,
+    global_scope: HashMap<String, GlobalScopeValue>,
     user_types: Rc<RefCell<UserTypes>>,
     string_literals: RefCell<HashMap<String, Rc<StringLiteral>>>,
     current_id: usize,
@@ -495,8 +507,8 @@ impl CompilingState {
 
                 visited.insert(r.clone());
 
-                if let Some((x, _)) = self.global_scope.get(r.as_ref()) {
-                    for x in x.borrow().accesses.iter() {
+                if let Some(x) = self.global_scope.get(r.as_ref()) {
+                    for x in x.access_state.borrow().accesses.iter() {
                         dfs.push_back(x.clone());
                     }
                 }
@@ -699,11 +711,25 @@ impl CompilingState {
         }
     }
 
-    pub fn add_user_type(&mut self, name: Token, ty: UserTypeOptions) -> Result<(), TokenError> {
+    pub fn add_user_type(
+        &mut self,
+        name: Token,
+        ty: UserTypeOptions,
+        visibility: Visiblity,
+    ) -> Result<(), TokenError> {
         let ret = match self.global_scope.entry(name.get_value().to_string()) {
             Entry::Occupied(mut e) => {
                 let opaque_token = match e.get() {
-                    (_, GlobalType::UserType(token, UserTypeOptions::OpaqueType(_))) => {
+                    GlobalScopeValue {
+                        value: GlobalType::UserType(token, UserTypeOptions::OpaqueType(_)),
+                        visibility: opaque_vis,
+                        ..
+                    } => {
+                        if *opaque_vis != visibility {
+                            return Err(
+                                name.into_err("mismatching visibility fields on definition")
+                            );
+                        }
                         token.clone()
                     }
                     _ => {
@@ -715,12 +741,13 @@ impl CompilingState {
                     if let UserTypeOptions::ConcreteType(Type::Struct(s)) = &ty {
                         self.struct_defs.push((opaque_token.clone(), s.clone()));
                     }
-                    *e.get_mut() = (
-                        Rc::new(RefCell::new(AccessState::new(get_identifier(
+                    *e.get_mut() = GlobalScopeValue {
+                        access_state: Rc::new(RefCell::new(AccessState::new(get_identifier(
                             &opaque_token,
                         )?))),
-                        GlobalType::UserType(opaque_token, ty),
-                    );
+                        value: GlobalType::UserType(opaque_token, ty),
+                        visibility: visibility,
+                    };
                     Ok(())
                 } else {
                     Err(name.into_err(
@@ -733,10 +760,11 @@ impl CompilingState {
                     self.struct_defs.push((name.clone(), s.clone()));
                 }
 
-                e.insert((
-                    Rc::new(RefCell::new(AccessState::new(get_identifier(&name)?))),
-                    GlobalType::UserType(name, ty),
-                ));
+                e.insert(GlobalScopeValue {
+                    access_state: Rc::new(RefCell::new(AccessState::new(get_identifier(&name)?))),
+                    value: GlobalType::UserType(name, ty),
+                    visibility: visibility,
+                });
                 Ok(())
             }
         };
@@ -755,20 +783,30 @@ impl CompilingState {
     }
 
     /// Adds a new global variable
-    pub fn add_global_var(&mut self, def: VariableDefinition) -> Result<(), TokenError> {
+    pub fn add_global_var(
+        &mut self,
+        def: VariableDefinition,
+        visiblity: Visiblity,
+    ) -> Result<(), TokenError> {
         let var = Rc::new(GlobalVariable::new(
             def.token,
             self.get_next_id(),
             def.dtype,
             def.init_expr,
         )?);
-        self.add_to_global_scope(GlobalType::Variable(var), None)
+        self.add_to_global_scope(GlobalType::Variable(var), visiblity, None)
     }
 
     /// Adds a type alias for a new type
-    pub fn add_type_alias(&mut self, token: Token, alias_type: Type) -> Result<(), TokenError> {
+    pub fn add_type_alias(
+        &mut self,
+        token: Token,
+        alias_type: Type,
+        visiblity: Visiblity,
+    ) -> Result<(), TokenError> {
         self.add_to_global_scope(
             GlobalType::UserType(token, UserTypeOptions::ConcreteType(alias_type)),
+            visiblity,
             None,
         )?;
         self.update_user_types();
@@ -794,37 +832,61 @@ impl CompilingState {
     }
 
     /// Adds a constant variable to the global scope
-    pub fn add_const_var(&mut self, def: VariableDefinition) -> Result<(), TokenError> {
-        self.add_to_global_scope(GlobalType::Constant(Rc::new(def.into_literal()?)), None)
+    pub fn add_const_var(
+        &mut self,
+        def: VariableDefinition,
+        visibility: Visiblity,
+    ) -> Result<(), TokenError> {
+        self.add_to_global_scope(
+            GlobalType::Constant(Rc::new(def.into_literal()?)),
+            visibility,
+            None,
+        )
     }
 
     /// Adds a function declaration to the global scope
     pub fn add_function_declaration(
         &mut self,
         func: FunctionDeclaration,
+        visiblity: Visiblity,
     ) -> Result<(), TokenError> {
-        self.add_to_global_scope(GlobalType::FunctionDeclaration(func), None)
+        self.add_to_global_scope(GlobalType::FunctionDeclaration(func), visiblity, None)
     }
 
     /// Adds a function to the global scope
-    pub fn add_function(&mut self, func: Rc<dyn FunctionDefinition>) -> Result<(), TokenError> {
+    pub fn add_function(
+        &mut self,
+        func: Rc<dyn FunctionDefinition>,
+        visibility: Visiblity,
+    ) -> Result<(), TokenError> {
         let access_vals = if let Entry::Occupied(e) = self
             .global_scope
             .entry(func.get_token().get_value().to_string())
         {
-            if let (_, GlobalType::FunctionDeclaration(_)) = e.get() {
-                Some(e.remove_entry().1.0)
+            if let GlobalScopeValue {
+                value: GlobalType::FunctionDeclaration(_),
+                ..
+            } = e.get()
+            {
+                if e.get().visibility != visibility {
+                    return Err(func
+                        .get_token()
+                        .clone()
+                        .into_err("visiblity mismatch on function vs. declaration".to_string()));
+                }
+
+                Some(e.remove_entry().1.access_state)
             } else {
                 return Err(func.get_token().clone().into_err(format!(
                     "token already exists as {} - cannot add as a function",
-                    e.get().1
+                    e.get().value
                 )));
             }
         } else {
             None
         };
 
-        self.add_to_global_scope(GlobalType::Function(func), access_vals)
+        self.add_to_global_scope(GlobalType::Function(func), visibility, access_vals)
     }
 
     /// Updates the internal user type database for internal consistency
@@ -835,7 +897,7 @@ impl CompilingState {
 
         // Iterate through the global scope and add new user types as necessary
         for (n, v) in self.global_scope.iter() {
-            if let (_, GlobalType::UserType(_, t)) = v {
+            if let GlobalType::UserType(_, t) = &v.value {
                 tv.types.insert(n.clone(), t.clone());
             }
         }
@@ -845,6 +907,7 @@ impl CompilingState {
     fn add_to_global_scope(
         &mut self,
         t: GlobalType,
+        visibility: Visiblity,
         previous_val: Option<Rc<RefCell<AccessState>>>,
     ) -> Result<(), TokenError> {
         // Obtain the token and ensure that the name is not used
@@ -863,7 +926,11 @@ impl CompilingState {
         // global scope, and add the resulting statement to the statement list
         let statement = t.get_statement();
         match self.global_scope.entry(name.to_string()) {
-            Entry::Vacant(e) => e.insert((used_val, t)),
+            Entry::Vacant(e) => e.insert(GlobalScopeValue {
+                access_state: used_val,
+                value: t,
+                visibility: visibility,
+            }),
             Entry::Occupied(_) => {
                 return Err(t
                     .get_token()
@@ -896,18 +963,22 @@ impl CompilingState {
 
     /// Gets a generic global for the given name
     fn get_global(&self, name: &str) -> Result<Option<&GlobalType>, TokenError> {
-        if let Some((_, value)) = self.global_scope.get(name) {
+        if let Some(x) = self.global_scope.get(name) {
             if let Some(current) = self.scope_manager.as_ref() {
                 let caller = get_identifier(&current.token)?;
-                if let Some((access_val, _)) = self.global_scope.get(caller) {
-                    access_val.borrow_mut().accesses.insert(name.into());
+                if let Some(call_val) = self.global_scope.get(caller) {
+                    call_val
+                        .access_state
+                        .borrow_mut()
+                        .accesses
+                        .insert(name.into());
                 } else {
                     panic!(
                         "unable to access a global with the provided entry value - {name} @ {caller}"
                     );
                 }
             }
-            Ok(Some(value))
+            Ok(Some(&x.value))
         } else {
             Ok(None)
         }
@@ -1019,47 +1090,46 @@ impl CompilingState {
     /// Provides statements used in the overall program definition, attempting to reconstruct
     /// the AST representation of the program
     pub fn get_statements(&self) -> Vec<String> {
-        let mut statements = Vec::default();
+        // Define function values
+        let mut constants = Vec::new();
+        let mut user_types = Vec::new();
+        let mut variables = Vec::new();
+        let mut functions = Vec::new();
 
-        // Add any constant statements
-        for (n, i) in self.global_scope.iter() {
-            if let (used, GlobalType::Constant(c)) = i
-                && self.is_used(&used.borrow().own)
-            {
-                statements.push(format!("const {n} = {c};"));
-            }
-        }
-
-        // Add user type statements
-        for val in self.global_scope.values() {
-            if let (used, GlobalType::UserType(_, ut)) = val
-                && self.is_used(&used.borrow().own)
-            {
-                match ut {
-                    UserTypeOptions::OpaqueType(s) => {
-                        statements.push(format!("struct {};", s.get_value()))
-                    }
-                    UserTypeOptions::ConcreteType(s) => statements.push(format!("{s};")),
+        // Loop through each value
+        for (name, val) in self.global_scope.iter() {
+            if self.is_used(&val.access_state.borrow().own) {
+                match &val.value {
+                    GlobalType::Constant(c) => constants.push((name, c)),
+                    GlobalType::UserType(_, ut) => user_types.push(ut),
+                    GlobalType::Variable(var) => variables.push(var.clone()),
+                    GlobalType::Function(f) => functions.push(f.clone()),
+                    _ => (),
                 }
             }
         }
 
-        // Add global variable statements
-        for val in self.global_scope.values() {
-            if let (used, GlobalType::Variable(v)) = val
-                && self.is_used(&used.borrow().own)
-            {
-                statements.push(format!("{};", GlobalVariableStatement::new(v.clone())));
+        let mut statements = Vec::default();
+
+        for (n, c) in constants {
+            statements.push(format!("const {n} = {c};"));
+        }
+
+        for ut in user_types {
+            match ut {
+                UserTypeOptions::OpaqueType(s) => {
+                    statements.push(format!("struct {};", s.get_value()))
+                }
+                UserTypeOptions::ConcreteType(s) => statements.push(format!("{s};")),
             }
         }
 
-        // Add function statements
-        for val in self.global_scope.values() {
-            if let (used, GlobalType::Function(f)) = val
-                && self.is_used(&used.borrow().own)
-            {
-                statements.push(format!("{f}"))
-            }
+        for v in variables {
+            statements.push(format!("{};", GlobalVariableStatement::new(v.clone())));
+        }
+
+        for f in functions {
+            statements.push(format!("{f}"))
         }
 
         statements
@@ -1072,8 +1142,12 @@ impl CompilingState {
         let asm = self.get_assembler()?;
 
         // Iterate over each item in the global scope
-        for (name, (_, global)) in self.global_scope.iter() {
-            match global {
+        for (name, global) in self.global_scope.iter() {
+            if global.visibility != Visiblity::Export {
+                continue;
+            }
+
+            match &global.value {
                 // Extract function labels from the assembled program
                 GlobalType::Function(func) => {
                     if let Some(loc) = asm.labels.get(func.get_entry_label()).cloned() {
@@ -1093,7 +1167,7 @@ impl CompilingState {
                     });
                 }
                 // Add variables from the assembled program
-                GlobalType::Variable(var) => {
+                GlobalType::Variable(var) if global.visibility == Visiblity::Export => {
                     if let Some(loc) = asm.labels.get(var.access_label()).cloned() {
                         interface.variables.push(InterfaceVariable {
                             name: name.clone(),
@@ -1120,7 +1194,7 @@ impl CompilingState {
         }
 
         // Sort the results
-        Ok(interface.filter(|x| !x.starts_with('_')))
+        Ok(interface)
     }
 }
 
@@ -1210,7 +1284,7 @@ impl InterfaceDefinition {
         if !self.structs.is_empty() {
             writeln!(f, "// Structures")?;
             for i in &self.structs {
-                writeln!(f, "struct {} {{", i.name)?;
+                writeln!(f, "{} {} {{", KEYWORD_STRUCT, i.name)?;
 
                 let mut fields = i.def.get_fields().iter().collect::<Vec<_>>();
                 fields.sort_by_key(|(_, x)| x.offset);
@@ -1229,7 +1303,8 @@ impl InterfaceDefinition {
             for c in &self.consts {
                 writeln!(
                     f,
-                    "global {}: {} = {};",
+                    "{} {}: {} = {};",
+                    KEYWORD_CONST,
                     c.name,
                     c.value.get_value().get_dtype(),
                     c.value
@@ -1243,10 +1318,12 @@ impl InterfaceDefinition {
             for i in &self.variables {
                 writeln!(
                     f,
-                    "global {}: {} = {}u32;",
+                    "{} {} {}: {} = {}u32;",
+                    KEYWORD_IMPORT,
+                    KEYWORD_GLOBAL,
                     i.name,
                     Type::Pointer(Box::new(i.def.clone())),
-                    i.loc
+                    i.loc,
                 )?;
             }
         }
@@ -1257,7 +1334,9 @@ impl InterfaceDefinition {
             for i in &self.functions {
                 writeln!(
                     f,
-                    "global {}: fn({}) {} = {}u32;",
+                    "{} {} {}: fn({}) {} = {}u32;",
+                    KEYWORD_IMPORT,
+                    KEYWORD_GLOBAL,
                     i.name,
                     i.def
                         .parameters
@@ -1270,7 +1349,7 @@ impl InterfaceDefinition {
                         .as_ref()
                         .map(|x| x.to_string())
                         .unwrap_or("void".into()),
-                    i.loc,
+                    i.loc * 0,
                 )?;
             }
         }

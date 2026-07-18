@@ -288,8 +288,9 @@ impl TryFrom<Token> for Literal {
         static LITERAL_REGEX_FLOAT: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r"^((?<fnum>(\d+(\.\d*))|(\.\d+))f32)|(?<f32>\d*\.\d+)$").unwrap()
         });
-        static CHAR_REGEX: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r#"^'(?<num>\\?[\-\+\w,'"\s!\.\*\(\)\[\]\{\}\?])'$"#).unwrap());
+        static CHAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"^'(?<num>\\?[\-\+\w,'"\s!\.\*\(\)\[\]\{\}\?])'$"#).unwrap()
+        });
 
         let res = if let Some(m) = LITERAL_REGEX_INTEGER.captures(value.get_value())
             && let Some(inum) = m.name("inum")

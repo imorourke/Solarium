@@ -2,7 +2,7 @@
 #define STD_STRING
 
 #ifndef STD_STRING_CBUOY
-asmfn strlen(c: *u8) u32 {
+export asmfn strlen(c: *u8) u32 {
     "ldi 8:u16 1";
     "ldi 9:u16 0";
     "ld 10:u32 $arg";
@@ -16,7 +16,7 @@ asmfn strlen(c: *u8) u32 {
     "ret";
 }
 #else
-fn strlen(c: *u8) u32 {
+export fn strlen(c: *u8) u32 {
     def len: u32 = 0u32;
     while (*c != 0) {
         len = len + 1u32;
@@ -26,7 +26,7 @@ fn strlen(c: *u8) u32 {
 }
 #endif
 
-fn strtrim_word(s: *u8) *u8 {
+export fn strtrim_word(s: *u8) *u8 {
     while ((*s == ' ') || (*s == '\n')) {
         s = s + 1;
     }
@@ -38,7 +38,7 @@ fn strtrim_word(s: *u8) *u8 {
     return s;
 }
 
-fn strcmp(s1: *u8, s2: *u8) i32 {
+export fn strcmp(s1: *u8, s2: *u8) i32 {
     while ((*s1 == *s2) && (*s1 != 0)) {
         s1 = (s1 : u32) + 1;
         s2 = (s2 : u32) + 1;
@@ -46,7 +46,7 @@ fn strcmp(s1: *u8, s2: *u8) i32 {
     return ((*s1) : i32) - ((*s2) : i32);
 }
 
-fn str2unum(s: *u8) u32 {
+export fn str2unum(s: *u8) u32 {
     if (s == 0) {
         return 0;
     }
@@ -64,7 +64,7 @@ fn str2unum(s: *u8) u32 {
     }
 }
 
-fn str2num(s: *u8) i32 {
+export fn str2num(s: *u8) i32 {
     if (s == 0) {
         return 0;
     } else if (*s == '-') {

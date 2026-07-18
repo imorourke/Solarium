@@ -4,7 +4,7 @@
 #include kconfig.cb
 #include kdevice.cb
 
-struct k_datetime_t {
+export struct k_datetime_t {
     year: i16;
     month: u8;
     day: u8;
@@ -47,7 +47,7 @@ fn k_rtc_init() void {
     }
 }
 
-fn k_rtc_current() k_datetime_t {
+export fn k_rtc_current() k_datetime_t {
     if (K_RTC_BASE != 0) {
         return K_RTC_BASE->datetime;
     }

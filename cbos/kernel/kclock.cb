@@ -11,7 +11,7 @@ struct k_irq_clock_control_t {
 
 global K_CLOCK: *k_irq_clock_control_t = K_LOC_DEVICE_START + 0x20u32;
 
-fn k_clock_configure(interval: u32, interrupt: u32) void {
+export fn k_clock_configure(interval: u32, interrupt: u32) void {
     K_CLOCK->interval = interval;
     K_CLOCK->interrupt = interrupt;
 }

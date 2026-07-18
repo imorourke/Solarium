@@ -376,6 +376,8 @@ pub const KEYWORD_WHILE: &str = "while";
 pub const KEYWORD_ASM: &str = "asm";
 pub const KEYWORD_ELSE: &str = "else";
 pub const KEYWORD_GLOBAL: &str = "global";
+pub const KEYWORD_IMPORT: &str = "import";
+pub const KEYWORD_EXPORT: &str = "export";
 pub const KEYWORD_DEF: &str = "def";
 pub const KEYWORD_FN: &str = "fn";
 pub const KEYWORD_FNINT: &str = "fnint";
@@ -395,6 +397,8 @@ static RESERVED_KEYWORDS: LazyLock<HashSet<String>> = LazyLock::new(|| {
         KEYWORD_ASM,
         KEYWORD_ELSE,
         KEYWORD_GLOBAL,
+        KEYWORD_IMPORT,
+        KEYWORD_EXPORT,
         KEYWORD_DEF,
         KEYWORD_FN,
         KEYWORD_FNINT,

@@ -3,19 +3,19 @@
 
 #include <kernel/kmalloc.cb>
 
-struct std_list_node_t {
+export struct std_list_node_t {
     data: *u8;
     next: *std_list_node_t;
 }
 
-fn std_list_create_node(data: *u8) *std_list_node_t {
+export fn std_list_create_node(data: *u8) *std_list_node_t {
     def node: *std_list_node_t = k_malloc(sizeof(std_list_node_t));
     node->data = data;
     node->next = 0;
     return node;
 }
 
-fn std_list_delete_al_data(root: *std_list_node_t) void {
+export fn std_list_delete_al_data(root: *std_list_node_t) void {
     while (root != 0) {
         k_free(root->data);
         root->data = 0;
@@ -23,7 +23,7 @@ fn std_list_delete_al_data(root: *std_list_node_t) void {
     }
 }
 
-fn std_list_destroy(root: *std_list_node_t) void {
+export fn std_list_destroy(root: *std_list_node_t) void {
     def next: *std_list_node_t = root;
     def tmp: *std_list_node_t;
     while (next != 0) {
@@ -33,7 +33,7 @@ fn std_list_destroy(root: *std_list_node_t) void {
     }
 }
 
-fn std_list_remove(root: *std_list_node_t, remove: *std_list_node_t) *std_list_node_t {
+export fn std_list_remove(root: *std_list_node_t, remove: *std_list_node_t) *std_list_node_t {
     def n: *std_list_node_t = root;
     if (remove == root) {
         n = n->next;
@@ -53,7 +53,7 @@ fn std_list_remove(root: *std_list_node_t, remove: *std_list_node_t) *std_list_n
     }
 }
 
-fn std_list_append(root: *std_list_node_t, new: *std_list_node_t) *std_list_node_t {
+export fn std_list_append(root: *std_list_node_t, new: *std_list_node_t) *std_list_node_t {
     if (root == 0) {
         return 0;
     }
@@ -67,7 +67,7 @@ fn std_list_append(root: *std_list_node_t, new: *std_list_node_t) *std_list_node
     return root;
 }
 
-fn std_list_len(root: *std_list_node_t) u32 {
+export fn std_list_len(root: *std_list_node_t) u32 {
     def len: u32 = 0;
     while (root != 0) {
         len = len + 1;
@@ -76,7 +76,7 @@ fn std_list_len(root: *std_list_node_t) u32 {
     return len;
 }
 
-fn std_list_find(root: *std_list_node_t, func: fn(*u8) u8) *std_list_node_t {
+export fn std_list_find(root: *std_list_node_t, func: fn(*u8) u8) *std_list_node_t {
     while (root != 0) {
         if (func(root->data)) {
             return root;
@@ -86,7 +86,7 @@ fn std_list_find(root: *std_list_node_t, func: fn(*u8) u8) *std_list_node_t {
     return 0;
 }
 
-fn std_list_foreach(root: *std_list_node_t, func: fn(*u8, *u8) void, state: *u8) void {
+export fn std_list_foreach(root: *std_list_node_t, func: fn(*u8, *u8) void, state: *u8) void {
     while (root != 0) {
         func(root->data, state);
         root = root->next;

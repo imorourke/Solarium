@@ -581,6 +581,10 @@ Note that, in this case, both functions and variables share the same namespace. 
     & \textlangle BaseStatement\textrangle \\
     BaseStatement & $\rightarrow$ \\
     & \textlangle BaseStatement\textrangle \textlangle BaseStatement\textrangle \\
+    & \textlangle DefinitionStatement\textrangle \\
+    & import \textlangle DefinitionStatement\textrangle \\
+    & export \textlangle DefinitionStatement\textrangle \\
+    DefinitionStatement & $\rightarrow$ \\
     & fn \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots]) \{ \textlangle StatementList\textrangle \} \\
     & fnint \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots]) \{ \textlangle StatementList\textrangle \} \\
     & asmfn \texttt{FuncName}(\texttt{Var}: \texttt{VarType}[, \texttt{Var}: \texttt{VarType}\dots) \{ [\textlangle WordLiteral; \textrangle \dots] \} \\
@@ -656,7 +660,7 @@ Programs compiled in kernel mode should be loaded into memory at the specific lo
 
 When compiling in kernel mode, functions, types, constants, and globals may be exported as a sort of header file that can be used in application-mode applications. Any supported type that does not start with an underscore will be exported and made available for use in the generated header file. This allows for sharing of common library functions between different applications more easily.
 
-When in kernel mode functions, structures, variables, and constants that do not start with an underscore (\texttt{\_}) can be exported into a header file providing the definition and location. This allows common code to be shared between multiple applications.
+When in kernel mode functions, structures, variables, and constants that have been marked as \texttt{export} are written into a header file providing the definition and location. This allows common code to be shared between multiple applications.
 
 \subsubsection{Application Mode}
 

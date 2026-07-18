@@ -30,7 +30,7 @@ fn k_io_init() void {
     }
 }
 
-fn k_io_put(c: u8) void {
+export fn k_io_put(c: u8) void {
     SERIAL_DEV->output_data = c;
 }
 
@@ -103,15 +103,15 @@ asmfn k_io_digit_to_u8(v: u8) u8 {
 }
 #endif
 
-fn k_io_print(c: *u8) void {
+export fn k_io_print(c: *u8) void {
     k_io_print_intf(&(SERIAL_DEV->output_data), c);
 }
 
-fn k_io_print_digit(v: u8) void {
+export fn k_io_print_digit(v: u8) void {
     k_io_print_digit_intf((&SERIAL_DEV->output_data), v);
 }
 
-fn k_io_print_uint(v: u32) void {
+export fn k_io_print_uint(v: u32) void {
     const CHAR_SIZE: u32 = 12;
     def chars: [CHAR_SIZE]u8;
     if (v == 0) {
@@ -130,7 +130,7 @@ fn k_io_print_uint(v: u32) void {
     }
 }
 
-fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
+export fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
     const CHAR_SIZE: u32 = 12;
     def chars: [CHAR_SIZE]u8;
     k_memset(&chars, default, CHAR_SIZE);
@@ -159,11 +159,11 @@ fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
     }
 }
 
-fn k_io_print_uint_width(v: u32, width: u32) void {
+export fn k_io_print_uint_width(v: u32, width: u32) void {
     k_io_print_uint_width_default(v, width, '0');
 }
 
-fn k_io_print_int(v: i32) void {
+export fn k_io_print_int(v: i32) void {
     if (v < 0) {
         v = -v;
         k_io_print("-");
@@ -171,7 +171,7 @@ fn k_io_print_int(v: i32) void {
     k_io_print_uint(v : u32);
 }
 
-fn k_io_print_hex(v: u32) void {
+export fn k_io_print_hex(v: u32) void {
     def chars: [12]u8;
     def cp: *u8 = chars;
     if (v == 0) {
@@ -193,18 +193,18 @@ fn k_io_print_hex(v: u32) void {
     }
 }
 
-fn k_io_print_stat(name: *u8, v: u32) void {
+export fn k_io_print_stat(name: *u8, v: u32) void {
     k_io_print(name);
     k_io_print(": ");
     k_io_print_uint(v);
     k_io_print("\n");
 }
 
-fn k_io_read_char() u8 {
+export fn k_io_read_char() u8 {
     return (SERIAL_DEV->input_data);
 }
 
-fn k_io_read_char_immediate() u8 {
+export fn k_io_read_char_immediate() u8 {
     if (SERIAL_DEV->input_size > 0) {
         return (SERIAL_DEV->input_data);
     } else {
@@ -213,7 +213,7 @@ fn k_io_read_char_immediate() u8 {
 }
 
 // NOTE - WILL NULL TERMINATE!
-fn k_io_read_str_until(buffer: *u8, len: u32, target: u8) u32 {
+export fn k_io_read_str_until(buffer: *u8, len: u32, target: u8) u32 {
     if (len == 0) {
         return 0;
     } else {

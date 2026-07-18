@@ -2,11 +2,11 @@ use crate::{
     compiler::{CodeGenerationOptions, CompilingState},
     functions::{AsmFunctionDefinition, StandardFunctionDefinition, StandardFunctionType},
     tokenizer::{
-        KEYWORD_ASMFN, KEYWORD_CONST, KEYWORD_FN, KEYWORD_FNINT, KEYWORD_GLOBAL, KEYWORD_STRUCT,
-        KEYWORD_USING, Token, TokenError, TokenIter, tokenize_str,
+        KEYWORD_ASMFN, KEYWORD_CONST, KEYWORD_EXPORT, KEYWORD_FN, KEYWORD_FNINT, KEYWORD_GLOBAL,
+        KEYWORD_IMPORT, KEYWORD_STRUCT, KEYWORD_USING, Token, TokenError, TokenIter, tokenize_str,
     },
     typing::{StructDefinition, Type},
-    variables::VariableDefinition,
+    variables::{VariableDefinition, Visiblity},
 };
 
 pub fn compile_str(s: &str, options: CodeGenerationOptions) -> Result<CompilingState, TokenError> {
@@ -19,30 +19,59 @@ pub fn compile(
 ) -> Result<CompilingState, TokenError> {
     let mut state = CompilingState::new(options);
     let mut token_iter = TokenIter::from(&tokens);
+    let mut current_visibility: Option<Visiblity> = None;
 
-    while let Some(next) = token_iter.peek().map(|v| v.get_value().to_string()) {
-        if next == KEYWORD_GLOBAL {
+    while let Some(next_tok) = token_iter.peek() {
+        let next = next_tok.get_value();
+        if next == KEYWORD_IMPORT || next == KEYWORD_EXPORT {
+            if let Some(current) = current_visibility {
+                return Err(next_tok
+                    .clone()
+                    .into_err(format!("specifier {current} already specified")));
+            } else {
+                current_visibility = Some(match next {
+                    KEYWORD_IMPORT => Visiblity::Import,
+                    KEYWORD_EXPORT => Visiblity::Export,
+                    _ => {
+                        return Err(next_tok
+                            .clone()
+                            .into_err(format!("unknown export specification {next} provided")));
+                    }
+                });
+                token_iter.expect(next)?;
+            }
+        } else if next == KEYWORD_GLOBAL {
             let var = VariableDefinition::parse(KEYWORD_GLOBAL, &mut token_iter, &mut state)?;
-            state.add_global_var(var)?;
+            state.add_global_var(var, current_visibility.take().unwrap_or_default())?;
         } else if next == KEYWORD_CONST {
             let var = VariableDefinition::parse(KEYWORD_CONST, &mut token_iter, &mut state)?;
-            state.add_const_var(var)?;
+            state.add_const_var(var, current_visibility.take().unwrap_or_default())?;
         } else if next == KEYWORD_FN {
             StandardFunctionDefinition::parse(
                 &mut token_iter,
                 &mut state,
                 StandardFunctionType::Default,
+                current_visibility.take().unwrap_or_default(),
             )?;
         } else if next == KEYWORD_FNINT {
             StandardFunctionDefinition::parse(
                 &mut token_iter,
                 &mut state,
                 StandardFunctionType::Interrupt,
+                current_visibility.take().unwrap_or_default(),
             )?
         } else if next == KEYWORD_ASMFN {
-            AsmFunctionDefinition::parse(&mut token_iter, &mut state)?;
+            AsmFunctionDefinition::parse(
+                &mut token_iter,
+                &mut state,
+                current_visibility.take().unwrap_or_default(),
+            )?;
         } else if next == KEYWORD_STRUCT {
-            StructDefinition::read_definition(&mut token_iter, &mut state)?;
+            StructDefinition::read_definition(
+                &mut token_iter,
+                &mut state,
+                current_visibility.take().unwrap_or_default(),
+            )?;
         } else if next == KEYWORD_USING {
             token_iter.expect(KEYWORD_USING)?;
             let alias_token = token_iter.next()?;
@@ -53,7 +82,11 @@ pub fn compile(
 
             token_iter.expect(";")?;
 
-            state.add_type_alias(alias_token, type_val)?;
+            state.add_type_alias(
+                alias_token,
+                type_val,
+                current_visibility.take().unwrap_or_default(),
+            )?;
         } else {
             return Err(token_iter
                 .next()?

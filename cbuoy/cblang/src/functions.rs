@@ -21,7 +21,7 @@ use crate::{
     },
     typing::{Function, Type},
     utilities::load_to_register,
-    variables::{LocalVariable, LocalVariableStatement, VariableDefinition},
+    variables::{LocalVariable, LocalVariableStatement, VariableDefinition, Visiblity},
 };
 
 pub trait FunctionDefinition: Display + GlobalStatement {
@@ -71,6 +71,7 @@ impl StandardFunctionDefinition {
         tokens: &mut TokenIter,
         state: &mut CompilingState,
         func_type: StandardFunctionType,
+        visibility: Visiblity,
     ) -> Result<(), TokenError> {
         tokens.expect(func_type.keyword())?;
         let name_token = tokens.next()?;
@@ -96,7 +97,7 @@ impl StandardFunctionDefinition {
 
             let declaration =
                 FunctionDeclaration::new(name_token.clone(), base_label, dtype.clone(), func_type);
-            state.add_function_declaration(declaration.clone())?;
+            state.add_function_declaration(declaration.clone(), visibility)?;
             declaration
         };
 
@@ -132,7 +133,7 @@ impl StandardFunctionDefinition {
             statements,
             state.extract_scope()?,
         )?);
-        state.add_function(def.clone())
+        state.add_function(def.clone(), visibility)
     }
 }
 
@@ -518,7 +519,11 @@ pub struct AsmFunctionDefinition {
 }
 
 impl AsmFunctionDefinition {
-    pub fn parse(tokens: &mut TokenIter, state: &mut CompilingState) -> Result<(), TokenError> {
+    pub fn parse(
+        tokens: &mut TokenIter,
+        state: &mut CompilingState,
+        visibility: Visiblity,
+    ) -> Result<(), TokenError> {
         tokens.expect(KEYWORD_ASMFN)?;
         let name_token = tokens.next()?;
         let name = get_identifier(&name_token)?;
@@ -531,12 +536,15 @@ impl AsmFunctionDefinition {
             state.get_scopes_mut()?.add_parameter(p.clone())?;
         }
 
-        state.add_function_declaration(FunctionDeclaration::new(
-            name_token.clone(),
-            entry_label.clone(),
-            func_type.clone(),
-            StandardFunctionType::Interrupt,
-        ))?;
+        state.add_function_declaration(
+            FunctionDeclaration::new(
+                name_token.clone(),
+                entry_label.clone(),
+                func_type.clone(),
+                StandardFunctionType::Interrupt,
+            ),
+            visibility,
+        )?;
 
         let asm_text = AsmCodeBlock::parse(tokens, state)?;
         let func = Rc::new(AsmFunctionDefinition {
@@ -547,7 +555,7 @@ impl AsmFunctionDefinition {
         });
 
         state.extract_scope()?;
-        state.add_function(func)
+        state.add_function(func, visibility)
     }
 }
 

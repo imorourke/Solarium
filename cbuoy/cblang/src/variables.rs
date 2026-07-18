@@ -13,10 +13,32 @@ use crate::{
         Expression, ExpressionData, RegisterDef, TemporaryStackTracker, parse_expression,
     },
     literals::Literal,
-    tokenizer::{Token, TokenIter, get_identifier},
+    tokenizer::{KEYWORD_EXPORT, KEYWORD_IMPORT, Token, TokenIter, get_identifier},
     typing::Type,
     utilities::{MemcpyStatement, load_to_register},
 };
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Visiblity {
+    #[default]
+    Internal,
+    Import,
+    Export,
+}
+
+impl Display for Visiblity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Export => KEYWORD_EXPORT,
+                Self::Import => KEYWORD_IMPORT,
+                Self::Internal => "internal",
+            }
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GlobalVariable {

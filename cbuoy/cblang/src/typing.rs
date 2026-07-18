@@ -8,8 +8,12 @@ use jib_cpu::cpu::DataType;
 
 use crate::compiler::{CompilingState, UserTypeOptions, UserTypeReference};
 use crate::expressions::parse_expression;
-use crate::tokenizer::{
-    KEYWORD_CONST, KEYWORD_FN, Token, TokenError, TokenIter, get_identifier, is_identifier,
+use crate::{
+    tokenizer::{
+        KEYWORD_CONST, KEYWORD_FN, KEYWORD_STRUCT, Token, TokenError, TokenIter, get_identifier,
+        is_identifier,
+    },
+    variables::Visiblity,
 };
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -149,12 +153,17 @@ impl StructDefinition {
     pub fn read_definition(
         tokens: &mut TokenIter,
         state: &mut CompilingState,
+        visiblity: Visiblity,
     ) -> Result<(Rc<Self>, Token), TokenError> {
-        tokens.expect("struct")?;
+        tokens.expect(KEYWORD_STRUCT)?;
         let name = tokens.next()?;
         get_identifier(&name)?;
 
-        state.add_user_type(name.clone(), UserTypeOptions::OpaqueType(name.clone()))?;
+        state.add_user_type(
+            name.clone(),
+            UserTypeOptions::OpaqueType(name.clone()),
+            visiblity,
+        )?;
 
         let mut s = Self {
             name: name.get_value().to_string(),
@@ -193,6 +202,7 @@ impl StructDefinition {
         state.add_user_type(
             name.clone(),
             UserTypeOptions::ConcreteType(Type::Struct(rs.clone())),
+            visiblity,
         )?;
         Ok((rs, name))
     }
