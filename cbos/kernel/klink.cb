@@ -15,6 +15,7 @@ struct k_exec_hdr_t {
     export_size: u32;
     prog_offset: u32;
     prog_size: u32;
+    attributes: u32;
 }
 
 const K_EXEC_MAGIC_HDR: u32 = 1128415568;
