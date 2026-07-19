@@ -56,7 +56,7 @@ fnint irq_reset() void {
     asm { "reset"; }
 }
 
-fn _main() void {
+fn main() void {
     // Set CPU error handlers
     k_irq_set(0, irq_reset);
     k_irq_set(1, irq_reset);

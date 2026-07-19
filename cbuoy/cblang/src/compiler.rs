@@ -466,7 +466,7 @@ pub struct CompilingState {
 }
 
 impl CompilingState {
-    pub const MAIN_FUNC_NAME: &'static str = "_main";
+    pub const MAIN_FUNC_NAME: &'static str = "main";
 
     pub fn new(options: CodeGenerationOptions) -> Self {
         Self {
