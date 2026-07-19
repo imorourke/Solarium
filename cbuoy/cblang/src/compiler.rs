@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet, VecDeque, hash_map::Entry},
     fmt::{Debug, Display},
-    io::Write,
+    io::{self, Write},
     rc::Rc,
 };
 
@@ -419,10 +419,11 @@ impl AccessState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum CompilerError {
     AssemblerError(AssemblerErrorLoc),
     TokenError(TokenError),
+    IoError(io::Error),
 }
 
 impl Display for CompilerError {
@@ -430,6 +431,7 @@ impl Display for CompilerError {
         match self {
             Self::AssemblerError(e) => write!(f, "Assembler: {e}"),
             Self::TokenError(e) => write!(f, "Token: {e}"),
+            Self::IoError(e) => write!(f, "IO: {e}"),
         }
     }
 }
@@ -443,6 +445,12 @@ impl From<AssemblerErrorLoc> for CompilerError {
 impl From<TokenError> for CompilerError {
     fn from(value: TokenError) -> Self {
         Self::TokenError(value)
+    }
+}
+
+impl From<io::Error> for CompilerError {
+    fn from(value: io::Error) -> Self {
+        Self::IoError(value)
     }
 }
 
@@ -536,13 +544,11 @@ impl CompilingState {
                         && let Some(offset) = asm.labels.get(var.access_label())
                     {
                         let name_bytes = k.as_bytes();
-                        link_sec.write_all(&4u8.to_be_bytes()).unwrap();
-                        link_sec
-                            .write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())
-                            .unwrap();
-                        link_sec.write_all(&offset.to_be_bytes()).unwrap();
-                        link_sec.write_all(name_bytes).unwrap();
-                        link_sec.write_all(&[b'\0']).unwrap();
+                        link_sec.write_all(&4u8.to_be_bytes())?;
+                        link_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
+                        link_sec.write_all(&offset.to_be_bytes())?;
+                        link_sec.write_all(name_bytes)?;
+                        link_sec.write_all(&[b'\0'])?;
                     }
                 }
 
@@ -558,13 +564,11 @@ impl CompilingState {
 
                         if let Some(offset) = asm.labels.get(access_label) {
                             let name_bytes = k.as_bytes();
-                            export_sec.write_all(&4u8.to_be_bytes()).unwrap();
-                            export_sec
-                                .write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())
-                                .unwrap();
-                            export_sec.write_all(&offset.to_be_bytes()).unwrap();
-                            export_sec.write_all(name_bytes).unwrap();
-                            export_sec.write_all(&[b'\0']).unwrap();
+                            export_sec.write_all(&4u8.to_be_bytes())?;
+                            export_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
+                            export_sec.write_all(&offset.to_be_bytes())?;
+                            export_sec.write_all(name_bytes)?;
+                            export_sec.write_all(&[b'\0'])?;
                         }
                     }
                 }
@@ -575,20 +579,20 @@ impl CompilingState {
                 let export_size: u32 = export_sec.len() as u32;
                 let prog_offset: u32 = export_offset + export_size;
                 let prog_size: u32 = asm.bytes.len() as u32;
-                let parameter: u32 = 0;
+                let attributes: u32 = 0;
 
                 let mut f = Vec::new();
-                f.write_all(&MAGIC_NUM).unwrap();
-                f.write_all(&link_offset.to_be_bytes()).unwrap();
-                f.write_all(&link_size.to_be_bytes()).unwrap(); // TODO - Check these unwrap() calls
-                f.write_all(&export_offset.to_be_bytes()).unwrap();
-                f.write_all(&export_size.to_be_bytes()).unwrap();
-                f.write_all(&prog_offset.to_be_bytes()).unwrap();
-                f.write_all(&prog_size.to_be_bytes()).unwrap();
-                f.write_all(&parameter.to_be_bytes()).unwrap();
-                f.write_all(&link_sec).unwrap();
-                f.write_all(&export_sec).unwrap();
-                f.write_all(&asm.bytes).unwrap();
+                f.write_all(&MAGIC_NUM)?;
+                f.write_all(&link_offset.to_be_bytes())?;
+                f.write_all(&link_size.to_be_bytes())?;
+                f.write_all(&export_offset.to_be_bytes())?;
+                f.write_all(&export_size.to_be_bytes())?;
+                f.write_all(&prog_offset.to_be_bytes())?;
+                f.write_all(&prog_size.to_be_bytes())?;
+                f.write_all(&attributes.to_be_bytes())?;
+                f.write_all(&link_sec)?;
+                f.write_all(&export_sec)?;
+                f.write_all(&asm.bytes)?;
                 f
             } else {
                 asm.bytes
@@ -1406,7 +1410,7 @@ impl InterfaceDefinition {
 
         // Add the output functions
         if !self.functions.is_empty() {
-            writeln!(f, "// Functions").unwrap();
+            writeln!(f, "// Functions")?;
             for i in &self.functions {
                 writeln!(
                     f,
