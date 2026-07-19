@@ -532,72 +532,71 @@ impl CompilingState {
     pub fn get_binary(&self) -> Result<Vec<u8>, CompilerError> {
         let asm = self.get_assembler()?;
 
-        Ok(
-            if matches!(self.options.prog_type, ProgramType::Application) {
-                const MAGIC_NUM: [u8; 4] = [b'C', b'B', b'A', b'P'];
+        Ok({
+            const MAGIC_NUM: [u8; 4] = [b'C', b'B', b'A', b'P'];
 
-                let mut link_sec = Vec::new();
+            let mut link_sec = Vec::new();
 
-                for (k, v) in self.global_scope.iter() {
-                    if let GlobalType::Variable(var) = &v.value
-                        && v.visibility == Visiblity::Import
-                        && let Some(offset) = asm.labels.get(var.access_label())
-                    {
+            for (k, v) in self.global_scope.iter() {
+                if let GlobalType::Variable(var) = &v.value
+                    && v.visibility == Visiblity::Import
+                    && let Some(offset) = asm.labels.get(var.access_label())
+                {
+                    let name_bytes = k.as_bytes();
+                    link_sec.write_all(&4u8.to_be_bytes())?;
+                    link_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
+                    link_sec.write_all(&offset.to_be_bytes())?;
+                    link_sec.write_all(name_bytes)?;
+                    link_sec.write_all(&[b'\0'])?;
+                }
+            }
+
+            let mut export_sec = Vec::new();
+
+            for (k, v) in self.global_scope.iter() {
+                if v.visibility == Visiblity::Export {
+                    let access_label = match &v.value {
+                        GlobalType::Variable(var) => var.access_label(),
+                        GlobalType::Function(func) => func.get_entry_label(),
+                        _ => continue,
+                    };
+
+                    if let Some(offset) = asm.labels.get(access_label) {
                         let name_bytes = k.as_bytes();
-                        link_sec.write_all(&4u8.to_be_bytes())?;
-                        link_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
-                        link_sec.write_all(&offset.to_be_bytes())?;
-                        link_sec.write_all(name_bytes)?;
-                        link_sec.write_all(&[b'\0'])?;
+                        export_sec.write_all(&4u8.to_be_bytes())?;
+                        export_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
+                        export_sec.write_all(&offset.to_be_bytes())?;
+                        export_sec.write_all(name_bytes)?;
+                        export_sec.write_all(&[b'\0'])?;
                     }
                 }
+            }
 
-                let mut export_sec = Vec::new();
+            let link_offset: u32 = 8 * std::mem::size_of::<u32>() as u32;
+            let link_size: u32 = link_sec.len() as u32;
+            let export_offset: u32 = link_offset + link_size;
+            let export_size: u32 = export_sec.len() as u32;
+            let prog_offset: u32 = export_offset + export_size;
+            let prog_size: u32 = asm.bytes.len() as u32;
+            let attributes: u32 = match self.options.prog_type {
+                ProgramType::Kernel { base_location, .. } => base_location,
+                _ => 0,
+            };
 
-                for (k, v) in self.global_scope.iter() {
-                    if v.visibility == Visiblity::Export {
-                        let access_label = match &v.value {
-                            GlobalType::Variable(var) => var.access_label(),
-                            GlobalType::Function(func) => func.get_entry_label(),
-                            _ => continue,
-                        };
-
-                        if let Some(offset) = asm.labels.get(access_label) {
-                            let name_bytes = k.as_bytes();
-                            export_sec.write_all(&4u8.to_be_bytes())?;
-                            export_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
-                            export_sec.write_all(&offset.to_be_bytes())?;
-                            export_sec.write_all(name_bytes)?;
-                            export_sec.write_all(&[b'\0'])?;
-                        }
-                    }
-                }
-
-                let link_offset: u32 = 8 * std::mem::size_of::<u32>() as u32;
-                let link_size: u32 = link_sec.len() as u32;
-                let export_offset: u32 = link_offset + link_size;
-                let export_size: u32 = export_sec.len() as u32;
-                let prog_offset: u32 = export_offset + export_size;
-                let prog_size: u32 = asm.bytes.len() as u32;
-                let attributes: u32 = 0;
-
-                let mut f = Vec::new();
-                f.write_all(&MAGIC_NUM)?;
-                f.write_all(&link_offset.to_be_bytes())?;
-                f.write_all(&link_size.to_be_bytes())?;
-                f.write_all(&export_offset.to_be_bytes())?;
-                f.write_all(&export_size.to_be_bytes())?;
-                f.write_all(&prog_offset.to_be_bytes())?;
-                f.write_all(&prog_size.to_be_bytes())?;
-                f.write_all(&attributes.to_be_bytes())?;
-                f.write_all(&link_sec)?;
-                f.write_all(&export_sec)?;
-                f.write_all(&asm.bytes)?;
-                f
-            } else {
-                asm.bytes
-            },
-        )
+            let mut f = Vec::new();
+            f.write_all(&MAGIC_NUM)?;
+            f.write_all(&link_offset.to_be_bytes())?;
+            f.write_all(&link_size.to_be_bytes())?;
+            f.write_all(&export_offset.to_be_bytes())?;
+            f.write_all(&export_size.to_be_bytes())?;
+            f.write_all(&prog_offset.to_be_bytes())?;
+            f.write_all(&prog_size.to_be_bytes())?;
+            f.write_all(&attributes.to_be_bytes())?;
+            f.write_all(&link_sec)?;
+            f.write_all(&export_sec)?;
+            f.write_all(&asm.bytes)?;
+            f
+        })
     }
 
     pub fn get_assembler(&self) -> Result<AssemblerOutput, CompilerError> {

@@ -325,7 +325,7 @@ impl JibComputer {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ComputerError {
     ProcessorError(ProcessorError),
     AssemblerError(AssemblerError),
@@ -336,7 +336,7 @@ pub enum ComputerError {
     CharacterError(CharacterError),
     FilesystemError(cblang::FilesystemError),
     Utf8Error,
-    IoError,
+    IoError(std::io::Error),
 }
 
 impl Display for ComputerError {
@@ -351,7 +351,7 @@ impl Display for ComputerError {
             Self::CharacterError(e) => write!(f, "character => {e}"),
             Self::FilesystemError(e) => write!(f, "filesystem => {e}"),
             Self::Utf8Error => write!(f, "utf8 error"),
-            Self::IoError => write!(f, "io error"),
+            Self::IoError(e) => write!(f, "io error => {e}"),
         }
     }
 }
@@ -361,6 +361,7 @@ impl From<CompilerError> for ComputerError {
         match value {
             CompilerError::AssemblerError(v) => Self::AssemblerErrorLoc(v),
             CompilerError::TokenError(v) => Self::TokenError(v),
+            CompilerError::IoError(v) => Self::IoError(v),
         }
     }
 }
@@ -414,8 +415,8 @@ impl From<cblang::FilesystemError> for ComputerError {
 }
 
 impl From<std::io::Error> for ComputerError {
-    fn from(_: std::io::Error) -> Self {
-        Self::IoError
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
     }
 }
 
