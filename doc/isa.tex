@@ -721,17 +721,20 @@ Application binary files are written in a way that would allow external function
         Byte Offset & Type & Name & Description \\
         \hline
         0 & \texttt{u32} & \texttt{magic\_num} & Application magic number (\texttt{CPAP}, \texttt{0x43424150}) \\
-        4 & \texttt{u32} & \texttt{link\_offset} & Link region offset from base of binary file \\
-        8 & \texttt{u32} & \texttt{link\_size} & Link region size \\
-        12 & \texttt{u32} & \texttt{data\_offset} & Executable region offset from base of binary file \\
-	16 & \texttt{u32} & \texttt{data\_size} & Executable region size \\
+        4 & \texttt{u32} & \texttt{import\_offset} & Import region offset from base of binary file \\
+        8 & \texttt{u32} & \texttt{import\_size} & Import region size \\
+        12 & \texttt{u32} & \texttt{export\_offset} & Export region offset from base of binary file \\
+        16 & \texttt{u32} & \texttt{export\_size} & Export region size \\
+        20 & \texttt{u32} & \texttt{data\_offset} & Executable region offset from base of binary file \\
+	24 & \texttt{u32} & \texttt{data\_size} & Executable region size \\
+	28 & \texttt{u32} & \texttt{attribute} & Attribute \\
         \hline
     \end{tabular}
     \caption{Application link header provides basic information regarding an application binary file to be able to load and link the application.}
     \label{table:cbuoy-exec-header}
 \end{table}
 
-If there is a link region, this will consist of an array of link structures, found in Table \ref{table:cbuoy-exec-link}, to define how to link functions and variables into the application. This will provide the name of each symbol and the offset within the executable data region with which to write the corresponding address into.
+If there is a import and/or export region, this will consist of an array of link structures, found in Table \ref{table:cbuoy-exec-link}, to define how to link functions and variables into the application. This will provide the name of each symbol and the offset within the executable data region with which to write the corresponding address into. Import links can be linked as imports, with the originating symbol linked in from another library or application. Export links are provided so that they are available to other applications.
 
 \begin{table}[h!]
     \centering
@@ -742,7 +745,10 @@ If there is a link region, this will consist of an array of link structures, fou
         0 & \texttt{u8} & \texttt{copy\_size} & Size of address/region to copy \\
         1 & \texttt{u8} & \texttt{symbol\_size} & Symbol string size, including \\
         & & & null-termination character \\
-        2 & \texttt{[symbol\_size]u8} & \texttt{symbol\_name} & Symbol string, null-terminated \\
+        2 & \texttt{u32} & \texttt{offset} & Symbol offset from base of load \\
+        & & & location (for application, or global offset \\
+        & & & if in kernel mode) \\
+        6 & \texttt{[symbol\_size]u8} & \texttt{symbol\_name} & Symbol string, null-terminated \\
         \hline
     \end{tabular}
     \caption{Link structure provides the name and resulting location to copy the address into the application data region to allow external functions to be dynamically linked into the program.}
