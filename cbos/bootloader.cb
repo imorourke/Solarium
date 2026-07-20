@@ -23,17 +23,17 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
         }
     } else {
         k_io_print("unable to find application header\n");
-        return -5;
+        return -1;
     }
 
     if (exec_hdr.magic_num != K_EXEC_MAGIC_HDR) {
         k_io_print("unknown executable format found\n");
-        return -6;
+        return -1;
     }
 
     if (exec_hdr.attribute != LOAD_LOC) {
         k_io_print("unsupported load location\n");
-        return -6;
+        return -1;
     }
 
     def app_data: *u8 = LOAD_LOC;
@@ -59,7 +59,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
         }
     } else {
         k_io_print("unable to load binary into memory\n");
-        return -6;
+        return -1;
     }
 
     def export_loc: *u8 = copy_loc;
@@ -142,7 +142,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
     }
 
     if (!link_success) {
-        return 1;
+        return -1;
     } else {
         return 0;
     }
