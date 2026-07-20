@@ -1369,8 +1369,10 @@ impl InterfaceDefinition {
     pub fn write_interface<T: Write>(&self, f: &mut T) -> Result<(), std::io::Error> {
         // Add matching structures
         if !self.structs.is_empty() {
+            writeln!(f)?;
             writeln!(f, "// Structures")?;
             for i in &self.structs {
+                writeln!(f)?;
                 writeln!(f, "{} {} {{", KEYWORD_STRUCT, i.name)?;
 
                 let mut fields = i.def.get_fields().iter().collect::<Vec<_>>();
@@ -1386,7 +1388,9 @@ impl InterfaceDefinition {
 
         // Add any matching constants
         if !self.consts.is_empty() {
+            writeln!(f)?;
             writeln!(f, "// Constants")?;
+            writeln!(f)?;
             for c in &self.consts {
                 writeln!(
                     f,
@@ -1401,7 +1405,9 @@ impl InterfaceDefinition {
 
         // Add any matching global variables
         if !self.variables.is_empty() {
+            writeln!(f)?;
             writeln!(f, "// Variables")?;
+            writeln!(f)?;
             for i in &self.variables {
                 writeln!(
                     f,
@@ -1417,7 +1423,9 @@ impl InterfaceDefinition {
 
         // Add the output functions
         if !self.functions.is_empty() {
+            writeln!(f)?;
             writeln!(f, "// Functions")?;
+            writeln!(f)?;
             for i in &self.functions {
                 writeln!(
                     f,

@@ -101,7 +101,7 @@ impl JibOsImage {
         const CBOS_INTF_GUARD: &str = "CBOS_DEFS";
         let interface_str = match String::from_utf8(interface_data) {
             Ok(x) => format!(
-                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
+                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
             ),
             Err(_) => return Err(ComputerError::Utf8Error),
         };
