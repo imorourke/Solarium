@@ -1,4 +1,4 @@
-use jib_asm::AssemblerOutput;
+use jib_computer::JibCode;
 use jib_cpu::cpu::RegisterManager;
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub enum UiToThread {
     #[cfg(not(target_arch = "wasm32"))]
     DiskSave,
     CpuIrq(u8),
-    SetCode(AssemblerOutput),
+    SetCode(JibCode),
     SerialInput(String),
     RequestMemory(u32, u32),
     SetMultiplier(i32),

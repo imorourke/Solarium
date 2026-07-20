@@ -1,6 +1,6 @@
 use crate::messages::{ThreadToUi, UiToThread};
 use jib_asm::InstructionList;
-use jib_computer::{ComputerError, JibComputer};
+use jib_computer::{ComputerError, JibCode, JibComputer};
 use jib_cpu::cpu::Register;
 use std::sync::mpsc::{Receiver, RecvError, Sender, TryRecvError};
 
@@ -9,7 +9,7 @@ pub struct CpuState {
     step_repeat_count: i64,
     #[cfg(not(target_arch = "wasm32"))]
     run_thread: bool,
-    last_code: Option<(u32, Vec<u8>)>,
+    last_code: Option<JibCode>,
     computer: JibComputer,
     breakpoint: Option<u32>,
     inst_map: InstructionList,
@@ -53,8 +53,7 @@ impl CpuState {
     }
 
     fn reset(&mut self) -> Result<(), ComputerError> {
-        self.computer
-            .reset(self.last_code.as_ref().map(|x| (x.0, x.1.as_slice())))?;
+        self.computer.reset(self.last_code.as_ref())?;
         Ok(())
     }
 
@@ -101,7 +100,7 @@ impl CpuState {
                     state.step_repeat_count = 2i64.pow(m as u32);
                 }
                 UiToThread::SetCode(data) => {
-                    state.last_code = Some((data.start_address, data.bytes));
+                    state.last_code = Some(data);
                     state.reset()?;
                     return Ok(Some(ThreadToUi::ProcessorReset));
                 }

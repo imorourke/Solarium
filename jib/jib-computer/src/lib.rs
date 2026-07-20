@@ -20,6 +20,21 @@ use std::{rc::Rc, vec::Vec};
 
 use crate::jibos::JibOsImage;
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct JibCode {
+    pub start_location: u32,
+    pub code: Vec<u8>,
+}
+
+impl From<AssemblerOutput> for JibCode {
+    fn from(value: AssemblerOutput) -> Self {
+        Self {
+            start_location: value.start_address,
+            code: value.bytes,
+        }
+    }
+}
+
 pub struct JibComputer {
     running: bool,
     running_requested: bool,
@@ -135,7 +150,7 @@ impl JibComputer {
         Ok(())
     }
 
-    pub fn reset(&mut self, input_code: Option<(u32, &[u8])>) -> Result<(), ComputerError> {
+    pub fn reset(&mut self, input_code: Option<&JibCode>) -> Result<(), ComputerError> {
         const INIT_RO_LEN: u32 = Processor::BASE_HW_INT_ADDR;
 
         self.cpu = Processor::default();
@@ -225,9 +240,9 @@ impl JibComputer {
         }
 
         if !self.bootloader
-            && let Some((start, code)) = input_code
+            && let Some(code) = input_code
         {
-            self.cpu.memory_set_range(start, code)?;
+            self.cpu.memory_set_range(code.start_location, &code.code)?;
         }
 
         if self.running_requested {
@@ -288,8 +303,8 @@ impl JibComputer {
         self.running_requested
     }
 
-    pub fn set_code(&mut self, asm: AssemblerOutput) -> Result<(), ComputerError> {
-        self.reset(Some((asm.start_address, &asm.bytes)))
+    pub fn set_code(&mut self, code: &JibCode) -> Result<(), ComputerError> {
+        self.reset(Some(code))
     }
 
     pub fn set_serial_input(&mut self, s: &str) -> Result<bool, ComputerError> {
@@ -422,7 +437,7 @@ impl From<std::io::Error> for ComputerError {
 
 #[cfg(test)]
 mod test {
-    use crate::JibOsImage;
+    use crate::{JibCode, JibOsImage};
 
     use super::JibComputer;
     use jib_cpu::cpu::Processor;
@@ -434,7 +449,11 @@ mod test {
             .unwrap();
 
         let mut cpu = JibComputer::new().unwrap();
-        cpu.set_code(asm).unwrap();
+        cpu.set_code(&JibCode {
+            start_location: asm.start_address,
+            code: asm.bytes,
+        })
+        .unwrap();
 
         let mut serial_output = Vec::new();
         let mut iter_count = 0;
