@@ -1,4 +1,4 @@
-use cbfs_lib::{FileSystem, VolumeHeader};
+use cbfs_lib::{FileSystem, SectorHandle, VolumeHeader};
 use cblang::{CodeGenerationOptions, CompilingState, ProgramType, VirtualFilesystem};
 use std::{
     format,
@@ -144,10 +144,22 @@ impl JibOsImage {
         }
     }
 
+    fn set_executable_attribute(
+        fs: &mut FileSystem,
+        entry: SectorHandle,
+    ) -> Result<(), ComputerError> {
+        let mut dir_vals = fs.directory_entry(entry)?;
+        dir_vals.attributes.set_executable(true);
+        fs.set_entry_attributes(entry, dir_vals.attributes)?;
+        Ok(())
+    }
+
     pub fn create_hard_drive(&self) -> Result<FileSystem, ComputerError> {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
 
-        fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
+        let boot_entry = fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
+        Self::set_executable_attribute(&mut fs, boot_entry)?;
+
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
 
@@ -156,12 +168,9 @@ impl JibOsImage {
         for (name, binary) in self.applications.iter() {
             // Create the file entry
             let entry = fs.create_file(bin_dir, name, binary)?;
-
-            // Set the file as exectuable
-            let mut dir_vals = fs.directory_entry(entry)?;
-            dir_vals.attributes.set_executable(true);
-            fs.set_entry_attributes(entry, dir_vals.attributes)?;
+            Self::set_executable_attribute(&mut fs, entry)?;
         }
+
         fs.create_file(
             home_dir,
             "script.run",
