@@ -350,9 +350,6 @@ impl PartialEq for UserTypeReference {
 #[derive(Debug, Clone)]
 pub enum ProgramType {
     Application,
-    Library {
-        base_location: u32,
-    },
     Kernel {
         base_location: u32,
         stack_loc_init: Option<u32>,
@@ -615,7 +612,6 @@ impl CompilingState {
 
         let base_loc = match &self.options.prog_type {
             ProgramType::Kernel { base_location, .. } => *base_location,
-            ProgramType::Library { base_location } => *base_location,
             _ => 0,
         };
 
@@ -695,10 +691,7 @@ impl CompilingState {
             ))));
         }
 
-        if matches!(
-            self.options.prog_type,
-            ProgramType::Application | ProgramType::Library { .. }
-        ) {
+        if matches!(self.options.prog_type, ProgramType::Application) {
             asm.extend(
                 [
                     AsmToken::Comment("Program End".into()),
