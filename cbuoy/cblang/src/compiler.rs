@@ -375,7 +375,6 @@ pub struct CodeGenerationOptions {
     pub prog_type: ProgramType,
     pub debug_locations: bool,
     pub trim_code: bool,
-    pub zero_locations: bool,
 }
 
 impl CodeGenerationOptions {
@@ -532,45 +531,11 @@ impl CompilingState {
         Ok({
             const MAGIC_NUM: [u8; 4] = [b'C', b'B', b'A', b'P'];
 
-            let mut link_sec = Vec::new();
-
-            for (k, v) in self.global_scope.iter() {
-                if let GlobalType::Variable(var) = &v.value
-                    && v.visibility == Visiblity::Import
-                    && let Some(offset) = asm.labels.get(var.access_label())
-                {
-                    let name_bytes = k.as_bytes();
-                    link_sec.write_all(&4u8.to_be_bytes())?;
-                    link_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
-                    link_sec.write_all(&offset.to_be_bytes())?;
-                    link_sec.write_all(name_bytes)?;
-                    link_sec.write_all(&[b'\0'])?;
-                }
-            }
-
-            let mut export_sec = Vec::new();
-
-            for (k, v) in self.global_scope.iter() {
-                if v.visibility == Visiblity::Export {
-                    let access_label = match &v.value {
-                        GlobalType::Variable(var) => var.access_label(),
-                        GlobalType::Function(func) => func.get_entry_label(),
-                        _ => continue,
-                    };
-
-                    if let Some(offset) = asm.labels.get(access_label) {
-                        let name_bytes = k.as_bytes();
-                        export_sec.write_all(&4u8.to_be_bytes())?;
-                        export_sec.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
-                        export_sec.write_all(&offset.to_be_bytes())?;
-                        export_sec.write_all(name_bytes)?;
-                        export_sec.write_all(&[b'\0'])?;
-                    }
-                }
-            }
+            let import_sec = self.get_import_interface()?.get_interface_region()?;
+            let export_sec = self.get_export_interface()?.get_interface_region()?;
 
             let link_offset: u32 = 8 * std::mem::size_of::<u32>() as u32;
-            let link_size: u32 = link_sec.len() as u32;
+            let link_size: u32 = import_sec.len() as u32;
             let export_offset: u32 = link_offset + link_size;
             let export_size: u32 = export_sec.len() as u32;
             let prog_offset: u32 = export_offset + export_size;
@@ -589,7 +554,7 @@ impl CompilingState {
             f.write_all(&prog_offset.to_be_bytes())?;
             f.write_all(&prog_size.to_be_bytes())?;
             f.write_all(&attributes.to_be_bytes())?;
-            f.write_all(&link_sec)?;
+            f.write_all(&import_sec)?;
             f.write_all(&export_sec)?;
             f.write_all(&asm.bytes)?;
             f
@@ -1207,8 +1172,8 @@ impl CompilingState {
         statements
     }
 
-    /// Provides the resulting interface for locations within the compiled program
-    pub fn get_exported_interface(&self) -> Result<InterfaceDefinition, CompilerError> {
+    /// Provides the resulting exported interface for locations within the compiled program
+    pub fn get_export_interface(&self) -> Result<InterfaceDefinition, CompilerError> {
         // Construct the interface and assemble the program
         let mut interface = InterfaceDefinition::default();
         let asm = self.get_assembler()?;
@@ -1225,7 +1190,7 @@ impl CompilingState {
                     if let Some(loc) = asm.labels.get(func.get_entry_label()).cloned() {
                         let def = func.get_func_def();
                         interface.functions.push(InterfaceFunction {
-                            loc: if self.options.zero_locations { 0 } else { loc },
+                            loc,
                             name: name.clone(),
                             def: def.clone(),
                         });
@@ -1244,7 +1209,7 @@ impl CompilingState {
                         interface.variables.push(InterfaceVariable {
                             name: name.clone(),
                             def: var.get_type()?.clone(),
-                            loc: if self.options.zero_locations { 0 } else { loc },
+                            loc: loc,
                         })
                     }
                 }
@@ -1267,6 +1232,31 @@ impl CompilingState {
 
         // Sort the results
         Ok(interface)
+    }
+
+    /// Provides the resulting imported interface for locations within the compiled program
+    pub fn get_import_interface(&self) -> Result<InterfaceDefinition, CompilerError> {
+        let asm = self.get_assembler()?;
+
+        let mut variables = Vec::new();
+
+        for (k, v) in self.global_scope.iter() {
+            if let GlobalType::Variable(var) = &v.value
+                && v.visibility == Visiblity::Import
+                && let Some(offset) = asm.labels.get(var.access_label())
+            {
+                variables.push(InterfaceVariable {
+                    def: var.get_type()?,
+                    loc: *offset,
+                    name: k.clone(),
+                });
+            }
+        }
+
+        Ok(InterfaceDefinition {
+            variables,
+            ..Default::default()
+        })
     }
 }
 
@@ -1350,6 +1340,31 @@ impl InterfaceDefinition {
         }
     }
 
+    pub fn zero_offsets(self) -> Self {
+        Self {
+            functions: self
+                .functions
+                .into_iter()
+                .map(|x| InterfaceFunction {
+                    name: x.name,
+                    loc: 0,
+                    def: x.def,
+                })
+                .collect(),
+            consts: self.consts,
+            structs: self.structs,
+            variables: self
+                .variables
+                .into_iter()
+                .map(|x| InterfaceVariable {
+                    name: x.name,
+                    def: x.def,
+                    loc: 0,
+                })
+                .collect(),
+        }
+    }
+
     /// Provides the resulting interface text for
     pub fn write_interface<T: Write>(&self, f: &mut T) -> Result<(), std::io::Error> {
         // Add matching structures
@@ -1427,5 +1442,30 @@ impl InterfaceDefinition {
         }
 
         Ok(())
+    }
+
+    pub fn get_interface_region(&self) -> Result<Vec<u8>, CompilerError> {
+        let mut labels: Vec<(&str, u32)> = Vec::new();
+
+        for f in self.functions.iter() {
+            labels.push((f.name.as_ref(), f.loc));
+        }
+
+        for v in self.variables.iter() {
+            labels.push((v.name.as_ref(), v.loc));
+        }
+
+        let mut region = Vec::new();
+
+        for (name, offset) in labels {
+            let name_bytes = name.as_bytes();
+            region.write_all(&4u8.to_be_bytes())?;
+            region.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
+            region.write_all(&offset.to_be_bytes())?;
+            region.write_all(name_bytes)?;
+            region.write_all(&[b'\0'])?;
+        }
+
+        Ok(region)
     }
 }

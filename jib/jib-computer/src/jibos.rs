@@ -58,7 +58,6 @@ impl JibOsImage {
                 base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
             },
             trim_code,
-            zero_locations: true,
             ..Default::default()
         };
 
@@ -94,7 +93,8 @@ impl JibOsImage {
         {
             let mut writer = std::io::BufWriter::new(&mut interface_data);
             kernel_compiled
-                .get_exported_interface()?
+                .get_export_interface()?
+                .zero_offsets()
                 .write_interface(&mut writer)?;
         }
 

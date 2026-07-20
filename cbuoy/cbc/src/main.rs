@@ -120,7 +120,6 @@ impl CompilerArguments {
             },
             debug_locations: self.include_locations,
             trim_code: self.trim_unused,
-            zero_locations: self.zero_locations,
         }
     }
 }
@@ -192,8 +191,13 @@ fn main() -> std::process::ExitCode {
             }
         };
 
-        match cbstate.get_exported_interface() {
-            Ok(x) => {
+        match cbstate.get_export_interface() {
+            Ok(mut x) => {
+                // Check compiler options
+                if args.zero_locations {
+                    x = x.zero_offsets();
+                }
+
                 // Write to the output file
                 x.write_interface(&mut interface_file).unwrap();
             }
