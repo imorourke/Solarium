@@ -50,6 +50,27 @@ fn k_link_get_addr(symbol: *u8) u32 {
     return 0;
 }
 
+// Returns an executable location, or null if there is no location
+// for the requested symbol
+fn k_link_print_exports() u32 {
+    def current_loc: *u8 = K_LINK_EXPORT_DATA;
+    def end_loc: *u8 = K_LINK_EXPORT_DATA + K_LINK_EXPORT_SIZE;
+    while (current_loc < end_loc) {
+        def rgn: *k_link_rgn_t = current_loc;
+        current_loc = current_loc + sizeof(k_link_rgn_t);
+
+        def name: *u8 = current_loc;
+        k_io_print(name);
+        k_io_print(": ");
+        k_io_print_hex(rgn->offset);
+        k_io_print("\n");
+
+        current_loc = current_loc + rgn->name_size;
+    }
+
+    return 0;
+}
+
 fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
@@ -162,15 +183,8 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
 
     // Only run the application on success
     if (link_success) {
-        // Create the application stack
-        def app_stack: *u8 = k_malloc(1024);
-
-        // Define the calling function and enter the location
-        if (app_stack != NULL) {
-            def app_func: fn(*u8) i32 = init_loc;
-            app_func(app_stack);
-            k_free(app_stack);
-        }
+        def app_func: fn() i32 = init_loc;
+        app_func();
     }
 
     // Free the application memory
