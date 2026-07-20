@@ -639,12 +639,14 @@ impl CompilingState {
         }
 
         if let Some(GlobalType::Function(f)) = self.get_global(Self::MAIN_FUNC_NAME)? {
-            asm.push(Self::blank_token_loc(AsmToken::OperationLiteral(Box::new(
-                OpLd::new(
-                    ArgumentType::new(Register::ArgumentBase, DataType::U32),
-                    Register::StackPointer.into(),
-                ),
-            ))));
+            if matches!(self.options.prog_type, ProgramType::Kernel { .. }) {
+                asm.push(Self::blank_token_loc(AsmToken::OperationLiteral(Box::new(
+                    OpLd::new(
+                        ArgumentType::new(Register::ArgumentBase, DataType::U32),
+                        Register::StackPointer.into(),
+                    ),
+                ))));
+            }
             asm.extend(
                 self.options
                     .load_label(RegisterDef::SPARE, f.get_entry_label().to_owned())

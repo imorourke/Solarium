@@ -346,7 +346,7 @@ fn k_shell_fn_exec(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                     return -3;
                 }
 
-                return k_link_start_executable(disk, out_entry.base_block);
+                return k_link_start_executable(disk, out_entry.base_block, &argv[1], argc - 1);
             } else {
                 k_io_print("entry '");
                 k_io_print(argv[1]);
@@ -381,7 +381,7 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) &&
         (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE)
         ) {
-        return k_link_start_executable(disk, out_entry.base_block);
+        return k_link_start_executable(disk, out_entry.base_block, argv, argc);
     } else {
         k_io_print("^! Unknown Command: ");
         k_io_print(argv[0]);

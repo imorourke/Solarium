@@ -37,6 +37,11 @@ impl JibOsImage {
             filename: "hello_mem.cb",
             code: include_str!("../../../cbos/bin/hello_mem.cb"),
         },
+        JibApplication {
+            exec: "print_args",
+            filename: "print_args.cb",
+            code: include_str!("../../../cbos/bin/print_args.cb"),
+        },
     ];
 
     /// Get the build date
@@ -157,8 +162,7 @@ impl JibOsImage {
     pub fn create_hard_drive(&self) -> Result<FileSystem, ComputerError> {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
 
-        let boot_entry = fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
-        Self::set_executable_attribute(&mut fs, boot_entry)?;
+        fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
 
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
@@ -166,7 +170,6 @@ impl JibOsImage {
         fs.create_file(home_dir, "hello.txt", b"Welcome to CB/OS!\n")?;
 
         for (name, binary) in self.applications.iter() {
-            // Create the file entry
             let entry = fs.create_file(bin_dir, name, binary)?;
             Self::set_executable_attribute(&mut fs, entry)?;
         }

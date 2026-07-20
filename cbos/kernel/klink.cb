@@ -71,7 +71,7 @@ fn k_link_print_exports() u32 {
     return 0;
 }
 
-fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
+fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, argv: **u8, argc: u32) i32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
 
@@ -183,8 +183,8 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16) i32 {
 
     // Only run the application on success
     if (link_success) {
-        def app_func: fn() i32 = init_loc;
-        app_func();
+        def app_func: fn(**u8, u32) i32 = init_loc;
+        app_func(argv, argc);
     }
 
     // Free the application memory
