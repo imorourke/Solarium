@@ -9,8 +9,8 @@
 
 struct k_exec_hdr_t {
     magic_num: u32;
-    link_offset: u32;
-    link_size: u32;
+    import_offset: u32;
+    import_size: u32;
     export_offset: u32;
     export_size: u32;
     prog_offset: u32;
@@ -130,10 +130,10 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, argv: **u8, argc: u32
 
     def link_success: u8 = 1;
 
-    if (exec_hdr.link_size > 0) {
-        def link_data: *u8 = k_malloc(exec_hdr.link_size);
+    if (exec_hdr.import_size > 0) {
+        def link_data: *u8 = k_malloc(exec_hdr.import_size);
 
-        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.link_offset, exec_hdr.link_size, &read_state) >= 0)) {
+        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
             const DATA_SIZE: u32 = 128;
             //def run_data: [DATA_SIZE]u8;
             def read_size: u32 = DATA_SIZE;
@@ -155,7 +155,7 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, argv: **u8, argc: u32
         if (link_success) {
             // Read the link data and apply
             def current_loc: *u8 = link_data;
-            def end_loc: *u8 = link_data + exec_hdr.link_size;
+            def end_loc: *u8 = link_data + exec_hdr.import_size;
 
             while (current_loc < end_loc) {
                 def rgn: *k_link_rgn_t = current_loc;

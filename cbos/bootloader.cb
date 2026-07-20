@@ -82,11 +82,11 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
 
     def link_success: u8 = 1;
 
-    if (exec_hdr.link_size > 0) {
+    if (exec_hdr.import_size > 0) {
         k_io_print("Loading import table\n");
-        def link_data: *u8 = k_malloc(exec_hdr.link_size);
+        def link_data: *u8 = k_malloc(exec_hdr.import_size);
 
-        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.link_offset, exec_hdr.link_size, &read_state) >= 0)) {
+        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
             const DATA_SIZE: u32 = 128;
             def read_size: u32 = DATA_SIZE;
 
@@ -106,7 +106,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
         if (link_success) {
             // Read the link data and apply
             def current_loc: *u8 = link_data;
-            def end_loc: *u8 = link_data + exec_hdr.link_size;
+            def end_loc: *u8 = link_data + exec_hdr.import_size;
 
             while (current_loc < end_loc) {
                 def rgn: *k_link_rgn_t = current_loc;

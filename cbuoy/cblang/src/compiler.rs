@@ -534,9 +534,9 @@ impl CompilingState {
             let import_sec = self.get_import_interface()?.get_interface_region()?;
             let export_sec = self.get_export_interface()?.get_interface_region()?;
 
-            let link_offset: u32 = 8 * std::mem::size_of::<u32>() as u32;
-            let link_size: u32 = import_sec.len() as u32;
-            let export_offset: u32 = link_offset + link_size;
+            let import_offset: u32 = 8 * std::mem::size_of::<u32>() as u32;
+            let import_size: u32 = import_sec.len() as u32;
+            let export_offset: u32 = import_offset + import_size;
             let export_size: u32 = export_sec.len() as u32;
             let prog_offset: u32 = export_offset + export_size;
             let prog_size: u32 = asm.bytes.len() as u32;
@@ -547,8 +547,8 @@ impl CompilingState {
 
             let mut f = Vec::new();
             f.write_all(&MAGIC_NUM)?;
-            f.write_all(&link_offset.to_be_bytes())?;
-            f.write_all(&link_size.to_be_bytes())?;
+            f.write_all(&import_offset.to_be_bytes())?;
+            f.write_all(&import_size.to_be_bytes())?;
             f.write_all(&export_offset.to_be_bytes())?;
             f.write_all(&export_size.to_be_bytes())?;
             f.write_all(&prog_offset.to_be_bytes())?;
