@@ -529,6 +529,14 @@ fn k_fs_get_dir_entry_by_id(dev: *k_fs_disk_t, parent: u16, base_block: u16, ent
     return -1;
 }
 
+fn k_fs_get_dir_entry_by_id_only(dev: *k_fs_disk_t, entry_id: u16, entry: *k_fs_directory_entry_t) i32 {
+    def header: k_fs_entry_header_t;
+    if (k_fs_read_entry_header(dev, entry_id, &header) != 0) {
+        return -1;
+    }
+    return k_fs_get_dir_entry_by_id(dev, header.parent, entry_id, entry);
+}
+
 fn k_fs_disk_flush(dev: *k_fs_disk_t) i32 {
     if (dev->entry_table_dirty) {
         k_fs_write_disk_table(dev);
