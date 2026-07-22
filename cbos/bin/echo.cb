@@ -1,13 +1,18 @@
 #include cbos_defs.cb
 
 fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
-    if ((argc < 2) || (strcmp(argv[1], "-h") == 0)) {
+    if (strcmp(argv[1], "-h") == 0) {
         k_io_print(argv[0]);
-        k_io_print(" [..args]\n");
+        k_io_print(" [..args]\n\n");
+        k_io_print("  ");
+        k_io_print(argv[0]);
+        k_io_print(" echoes input entries\n\n");
+        k_io_print("  -a : enumerates all entries\n");
+        k_io_print("  -h : prints this help entry\n");
         return 0;
     }
 
-    if (strcmp(argv[1], "-a") == 0) {
+    if ((argc >= 2) && (strcmp(argv[1], "-a") == 0)) {
         k_io_print("Num args: ");
         k_io_print_uint(argc);
         k_io_print("\n");
