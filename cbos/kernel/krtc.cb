@@ -3,6 +3,7 @@
 
 #include kconfig.cb
 #include kdevice.cb
+#include kserialio.cb
 
 export struct k_datetime_t {
     year: i16;
@@ -51,6 +52,20 @@ export fn k_rtc_current() k_datetime_t {
     if (K_RTC_BASE != 0) {
         return K_RTC_BASE->datetime;
     }
+}
+
+export fn k_print_date(dt: *k_datetime_t) void {
+    k_io_print_uint_width(dt->year, 4);
+    k_io_print("-");
+    k_io_print_uint_width(dt->month, 2);
+    k_io_print("-");
+    k_io_print_uint_width(dt->day + 1, 2);
+    k_io_print(" ");
+    k_io_print_uint_width(dt->hour, 2);
+    k_io_print(":");
+    k_io_print_uint_width(dt->minute, 2);
+    k_io_print(":");
+    k_io_print_uint_width(dt->second, 2);
 }
 
 #endif // K_RTC_DEV

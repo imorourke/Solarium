@@ -11,15 +11,15 @@
 
 const K_FS_ENTRY_END: u16 = 0xFFFF;
 
-const K_FS_ATTRIBUTE_EXECUTABLE: u8 = 0x1;
+export const K_FS_ATTRIBUTE_EXECUTABLE: u8 = 0x1;
 
-const K_FS_VOL_NAME_LEN: u32 = 32;
-const K_FS_ENTRY_NAME_LEN: u32 = 60;
+export const K_FS_VOL_NAME_LEN: u32 = 32;
+export const K_FS_ENTRY_NAME_LEN: u32 = 60;
 
 export const K_FS_ENTRY_TYPE_DIR: u8 = 1;
 export const K_FS_ENTRY_TYPE_FILE: u8 = 2;
 
-struct k_fs_vol_header_t {
+export struct k_fs_vol_header_t {
     version: u16;
     sector_size: u16;
     sector_count: u16;
@@ -28,14 +28,14 @@ struct k_fs_vol_header_t {
     volume_name: [K_FS_VOL_NAME_LEN]u8;
 }
 
-struct k_fs_directory_entry_t {
+export struct k_fs_directory_entry_t {
     base_block: u16;
     attributes: u8;
     entry_type: u8;
     name: [K_FS_ENTRY_NAME_LEN]u8;
 }
 
-struct k_fs_entry_header_t {
+export struct k_fs_entry_header_t {
     entry_type: u8;
     reserved: u8;
     parent: u16;

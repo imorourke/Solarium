@@ -392,6 +392,14 @@ impl eframe::App for VisualJib {
                                 Some("ldd.cb"),
                             );
                         }
+
+                        if ui.button("stat").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/stat.cb").to_string(),
+                                Some("stat.cb"),
+                            );
+                        }
                     });
 
                     ui.menu_button("Examples", |ui| {

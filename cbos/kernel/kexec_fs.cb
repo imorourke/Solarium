@@ -86,4 +86,33 @@ export fn k_exec_fs_file_read(exec: *k_exec_state_t, entry: u16, offset: u32, si
     }
 }
 
+export fn k_exec_fs_read_entry_header(exec: *k_exec_state_t, entry: u16, header: *k_fs_entry_header_t) i32 {
+    if (!exec || !header) {
+        return -1;
+    }
+
+    def state: k_shell_state_t;
+    if (0 != k_exec_fs_get_state(exec, &state)) {
+        return -1;
+    }
+
+    def disk: *k_fs_disk_t = _k_shell_get_disk(&state);
+    return k_fs_read_entry_header(disk, entry, header);
+}
+
+export fn k_exec_fs_get_dir_entry_by_id(exec: *k_exec_state_t, entry: u16, header: *k_fs_directory_entry_t) i32 {
+    if (!exec || !header) {
+        return -1;
+    }
+
+    def state: k_shell_state_t;
+    if (0 != k_exec_fs_get_state(exec, &state)) {
+        return -1;
+    }
+
+    def disk: *k_fs_disk_t = _k_shell_get_disk(&state);
+
+    return k_fs_get_dir_entry_by_id_only(disk, entry, header);
+}
+
 #endif // K_EXEC_FS

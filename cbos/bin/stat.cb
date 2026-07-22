@@ -1,0 +1,76 @@
+#include cbos_defs.cb
+
+fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+    if ((argc != 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
+        k_io_print(argv[0]);
+        k_io_print(" [file_entry]\n");
+        k_io_print("  reads the input file or folder and prints statistics\n");
+        if (argc == 2) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+
+    def target: i32 = k_exec_fs_readlink(state, argv[1], K_FS_ENTRY_TYPE_FILE);
+    if (target <= 0) {
+        k_io_print("unable to find file for '");
+        k_io_print(argv[1]);
+        k_io_print("'\n");
+        return -1;
+    }
+
+    def filename: *u8 = argv[1];
+
+    def out_header: k_fs_entry_header_t;
+    if (k_exec_fs_read_entry_header(state, target : u16, &out_header) == 0) {
+        if (out_header.entry_type == K_FS_ENTRY_TYPE_FILE) {
+            def out_entry: k_fs_directory_entry_t;
+            if (k_exec_fs_get_dir_entry_by_id(state, target : u16, &out_entry) != 0) {
+                k_io_print("unable to get directory entry\n");
+                return -1;
+            }
+
+            k_io_print("  file:        ");
+            k_io_print(filename);
+            k_io_print("\n");
+            k_io_print("  size:        ");
+            k_io_print_uint(out_header.payload_size);
+            k_io_print(" / ");
+            k_io_print_uint(out_header.payload_size / 1024);
+            k_io_print("k\n");
+            k_io_print("  executable:  ");
+            if (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) {
+                k_io_print("y");
+            } else {
+                k_io_print("n");
+            }
+            k_io_print("\n");
+        } else if (out_header.entry_type == K_FS_ENTRY_TYPE_DIR) {
+            k_io_print("  directory:   ");
+            k_io_print(filename);
+            k_io_print("\n");
+            k_io_print("  entry count: ");
+            k_io_print_uint(out_header.payload_size / sizeof(k_fs_directory_entry_t));
+            k_io_print("\n");
+        } else {
+            k_io_print("unknown entry type\n");
+            return -2;
+        }
+
+        k_io_print("  node:        ");
+        k_io_print_uint(target : u16);
+        k_io_print("\n");
+
+        k_io_print("  date:        ");
+        k_print_date(&out_header.modification_time);
+        k_io_print("\n");
+
+        return 0;
+    } else {
+        k_io_print("unable to find entry with name '");
+        k_io_print(filename);
+        k_io_print("'\n");
+        return -3;
+    }
+}

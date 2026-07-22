@@ -38,6 +38,11 @@ impl JibOsImage {
             code: include_str!("../../../cbos/bin/hello_mem.cb"),
         },
         JibApplication {
+            exec: "cat",
+            filename: "cat.cb",
+            code: include_str!("../../../cbos/bin/cat.cb"),
+        },
+        JibApplication {
             exec: "echo",
             filename: "echo.cb",
             code: include_str!("../../../cbos/bin/echo.cb"),
@@ -48,9 +53,9 @@ impl JibOsImage {
             code: include_str!("../../../cbos/bin/ldd.cb"),
         },
         JibApplication {
-            exec: "cat",
-            filename: "cat.cb",
-            code: include_str!("../../../cbos/bin/cat.cb"),
+            exec: "stat",
+            filename: "stat.cb",
+            code: include_str!("../../../cbos/bin/stat.cb"),
         },
     ];
 
