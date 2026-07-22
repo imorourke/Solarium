@@ -368,6 +368,30 @@ impl eframe::App for VisualJib {
                                 Some("hello_mem.cb"),
                             );
                         }
+
+                        if ui.button("cat").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/cat.cb").to_string(),
+                                Some("cat.cb"),
+                            );
+                        }
+
+                        if ui.button("echo").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/echo.cb").to_string(),
+                                Some("echo.cb"),
+                            );
+                        }
+
+                        if ui.button("ldd").clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                include_str!("../../cbos/bin/ldd.cb").to_string(),
+                                Some("ldd.cb"),
+                            );
+                        }
                     });
 
                     ui.menu_button("Examples", |ui| {
