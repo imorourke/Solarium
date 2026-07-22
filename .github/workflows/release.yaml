@@ -173,14 +173,14 @@ jobs:
             cp visual-jib/desktop/visual-jib.desktop dist/visual-jib.desktop
             cp doc/images/logo.svg dist/visual-jib.svg
             cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
-            tar -czvf solarium-freebsd-x86_64.tar.gz -C dist cbfs cbfs-util cbc jib-term visual-jib visual-jib.desktop visual-jib.svg
+            tar -czvf solarium-freebsd-15-x86_64.tar.gz -C dist cbfs cbfs-util cbc jib-term visual-jib visual-jib.desktop visual-jib.svg
             rm -rf target build
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
         with:
-          name: solarium-freebsd-x86_64.tar.gz
-          path: solarium-freebsd-x86_64.tar.gz
+          name: solarium-freebsd-15-x86_64.tar.gz
+          path: solarium-freebsd-15-x86_64.tar.gz
 
   macos:
     runs-on: macos-latest
