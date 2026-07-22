@@ -1,0 +1,133 @@
+#ifndef K_EXEC
+#define K_EXEC
+
+#include klink.cb
+
+export struct k_exec_state_t {
+    cwd: u16;
+    state: *u32;
+}
+
+fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+    def read_state: k_fs_io_state_t;
+    def exec_hdr: k_exec_hdr_t;
+
+    if (k_fs_io_state_init(disk, entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
+        def read_size: u32 = sizeof(exec_hdr);
+        def read_remaining: u32 = sizeof(exec_hdr);
+        def copy_loc: *u8 = &exec_hdr;
+        while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
+            copy_loc = copy_loc + read_size;
+            read_remaining = read_remaining - read_size;
+            read_size = read_remaining;
+        }
+    } else {
+        k_io_print("unable to find application header\n");
+        return -5;
+    }
+
+    if (exec_hdr.magic_num != K_EXEC_MAGIC_HDR) {
+        k_io_print("unknown executable format found\n");
+        return -6;
+    }
+
+    def app_data: *u8 = NULL;
+    def init_loc: *u8 = NULL;
+
+    if (k_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
+        const DATA_SIZE: u32 = 128;
+        //def run_data: [DATA_SIZE]u8;
+        def read_size: u32 = DATA_SIZE;
+
+        // Add 3 to allow for alignment
+        app_data = k_malloc(read_state.span_size + 3);
+        if (app_data == NULL) {
+            k_io_print("unable to allocate application memory\n");
+            return -4;
+        }
+
+        // Ensure that the location is aligned
+        def copy_loc: *u8 = app_data;
+        while ((copy_loc : u32) % 4 != 0) {
+            copy_loc = copy_loc + 1;
+        }
+        init_loc = copy_loc;
+
+        // Copy code into location
+        while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
+            //k_memcpy(copy_loc, &run_data[0], read_size);
+            copy_loc = copy_loc + read_size;
+
+            read_size = DATA_SIZE;
+        }
+    } else {
+        k_io_print("unable to load binary into memory\n");
+        return -6;
+    }
+
+    def link_success: u8 = 1;
+
+    if (exec_hdr.import_size > 0) {
+        def link_data: *u8 = k_malloc(exec_hdr.import_size);
+
+        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
+            const DATA_SIZE: u32 = 128;
+            //def run_data: [DATA_SIZE]u8;
+            def read_size: u32 = DATA_SIZE;
+
+            // Ensure that the location is aligned
+            def copy_loc: *u8 = link_data;
+
+            // Read link data into buffer
+            while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
+                //k_memcpy(copy_loc, &run_data[0], read_size);
+                copy_loc = copy_loc + read_size;
+                read_size = DATA_SIZE;
+            }
+        } else {
+            k_io_print("unable to load link region into memory\n");
+            link_success = 0;
+        }
+
+        if (link_success) {
+            // Read the link data and apply
+            def current_loc: *u8 = link_data;
+            def end_loc: *u8 = link_data + exec_hdr.import_size;
+
+            while (current_loc < end_loc) {
+                def rgn: *k_link_rgn_t = current_loc;
+                current_loc = current_loc + sizeof(k_link_rgn_t);
+
+                def name: *u8 = current_loc;
+                current_loc = current_loc + rgn->name_size;
+
+                def addr: u32 = k_link_get_addr(name);
+                if (addr != NULL) {
+                    *((init_loc + rgn->offset) : *u32) = addr;
+                } else {
+                    k_io_print("unable to find location for symbol '");
+                    k_io_print(name);
+                    k_io_print("'\n");
+                    link_success = 0;
+                }
+            }
+        }
+
+        if (link_data != NULL) {
+            k_free(link_data);
+        }
+    }
+
+    // Only run the application on success
+    if (link_success) {
+        def app_func: fn(*k_exec_state_t, **u8, u32) i32 = init_loc;
+        app_func(state, argv, argc);
+    }
+
+    // Free the application memory
+    k_free(app_data);
+
+    return 0;
+}
+
+#endif // K_EXEC

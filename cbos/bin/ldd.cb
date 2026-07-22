@@ -1,0 +1,103 @@
+#include cbos_defs.cb
+
+fn print_results(state: *k_exec_state_t, entry: u16, offset: u32, data_size: u32) i32;
+
+fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+    if ((argc != 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
+        k_io_print(argv[0]);
+        k_io_print(" [file]\n");
+        k_io_print("  ldd prints imports and exports present within a file\n");
+        if (argc == 2) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+
+    def hdr: k_exec_hdr_t;
+    k_memset(&hdr, 0, sizeof(hdr));
+    def hdr_size: u32 = sizeof(hdr);
+
+    def path: *u8 = argv[1];
+    def target: i32 = k_exec_fs_readlink(state, path, K_FS_ENTRY_TYPE_FILE);
+    if (target <= 0) {
+        k_io_print("unable to find file for ");
+        k_io_print(path);
+        k_io_print("\n");
+        return -1;
+    }
+    def entry: u16 = target : u16;
+
+    if (0 != k_exec_fs_file_read(state, entry, 0, &hdr_size, &hdr)) {
+        k_io_print("unable to read ");
+        k_io_print(argv[1]);
+        k_io_print("\n");
+        return -1;
+    }
+
+    k_io_print("Header:\n");
+    k_io_print("  magic_num: ");
+    k_io_print_hex(hdr.magic_num);
+    k_io_print("\n");
+    k_io_print_stat("  import_offset", hdr.import_offset);
+    k_io_print_stat("  import_size", hdr.import_size);
+    k_io_print_stat("  export_offset", hdr.export_offset);
+    k_io_print_stat("  export_size", hdr.export_size);
+    k_io_print_stat("  prog_offset", hdr.prog_offset);
+    k_io_print_stat("  prog_size", hdr.prog_size);
+    k_io_print_stat("  attribute", hdr.attribute);
+
+    if (hdr.magic_num != K_EXEC_MAGIC_HDR) {
+        k_io_print("unknown executable format found\n");
+        return -1;
+    }
+
+    k_io_print("Imports:\n");
+    if (print_results(state, entry, hdr.import_offset, hdr.import_size) != 0) {
+        return -1;
+    }
+
+    k_io_print("Exports:\n");
+    if (print_results(state, entry, hdr.export_offset, hdr.export_size) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+fn print_results(state: *k_exec_state_t, entry: u16, offset: u32, data_size: u32) i32 {
+    if (data_size > 0) {
+        def data: *u8 = k_malloc(data_size);
+        k_memset(data, 0, data_size);
+        if (data == NULL) {
+            k_io_print("unable to create link data table\n");
+            return -1;
+        }
+
+        if (0 != k_exec_fs_file_read(state, entry, offset, &data_size, data)) {
+            k_io_print("unable to read link table\n");
+            k_free(data);
+            return -1;
+        }
+
+        // Read the link data and apply
+        def current_loc: *u8 = data;
+        def end_loc: *u8 = data + data_size;
+
+        while (current_loc < end_loc) {
+            def rgn: *k_link_rgn_t = current_loc;
+            current_loc = current_loc + sizeof(k_link_rgn_t);
+
+            def name: *u8 = current_loc;
+            current_loc = current_loc + rgn->name_size;
+
+            k_io_print("  ");
+            k_io_print(name);
+            k_io_print(": ");
+            k_io_print_hex(rgn->offset);
+            k_io_print("\n");
+        }
+
+        k_free(data);
+    }
+}

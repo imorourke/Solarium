@@ -38,9 +38,14 @@ impl JibOsImage {
             code: include_str!("../../../cbos/bin/hello_mem.cb"),
         },
         JibApplication {
-            exec: "print_args",
-            filename: "print_args.cb",
-            code: include_str!("../../../cbos/bin/print_args.cb"),
+            exec: "echo",
+            filename: "echo.cb",
+            code: include_str!("../../../cbos/bin/echo.cb"),
+        },
+        JibApplication {
+            exec: "ldd",
+            filename: "ldd.cb",
+            code: include_str!("../../../cbos/bin/ldd.cb"),
         },
     ];
 

@@ -1,6 +1,6 @@
 #ifndef K_DEF
 #define K_DEF
 
-const NULL: u32 = 0;
+export const NULL: u32 = 0;
 
 #endif // K_DEF

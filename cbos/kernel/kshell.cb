@@ -1,6 +1,7 @@
 #ifndef K_SHELL
 #define K_SHELL
 
+#include kcpu.cb
 #include kdbg.cb
 #include kfs.cb
 #include klink.cb
@@ -106,7 +107,6 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  exec [file]   -> executes the application binary provided by the compiled file,\n");
     k_io_print("                   compiled as an position-independent application file\n");
     k_io_print("  exports       -> lists symbols exported from the current OS\n");
-    k_io_print("  ldd [file]    -> lists symbols imported from the current file image\n");
     k_io_print("  run [file]    -> executes the script text file provided by the given argument,\n");
     k_io_print("                   running each line of the provided file as if it were\n");
     k_io_print("                   typed into the console as a script\n");
@@ -441,15 +441,21 @@ fn k_shell_fn_exec(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             return -1;
         }
 
-        def out_entry: k_fs_directory_entry_t;
-        if (k_fs_get_dir_entry_by_id_only(disk, target : u16, &out_entry) == 0) {
-            if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
-                if ((out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) == 0) {
+        def dir_entry: k_fs_directory_entry_t;
+        if (k_fs_get_dir_entry_by_id_only(disk, target : u16, &dir_entry) == 0) {
+            if (dir_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
+                if ((dir_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) == 0) {
                     k_io_print("file is not marked as executable\n");
                     return -3;
                 }
 
-                return k_link_start_executable(disk, out_entry.base_block, &argv[1], argc - 1);
+                def exec_state: k_exec_state_t;
+                exec_state.cwd = state->cwd;
+                exec_state.state = state;
+
+                argv[1] = &dir_entry.name[0];
+
+                return k_link_start_executable(disk, dir_entry.base_block, &exec_state, &argv[1], argc - 1);
             } else {
                 k_io_print("entry '");
                 k_io_print(argv[1]);
@@ -484,7 +490,13 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) &&
         (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE)
         ) {
-        return k_link_start_executable(disk, out_entry.base_block, argv, argc);
+        // Create the executable state
+        def exec_state: k_exec_state_t;
+        exec_state.cwd = state->cwd;
+        exec_state.state = state;
+
+        // Start the executable
+        return k_link_start_executable(disk, out_entry.base_block, &exec_state, argv, argc);
     } else {
         k_io_print("^! Unknown Command: ");
         k_io_print(argv[0]);
@@ -500,155 +512,6 @@ fn k_shell_fn_exports(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print_uint(K_LINK_EXPORT_SIZE);
     k_io_print("\n");
     return k_link_print_exports();
-}
-
-fn k_shell_fn_ldd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
-    def disk: *k_fs_disk_t = _k_shell_get_disk(state);
-    def entry: k_fs_directory_entry_t;
-    if ((disk == NULL) || ((state : u32) == NULL)) {
-        k_io_print("unopened disk\n");
-        return -1;
-    } else if (argc != 2) {
-        k_io_print("Found ");
-        k_io_print_uint(argc);
-        k_io_print(" arguments, expected 2\n");
-        return -1;
-    }
-
-    def target: i32 = k_shell_readlink(state, argv[1], K_FS_ENTRY_TYPE_FILE);
-    if (target <= 0) {
-        k_io_print("unable to find file for '");
-        k_io_print(argv[1]);
-        k_io_print("'\n");
-        return -1;
-    } else if ((k_fs_get_dir_entry_by_id_only(disk, target : u16, &entry) != 0)) {
-        k_io_print("unable to get file entry for ");
-        k_io_print(argv[1]);
-        k_io_print("\n");
-        return -1;
-    } else if ((entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) == 0) {
-        k_io_print("entry does not have executable flag set\n");
-        return -1;
-    }
-
-    def read_state: k_fs_io_state_t;
-    def exec_hdr: k_exec_hdr_t;
-
-    if (k_fs_io_state_init(disk, entry.base_block, 0, sizeof(exec_hdr), &read_state) >= 0) {
-        def read_size: u32 = sizeof(exec_hdr);
-        def read_remaining: u32 = sizeof(exec_hdr);
-        def copy_loc: *u8 = &exec_hdr;
-        while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
-            copy_loc = copy_loc + read_size;
-            read_remaining = read_remaining - read_size;
-            read_size = read_remaining;
-        }
-    } else {
-        k_io_print("unable to find application header\n");
-        return -1;
-    }
-
-    if (exec_hdr.magic_num != K_EXEC_MAGIC_HDR) {
-        k_io_print("unknown executable format found\n");
-        return -1;
-    }
-
-    k_io_print("Imports\n");
-    if (exec_hdr.import_size > 0) {
-        def link_data: *u8 = k_malloc(exec_hdr.import_size);
-        if (link_data == NULL) {
-            k_io_print("unable to allocate link memory\n");
-            return -1;
-        }
-
-        if (k_fs_io_state_init(disk, entry.base_block, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0) {
-            const DATA_SIZE: u32 = 128;
-            def read_size: u32 = DATA_SIZE;
-
-            // Ensure that the location is aligned
-            def copy_loc: *u8 = link_data;
-
-            // Read link data into buffer
-            while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
-                copy_loc = copy_loc + read_size;
-                read_size = DATA_SIZE;
-            }
-        } else {
-            k_io_print("unable to load link region into memory\n");
-            k_free(link_data);
-            return -1;
-        }
-
-        // Read the link data and apply
-        def current_loc: *u8 = link_data;
-        def end_loc: *u8 = link_data + exec_hdr.import_size;
-
-        while (current_loc < end_loc) {
-            def rgn: *k_link_rgn_t = current_loc;
-            current_loc = current_loc + sizeof(k_link_rgn_t);
-
-            def name: *u8 = current_loc;
-            current_loc = current_loc + rgn->name_size;
-
-            k_io_print("  ");
-            k_io_print(name);
-            k_io_print(": ");
-            k_io_print_hex(rgn->offset);
-            k_io_print("\n");
-        }
-
-        k_free(link_data);
-    }
-
-    k_io_print("Exports\n");
-    if (exec_hdr.export_size > 0) {
-        def export_data: *u8 = k_malloc(exec_hdr.export_size);
-        if (export_data == NULL) {
-            k_io_print("unable to allocate export memory\n");
-            return -1;
-        }
-
-        if (k_fs_io_state_init(disk, entry.base_block, exec_hdr.export_offset, exec_hdr.export_size, &read_state) >= 0) {
-            const DATA_SIZE: u32 = 128;
-            //def run_data: [DATA_SIZE]u8;
-            def read_size: u32 = DATA_SIZE;
-
-            // Ensure that the location is aligned
-            def copy_loc: *u8 = export_data;
-
-            // Read link data into buffer
-            while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
-                copy_loc = copy_loc + read_size;
-                read_size = DATA_SIZE;
-            }
-        } else {
-            k_io_print("unable to load export region into memory\n");
-            k_free(export_data);
-            return -1;
-        }
-
-        // Read the link data and apply
-        def current_loc: *u8 = export_data;
-        def end_loc: *u8 = export_data + exec_hdr.export_size;
-
-        while (current_loc < end_loc) {
-            def rgn: *k_link_rgn_t = current_loc;
-            current_loc = current_loc + sizeof(k_link_rgn_t);
-
-            def name: *u8 = current_loc;
-            current_loc = current_loc + rgn->name_size;
-
-            k_io_print("  ");
-            k_io_print(name);
-            k_io_print(": ");
-            k_io_print_hex(rgn->offset);
-            k_io_print("\n");
-        }
-
-        k_free(export_data);
-    }
-
-    return 0;
 }
 
 fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
@@ -953,8 +816,6 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_exec;
         } else if (strcmp(cmd, "exports") == 0) {
             sh_fn = k_shell_fn_exports;
-        } else if (strcmp(cmd, "ldd") == 0) {
-            sh_fn = k_shell_fn_ldd;
         }
 
         if (sh_fn != 0) {

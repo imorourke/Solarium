@@ -8,6 +8,7 @@ use jib_cpu::cpu::DataType;
 
 use crate::compiler::{CompilingState, UserTypeOptions, UserTypeReference};
 use crate::expressions::parse_expression;
+use crate::tokenizer::KEYWORD_VOID;
 use crate::{
     tokenizer::{
         KEYWORD_CONST, KEYWORD_FN, KEYWORD_STRUCT, Token, TokenError, TokenIter, get_identifier,
@@ -135,7 +136,7 @@ impl Display for Type {
                     .join(", "),
                 d.return_type
                     .as_ref()
-                    .map_or("void".to_string(), |r| r.to_string())
+                    .map_or(KEYWORD_VOID.to_string(), |r| r.to_string())
             ),
             Self::Opaque(r) => write!(f, "{}", r.name.get_value()),
         }
