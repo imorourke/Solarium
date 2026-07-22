@@ -62,6 +62,14 @@ struct k_fs_disk_t {
     entry_table_dirty: u8;
 }
 
+struct k_fs_io_state_t {
+    dev: *k_fs_disk_t;
+    sector_offset: u32;
+    bytes_read: u32;
+    span_size: u32;
+    entry: u16;
+}
+
 const DISK_LOC: *u8 = K_LOC_DEVICE_HD_START;
 
 fn k_fs_disk_move(ctl: *k_fs_disk_control_t, offset: u32) void {
@@ -212,14 +220,6 @@ fn k_fs_read_entry_header(dev: *k_fs_disk_t, entry: u16, header: *k_fs_entry_hea
     dev->ctl->memory_size = 0;
     k_memcpy(header, &dev->ctl->data, sizeof(k_fs_entry_header_t));
     return 0;
-}
-
-struct k_fs_io_state_t {
-    dev: *k_fs_disk_t;
-    entry: u16;
-    sector_offset: u32;
-    bytes_read: u32;
-    span_size: u32;
 }
 
 fn k_fs_io_state_init_hdr(dev: *k_fs_disk_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {

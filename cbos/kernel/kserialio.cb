@@ -238,4 +238,8 @@ export fn k_io_read_str_until(buffer: *u8, len: u32, target: u8) u32 {
     }
 }
 
+export fn k_io_serial_output_size() u16 {
+    return SERIAL_DEV->output_size;
+}
+
 #endif // K_SERIAL_IO

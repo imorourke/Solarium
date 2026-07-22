@@ -47,6 +47,11 @@ impl JibOsImage {
             filename: "ldd.cb",
             code: include_str!("../../../cbos/bin/ldd.cb"),
         },
+        JibApplication {
+            exec: "cat",
+            filename: "cat.cb",
+            code: include_str!("../../../cbos/bin/cat.cb"),
+        },
     ];
 
     /// Get the build date
