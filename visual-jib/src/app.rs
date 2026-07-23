@@ -4,7 +4,8 @@ use cblang::{
     CodeGenerationOptions, CompilerError, CompilingState, PreprocessorOutput, TokenError,
 };
 use eframe::egui::{
-    self, CentralPanel, Context, Grid, Id, MenuBar, ScrollArea, Slider, TextBuffer, TextEdit,
+    self, CentralPanel, Context, Grid, Id, Layout, MenuBar, ScrollArea, Slider, TextBuffer,
+    TextEdit,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::JibCode;
@@ -169,15 +170,13 @@ impl Default for VisualJib {
             use_bootloader: false,
         };
 
-        window
-            .tx_ui
-            .send(UiToThread::SetMultiplier(window.current_cpu_speed))
-            .unwrap();
-        window
-            .tx_ui
-            .send(UiToThread::UseBootloader(window.use_bootloader))
-            .unwrap();
-        window.tx_ui.send(UiToThread::CpuRun(true)).unwrap();
+        for m in [
+            UiToThread::SetMultiplier(window.current_cpu_speed),
+            UiToThread::UseBootloader(window.use_bootloader),
+            UiToThread::CpuRun(true),
+        ] {
+            window.tx_ui.send(m).unwrap();
+        }
 
         window
     }
@@ -292,27 +291,12 @@ impl eframe::App for VisualJib {
         self.read_cpu_responses();
 
         // Remove old windows
-        {
-            let mut i = 0;
-            while i < self.code_windows.len() {
-                if !self.code_windows[i].shown {
-                    self.code_windows.swap_remove(i);
-                } else {
-                    i += 1;
-                }
-            }
-        }
-
-        {
-            let mut i = 0;
-            while i < self.memory_windows.len() {
-                if !self.memory_windows[i].shown {
-                    self.memory_windows.swap_remove(i);
-                } else {
-                    i += 1;
-                }
-            }
-        }
+        self.code_windows
+            .extract_if(.., |x| !x.shown)
+            .for_each(drop);
+        self.memory_windows
+            .extract_if(.., |x| !x.shown)
+            .for_each(drop);
 
         while let Ok(msg) = self.rx_window.try_recv() {
             match msg {
@@ -515,137 +499,161 @@ impl eframe::App for VisualJib {
                 });
             });
 
-            ui.horizontal(|ui| {
-                ui.vertical(|ui| {
-                    ui.heading("Commands");
-                    if ui
-                        .checkbox(&mut self.use_bootloader, "Use Bootloader")
-                        .changed()
-                    {
-                        self.tx_ui
-                            .send(UiToThread::UseBootloader(self.use_bootloader))
-                            .unwrap();
-                    }
-                    Grid::new("cpu_commands").show(ui, |ui| {
-                        if ui.button("Step").clicked() {
-                            self.tx_ui.send(UiToThread::CpuStep).unwrap();
+            ui.with_layout(
+                Layout::left_to_right(egui::Align::LEFT).with_cross_justify(true),
+                |ui| {
+                    ui.vertical(|ui| {
+                        ui.heading("Commands");
+                        if ui
+                            .checkbox(&mut self.use_bootloader, "Use Bootloader")
+                            .changed()
+                        {
+                            self.tx_ui
+                                .send(UiToThread::UseBootloader(self.use_bootloader))
+                                .unwrap();
                         }
 
-                        if ui.button("Start").clicked() {
-                            self.tx_ui.send(UiToThread::CpuRun(true)).unwrap();
-                        }
+                        let grid_cmd = Grid::new("cpu_commands").show(ui, |ui| {
+                            if ui.button("Step").clicked() {
+                                self.tx_ui.send(UiToThread::CpuStep).unwrap();
+                            }
 
-                        if ui.button("Stop").clicked() {
-                            self.tx_ui.send(UiToThread::CpuRun(false)).unwrap();
-                        }
+                            if ui.button("Start").clicked() {
+                                self.tx_ui.send(UiToThread::CpuRun(true)).unwrap();
+                            }
 
-                        if ui.button("Reset").clicked() {
-                            self.tx_ui.send(UiToThread::CpuReset).unwrap();
-                        }
-                    });
+                            if ui.button("Stop").clicked() {
+                                self.tx_ui.send(UiToThread::CpuRun(false)).unwrap();
+                            }
 
-                    ui.label("Speed Multiplier");
-                    if ui
-                        .add(
-                            Slider::new(
-                                &mut self.current_cpu_speed,
-                                VisualJib::SPEED_MIN..=VisualJib::SPEED_MAX,
-                            )
-                            .show_value(true),
-                        )
-                        .changed()
-                    {
-                        self.tx_ui
-                            .send(UiToThread::SetMultiplier(self.current_cpu_speed))
-                            .unwrap();
-                    }
-
-                    ui.heading("CPU Registers");
-                    const NUM_COLS: usize = 2;
-                    Grid::new("cpu_registers")
-                        .striped(true)
-                        .num_columns(NUM_COLS)
-                        .show(ui, |ui| {
-                            const NUM_ROWS: usize = RegisterManager::REGISTER_COUNT / NUM_COLS;
-
-                            for i in 0..NUM_ROWS {
-                                ui.label(format!("R{:02}: {:08x}", i, self.registers.registers[i]));
-                                ui.label(format!(
-                                    "R{:02}: {:08x}",
-                                    i + NUM_ROWS,
-                                    self.registers.registers[i + NUM_ROWS]
-                                ));
-                                ui.end_row();
+                            if ui.button("Reset").clicked() {
+                                self.tx_ui.send(UiToThread::CpuReset).unwrap();
                             }
                         });
 
-                    ui.heading("Program Log");
+                        ui.label("Speed Multiplier");
+                        if ui
+                            .add(
+                                Slider::new(
+                                    &mut self.current_cpu_speed,
+                                    VisualJib::SPEED_MIN..=VisualJib::SPEED_MAX,
+                                )
+                                .show_value(true),
+                            )
+                            .changed()
+                        {
+                            self.tx_ui
+                                .send(UiToThread::SetMultiplier(self.current_cpu_speed))
+                                .unwrap();
+                        }
 
-                    ScrollArea::both().stick_to_bottom(true).show(ui, |ui| {
-                        TextEdit::multiline(&mut self.log_text)
-                            .code_editor()
-                            .cursor_at_end(true)
-                            .interactive(false)
-                            .clip_text(false)
-                            .show(ui);
+                        ui.heading("CPU Registers");
+                        const NUM_COLS: usize = 2;
+                        let grid_reg = Grid::new("cpu_registers")
+                            .striped(true)
+                            .num_columns(NUM_COLS)
+                            .show(ui, |ui| {
+                                const NUM_ROWS: usize = RegisterManager::REGISTER_COUNT / NUM_COLS;
+
+                                for i in 0..NUM_ROWS {
+                                    ui.label(format!(
+                                        "R{:02}: {:08x}",
+                                        i, self.registers.registers[i]
+                                    ));
+                                    ui.label(format!(
+                                        "R{:02}: {:08x}",
+                                        i + NUM_ROWS,
+                                        self.registers.registers[i + NUM_ROWS]
+                                    ));
+                                    ui.end_row();
+                                }
+                            });
+                        ui.set_max_width(
+                            grid_cmd
+                                .response
+                                .rect
+                                .width()
+                                .max(grid_reg.response.rect.width()),
+                        );
+
+                        ui.heading("Program Log");
+
+                        ScrollArea::both()
+                            .stick_to_bottom(true)
+                            .auto_shrink(false)
+                            .show(ui, |ui| {
+                                ui.add_sized(
+                                    ui.available_size(),
+                                    TextEdit::multiline(&mut self.log_text)
+                                        .code_editor()
+                                        .cursor_at_end(true)
+                                        .interactive(false)
+                                        .clip_text(false),
+                                );
+                            });
                     });
-                });
 
-                ui.vertical(|ui| {
-                    ui.heading("Program Counter");
-                    ui.label(format!(
-                        "PC[0x{:08x}] = 0x{:08x}",
-                        self.program_counter.pc, self.program_counter.val
-                    ));
-                    ui.label(format!(
-                        "Inst: {}",
-                        self.program_counter.get_instruction_string()
-                    ));
+                    ui.vertical(|ui| {
+                        ui.heading("Program Counter");
+                        ui.label(format!(
+                            "PC[0x{:08x}] = 0x{:08x}",
+                            self.program_counter.pc, self.program_counter.val
+                        ));
+                        ui.label(format!(
+                            "Inst: {}",
+                            self.program_counter.get_instruction_string()
+                        ));
 
-                    ui.heading("Serial Input");
-                    const RETURN_KEY: egui::Key = egui::Key::Enter;
-                    const RETURN_SHORTCUT: egui::KeyboardShortcut =
-                        egui::KeyboardShortcut::new(egui::Modifiers::NONE, RETURN_KEY);
+                        ui.heading("Serial Input");
+                        const RETURN_KEY: egui::Key = egui::Key::Enter;
+                        const RETURN_SHORTCUT: egui::KeyboardShortcut =
+                            egui::KeyboardShortcut::new(egui::Modifiers::NONE, RETURN_KEY);
 
-                    let serial_txt = TextEdit::singleline(&mut self.text_serial_input)
-                        .desired_width(ui.available_width())
-                        .return_key(Some(RETURN_SHORTCUT))
-                        .code_editor()
-                        .show(ui)
-                        .response;
+                        let serial_txt = TextEdit::singleline(&mut self.text_serial_input)
+                            .desired_width(ui.available_width())
+                            .return_key(Some(RETURN_SHORTCUT))
+                            .code_editor()
+                            .show(ui)
+                            .response;
 
-                    if serial_txt.lost_focus() && ui.input(|x| x.key_pressed(RETURN_KEY)) {
-                        self.tx_ui
-                            .send(UiToThread::SerialInput(self.text_serial_input.take()))
-                            .unwrap();
-                        serial_txt.request_focus();
+                        if serial_txt.lost_focus() && ui.input(|x| x.key_pressed(RETURN_KEY)) {
+                            self.tx_ui
+                                .send(UiToThread::SerialInput(self.text_serial_input.take()))
+                                .unwrap();
+                            serial_txt.request_focus();
+                        }
+
+                        ui.heading("Serial Log");
+                        if ui.button("Clear").clicked() {
+                            self.log_serial = String::new();
+                        }
+                        ui.take_available_height();
+
+                        ScrollArea::vertical()
+                            .id_salt("serial_log")
+                            .stick_to_bottom(true)
+                            .auto_shrink(false)
+                            .show(ui, |ui| {
+                                ui.add_sized(
+                                    ui.available_size(),
+                                    TextEdit::multiline(&mut self.log_serial)
+                                        .interactive(false)
+                                        .code_editor()
+                                        .desired_width(ui.available_width())
+                                        .cursor_at_end(true),
+                                );
+                            });
+                    });
+
+                    for w in self.code_windows.iter_mut() {
+                        w.draw(ui)
                     }
 
-                    ui.heading("Serial Log");
-                    if ui.button("Clear").clicked() {
-                        self.log_serial = String::new();
+                    for m in self.memory_windows.iter_mut() {
+                        m.draw(ui);
                     }
-                    ScrollArea::vertical()
-                        .id_salt("serial_log")
-                        .stick_to_bottom(true)
-                        .stick_to_right(true)
-                        .show(ui, |ui| {
-                            TextEdit::multiline(&mut self.log_serial)
-                                .interactive(false)
-                                .code_editor()
-                                .desired_width(ui.available_width())
-                                .show(ui);
-                        });
-                });
-
-                for w in self.code_windows.iter_mut() {
-                    w.draw(ui)
-                }
-
-                for m in self.memory_windows.iter_mut() {
-                    m.draw(ui);
-                }
-            });
+                },
+            );
         });
 
         if let Some(int) = self.update_interval() {
