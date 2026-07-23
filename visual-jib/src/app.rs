@@ -369,11 +369,11 @@ impl eframe::App for VisualJib {
                             );
                         }
 
-                        if ui.button("ldd").clicked() {
+                        if ui.button("nm").clicked() {
                             self.open_code_window(
                                 CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/ldd.cb").to_string(),
-                                Some("ldd.cb"),
+                                include_str!("../../cbos/bin/nm.cb").to_string(),
+                                Some("nm.cb"),
                             );
                         }
 

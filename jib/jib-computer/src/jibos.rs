@@ -48,9 +48,9 @@ impl JibOsImage {
             code: include_str!("../../../cbos/bin/echo.cb"),
         },
         JibApplication {
-            exec: "ldd",
-            filename: "ldd.cb",
-            code: include_str!("../../../cbos/bin/ldd.cb"),
+            exec: "nm",
+            filename: "nm.cb",
+            code: include_str!("../../../cbos/bin/nm.cb"),
         },
         JibApplication {
             exec: "stat",
