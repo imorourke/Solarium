@@ -124,6 +124,7 @@ pub struct VisualJib {
     memory_windows: Vec<MemoryViewWindow>,
     memory_window_id: usize,
     use_bootloader: bool,
+    cbos_defs: String,
 }
 
 impl Default for VisualJib {
@@ -143,6 +144,10 @@ impl Default for VisualJib {
             None,
         )
         .compile_cbuoy();
+
+        let cbos_defs = jib_computer::JibOsImage::compile_os_image()
+            .unwrap()
+            .kernel_header;
 
         let window = Self {
             cpu_run_requested: false,
@@ -168,6 +173,7 @@ impl Default for VisualJib {
             memory_windows: Vec::new(),
             memory_window_id: 0,
             use_bootloader: false,
+            cbos_defs,
         };
 
         for m in [
@@ -328,6 +334,14 @@ impl eframe::App for VisualJib {
                         );
                     }
 
+                    if ui.button("CB/OS Definitions").clicked() {
+                        self.open_code_window(
+                            CodeWindowType::Cbuoy,
+                            self.cbos_defs.clone(),
+                            Some("cbos_defs.cb"),
+                        );
+                    }
+
                     if ui.button("Bootloader").clicked() {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
@@ -337,7 +351,7 @@ impl eframe::App for VisualJib {
                     }
 
                     ui.menu_button("Applications", |ui| {
-                        if ui.button("Hello World").clicked() {
+                        if ui.button("hello").clicked() {
                             self.open_code_window(
                                 CodeWindowType::Cbuoy,
                                 include_str!("../../cbos/bin/hello.cb").to_string(),
@@ -345,14 +359,16 @@ impl eframe::App for VisualJib {
                             );
                         }
 
-                        if ui.button("Hello World (malloc)").clicked() {
+                        if ui.button("hello_mem").clicked() {
                             self.open_code_window(
                                 CodeWindowType::Cbuoy,
                                 include_str!("../../cbos/bin/hello_mem.cb").to_string(),
                                 Some("hello_mem.cb"),
                             );
                         }
+                    });
 
+                    ui.menu_button("Utilities", |ui| {
                         if ui.button("cat").clicked() {
                             self.open_code_window(
                                 CodeWindowType::Cbuoy,
