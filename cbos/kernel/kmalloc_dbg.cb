@@ -10,8 +10,8 @@ fn k_heap_print() void {
     } else {
         def current: *mem_val_t = K_MEM_ROOT;
         while (current != 0) {
-            k_io_print("@");
-            k_io_print_uint(current : u32);
+            k_io_print("0x");
+            k_io_print_hex(current : u32);
             k_io_print(", ");
             k_io_print_uint(current->size);
             k_io_print("\n");
