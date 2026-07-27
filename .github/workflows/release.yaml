@@ -80,6 +80,9 @@ jobs:
       image: ${{ matrix.os }}:${{ matrix.version }}
 
     steps:
+      - uses: laverdet/alpine-arm64@v1
+        if: ${{ matrix.host.arch == 'arm64' && matrix.os == 'alpine' }}
+
       - name: Checkout the repository
         uses: actions/checkout@v5
 
