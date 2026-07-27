@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout,
@@ -34,6 +34,16 @@ impl From<u8> for EntryType {
 impl From<EntryType> for u8 {
     fn from(value: EntryType) -> Self {
         value as u8
+    }
+}
+
+impl Display for EntryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Directory => write!(f, "directory"),
+            Self::File => write!(f, "file"),
+            Self::Unknown => write!(f, "unknown"),
+        }
     }
 }
 
