@@ -10,3 +10,8 @@ documentation.workspace = true
 regex = "1"
 jib-cpu = { workspace = true }
 jib-asm = { workspace = true }
+cbfs-lib = { workspace = true, optional = true }
+
+[features]
+default = ["cbfs"]
+cbfs = ["dep:cbfs-lib"]

@@ -1,7 +1,7 @@
 mod jibos;
 
 use cbfs_lib::{FileSystem, FileSystemError};
-use cblang::{CompilerError, PreprocessorError, ProgramType, TokenError};
+use cblang::{CompilerError, ProgramType, TokenError, preprocessor::PreprocessorError};
 use circ_buff::CircularBuffer;
 use core::{cell::RefCell, fmt::Display};
 use jib_asm::{AssemblerError, AssemblerErrorLoc, AssemblerOutput};
@@ -349,7 +349,7 @@ pub enum ComputerError {
     TokenError(TokenError),
     PreprocessorError(PreprocessorError),
     CharacterError(CharacterError),
-    FilesystemError(cblang::FilesystemError),
+    FilesystemError(cblang::preprocessor::FilesystemError),
     Utf8Error,
     IoError(std::io::Error),
 }
@@ -423,8 +423,8 @@ impl From<CharacterError> for ComputerError {
     }
 }
 
-impl From<cblang::FilesystemError> for ComputerError {
-    fn from(value: cblang::FilesystemError) -> Self {
+impl From<cblang::preprocessor::FilesystemError> for ComputerError {
+    fn from(value: cblang::preprocessor::FilesystemError) -> Self {
         Self::FilesystemError(value)
     }
 }

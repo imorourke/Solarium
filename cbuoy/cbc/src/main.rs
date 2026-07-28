@@ -3,8 +3,8 @@
 use std::{io::Write, path::PathBuf};
 
 use cblang::{
-    CodeGenerationOptions, CompilerError, PreprocessorLine, ProgramType, compile,
-    read_and_preprocess,
+    CodeGenerationOptions, CompilerError, ProgramType, compile,
+    preprocessor::{PreprocessorLine, read_and_preprocess},
 };
 use clap::Parser;
 

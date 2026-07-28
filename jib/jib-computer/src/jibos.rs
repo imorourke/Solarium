@@ -1,5 +1,5 @@
 use cbfs_lib::{FileSystem, SectorHandle, VolumeHeader};
-use cblang::{CodeGenerationOptions, CompilingState, ProgramType, VirtualFilesystem};
+use cblang::{CodeGenerationOptions, CompilingState, ProgramType, preprocessor::VirtualFilesystem};
 use std::{
     format,
     path::{Component, Path},
@@ -67,8 +67,11 @@ impl JibOsImage {
         start_offset: Option<u32>,
         trim_code: bool,
     ) -> Result<CompilingState, ComputerError> {
-        let preprocessed =
-            cblang::preprocess_code_as_file(code, Path::new("input.cb"), [].into_iter())?;
+        let preprocessed = cblang::preprocessor::preprocess_code_as_file(
+            code,
+            Path::new("input.cb"),
+            [].into_iter(),
+        )?;
 
         let tokens = preprocessed.tokenize()?;
 
@@ -89,8 +92,11 @@ impl JibOsImage {
         fs.add_file(Path::new("main.cb"), code)?;
         fs.add_file(Path::new("cbos_defs.cb"), &self.kernel_header)?;
 
-        let preprocessed =
-            cblang::preprocess_code_with_fs(Path::new("main.cb"), fs, [].into_iter())?;
+        let preprocessed = cblang::preprocessor::preprocess_code_with_fs(
+            Path::new("main.cb"),
+            fs,
+            [].into_iter(),
+        )?;
 
         let tokens = preprocessed.tokenize()?;
 
@@ -200,11 +206,12 @@ impl JibOsImage {
         fs.create_file(src, "os.cb", Self::CODE_OS.as_bytes())?;
         fs.create_file(src, "cbos_defs.cb", self.kernel_header.as_bytes())?;
 
+        let src_bin = fs.create_directory(src, "bin")?;
         for app in Self::CODE_APPS {
-            fs.create_file(src, app.filename, app.code.as_bytes())?;
+            fs.create_file(src_bin, app.filename, app.code.as_bytes())?;
         }
 
-        for (path, code) in cblang::DEFAULT_FILES.iter() {
+        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter() {
             let mut current_dir = src;
             let path_val = Path::new(path);
 

@@ -120,9 +120,9 @@ impl PreprocessorOutput {
 }
 
 #[derive(Debug)]
-struct PreprocessorState {
-    filesystem: Box<dyn PreprocessorFilesystem>,
-    system_fs: VirtualFilesystem,
+pub struct PreprocessorState {
+    pub filesystem: Box<dyn PreprocessorFilesystem>,
+    pub system_fs: Box<dyn PreprocessorFilesystem>,
     definitions: HashSet<String>,
     if_statements: Vec<IfState>,
 }
@@ -131,7 +131,19 @@ impl PreprocessorState {
     pub fn new(fs: Box<dyn PreprocessorFilesystem>) -> PreprocessorState {
         Self {
             filesystem: fs,
-            system_fs: VirtualFilesystem::new_system(),
+            system_fs: Box::new(VirtualFilesystem::new_system()),
+            definitions: HashSet::default(),
+            if_statements: Vec::default(),
+        }
+    }
+
+    pub fn new_system(
+        fs: Box<dyn PreprocessorFilesystem>,
+        sys: Box<dyn PreprocessorFilesystem>,
+    ) -> PreprocessorState {
+        Self {
+            filesystem: fs,
+            system_fs: sys,
             definitions: HashSet::default(),
             if_statements: Vec::default(),
         }
@@ -411,12 +423,12 @@ impl Display for FilesystemError {
     }
 }
 
-trait PreprocessorFilesystem: Debug {
+pub trait PreprocessorFilesystem: Debug {
     fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError>;
 }
 
 #[derive(Debug, Default)]
-struct RealFilesystem {
+pub struct RealFilesystem {
     files: HashMap<PathBuf, Rc<str>>,
 }
 
@@ -445,9 +457,95 @@ impl PreprocessorFilesystem for RealFilesystem {
     }
 }
 
+#[cfg(feature = "cbfs")]
+#[derive(Debug)]
+pub struct ImageFilesystem {
+    fs: cbfs_lib::FileSystem,
+    root: Option<cbfs_lib::SectorHandle>,
+}
+
+#[cfg(feature = "cbfs")]
+impl PreprocessorFilesystem for ImageFilesystem {
+    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+        let mut current = self.root.unwrap_or(self.fs.root_sector());
+
+        'next_path: for p in file.iter() {
+            let current_name = p.to_str().unwrap();
+
+            let lists = match self.fs.directory_listing(current) {
+                Ok(v) => v,
+                Err(_) => {
+                    return Err(FilesystemError::FileNotFound(file.into()));
+                }
+            };
+
+            for l in lists {
+                if l.get_name() == current_name {
+                    current = l.get_base_sector();
+                    continue 'next_path;
+                }
+            }
+
+            return Err(FilesystemError::FileNotFound(file.into()));
+        }
+
+        let (entry_header, file_data) = match self.fs.entry_data(current) {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(FilesystemError::UnableToLoadFile(
+                    file.into(),
+                    format!("unable to load entry data - {e}"),
+                ));
+            }
+        };
+
+        if entry_header.get_entry_type() != cbfs_lib::EntryType::File {
+            return Err(FilesystemError::UnableToLoadFile(
+                file.into(),
+                format!(
+                    "selected entry is not a file - {}",
+                    entry_header.get_entry_type(),
+                ),
+            ));
+        }
+
+        match std::str::from_utf8(&file_data) {
+            Ok(val) => Ok(val.into()),
+            Err(e) => {
+                return Err(FilesystemError::UnableToLoadFile(
+                    file.into(),
+                    format!(
+                        "unable to load as utf8 '{}' - {e}",
+                        file.as_os_str().to_str().unwrap_or_default()
+                    ),
+                ));
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct OverlayFilesystem {
+    systems: Vec<Box<dyn PreprocessorFilesystem>>,
+}
+
+impl PreprocessorFilesystem for OverlayFilesystem {
+    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+        for s in self.systems.iter_mut().rev() {
+            match s.read_file(file) {
+                Ok(f) => return Ok(f),
+                Err(FilesystemError::FileNotFound(_)) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+
+        return Err(FilesystemError::FileNotFound(file.into()));
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct VirtualFilesystem {
-    files: HashMap<PathBuf, Rc<str>>,
+    pub files: HashMap<PathBuf, Rc<str>>,
 }
 
 impl VirtualFilesystem {

@@ -1,7 +1,8 @@
 use crate::cpu_thread::CpuState;
 use crate::messages::{ThreadToUi, UiToThread};
 use cblang::{
-    CodeGenerationOptions, CompilerError, CompilingState, PreprocessorOutput, TokenError,
+    CodeGenerationOptions, CompilerError, CompilingState, TokenError,
+    preprocessor::PreprocessorOutput,
 };
 use eframe::egui::{
     self, CentralPanel, Context, Grid, Id, Layout, MenuBar, ScrollArea, Slider, TextBuffer,
@@ -437,7 +438,7 @@ impl eframe::App for VisualJib {
                         }
                     });
                     ui.menu_button("Components", |ui| {
-                        for (path, code) in cblang::DEFAULT_FILES.iter().cloned() {
+                        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter().cloned() {
                             let name = path.split('/').next_back().unwrap_or(path);
                             if ui.button(name).clicked() {
                                 self.open_code_window(
@@ -759,7 +760,7 @@ impl CodeWindow {
     }
 
     fn compile_cbuoy_to_asm(&self) -> Option<CompilingState> {
-        let preprocessed = match cblang::preprocess_code_as_file(
+        let preprocessed = match cblang::preprocessor::preprocess_code_as_file(
             &self.code,
             &if let Some(f) = &self.filename {
                 PathBuf::from(f)

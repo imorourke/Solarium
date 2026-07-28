@@ -3,7 +3,7 @@ mod expressions;
 mod functions;
 mod literals;
 mod parser;
-mod preprocessor;
+pub mod preprocessor;
 mod tokenizer;
 mod typing;
 mod utilities;
@@ -11,11 +11,7 @@ mod variables;
 
 pub use compiler::{CodeGenerationOptions, CompilerError, CompilingState, ProgramType};
 pub use parser::{compile, compile_str};
-pub use preprocessor::{
-    DEFAULT_FILES, FilesystemError, PreprocessorError, PreprocessorLine, PreprocessorOutput,
-    VirtualFilesystem, preprocess_code_as_file, preprocess_code_std, preprocess_code_with_fs,
-    read_and_preprocess,
-};
+use preprocessor::read_and_preprocess;
 pub use tokenizer::{TokenError, tokenize, tokenize_file, tokenize_str};
 pub use typing::Type;
 

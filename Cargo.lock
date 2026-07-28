@@ -776,6 +776,7 @@ dependencies = [
 name = "cblang"
 version = "0.5.2"
 dependencies = [
+ "cbfs-lib",
  "jib-asm",
  "jib-cpu",
  "regex",
