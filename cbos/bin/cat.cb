@@ -15,8 +15,9 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         }
     }
 
-    def target: i32 = k_exec_fs_readlink(state, argv[1], K_FS_ENTRY_TYPE_FILE);
-    if (target <= 0) {
+    def loc: k_fs_entry_id_t;
+    def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
+    if (res != 0) {
         k_io_print("unable to find file for '");
         k_io_print(argv[1]);
         k_io_print("'\n");
@@ -24,7 +25,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def read_state: k_exec_fs_io_state_t;
-    if (k_exec_fs_io_state_init(state, target : u16, 0, 0, &read_state) >= 0) {
+    if (k_exec_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
         // Add one to the data size for null character in the array
         const DATA_SIZE: u32 = 128;
         def run_data: [DATA_SIZE + 1]u8;

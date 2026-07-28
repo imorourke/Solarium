@@ -2,9 +2,10 @@
 #define K_EXEC
 
 #include klink.cb
+#include kfs.cb
 
 export struct k_exec_state_t {
-    cwd: u16;
+    cwd: k_fs_entry_id_t;
     state: *u32;
 }
 

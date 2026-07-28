@@ -12,8 +12,9 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         }
     }
 
-    def target: i32 = k_exec_fs_readlink(state, argv[1], K_FS_ENTRY_TYPE_FILE);
-    if (target <= 0) {
+    def loc: k_fs_entry_id_t;
+    def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
+    if (res != 0) {
         k_io_print("unable to find file for '");
         k_io_print(argv[1]);
         k_io_print("'\n");
@@ -23,10 +24,10 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     def filename: *u8 = argv[1];
 
     def out_header: k_fs_entry_header_t;
-    if (k_exec_fs_read_entry_header(state, target : u16, &out_header) == 0) {
+    if (k_exec_fs_read_entry_header(loc, &out_header) == 0) {
         if (out_header.entry_type == K_FS_ENTRY_TYPE_FILE) {
             def out_entry: k_fs_directory_entry_t;
-            if (k_exec_fs_get_dir_entry_by_id(state, target : u16, &out_entry) != 0) {
+            if (k_exec_fs_get_dir_entry_by_id(loc, &out_entry) != 0) {
                 k_io_print("unable to get directory entry\n");
                 return -1;
             }
@@ -58,8 +59,11 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
             return -2;
         }
 
+
         k_io_print("  node:        ");
-        k_io_print_uint(target : u16);
+        k_io_print_uint(loc.disk_index);
+        k_io_print(":");
+        k_io_print_uint(loc.entry);
         k_io_print("\n");
 
         k_io_print("  date:        ");

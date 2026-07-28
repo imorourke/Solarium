@@ -1,4 +1,5 @@
 #include <kernel/kcpu.cb>
+#include <kernel/kdisk.cb>
 #include <kernel/kdevice.cb>
 #include <kernel/kfs.cb>
 #include <kernel/kserialio.cb>
@@ -151,6 +152,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
 fn main() void {
     k_device_init(0);
     k_io_init();
+    k_fs_init();
 
     def cwd: u16; // Current Directory
 
