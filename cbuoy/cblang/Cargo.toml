@@ -13,5 +13,5 @@ jib-asm = { workspace = true }
 cbfs-lib = { workspace = true, optional = true }
 
 [features]
-default = ["cbfs"]
+default = []
 cbfs = ["dep:cbfs-lib"]

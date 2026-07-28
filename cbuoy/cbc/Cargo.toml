@@ -7,6 +7,6 @@ authors.workspace = true
 documentation.workspace = true
 
 [dependencies]
-cblang = { workspace = true }
+cblang = { path = "../cblang", version = "*", features = ["cbfs"] }
 jib-asm = { workspace = true }
 clap = { workspace = true }
