@@ -86,12 +86,28 @@ impl Statement for MemcpyStatement {
             self.from_addr.into(),
         ))));
 
-        if self.size <= 16 * INST_SIZE {
+        const DTYPES: [DataType; 3] = [DataType::U32, DataType::U16, DataType::U8];
+
+        if let Some(dt) = DTYPES
+            .iter()
+            .filter(|x| x.byte_size() == self.size)
+            .next()
+            .copied()
+        {
+            asm.extend([
+                AsmToken::OperationLiteral(Box::new(OpLd::new(
+                    ArgumentType::new(val_reg, dt),
+                    self.from_addr.into(),
+                ))),
+                AsmToken::OperationLiteral(Box::new(OpSav::new(
+                    ArgumentType::new(self.to_addr, dt),
+                    val_reg.into(),
+                ))),
+            ]);
+        } else if self.size <= 16 * INST_SIZE {
             let mut remaining = self.size;
 
-            let dtypes = [DataType::U32, DataType::U16, DataType::U8];
-
-            for d in dtypes {
+            for d in DTYPES {
                 asm.push(AsmToken::OperationLiteral(Box::new(OpLdi::new(
                     ArgumentType::new(num_reg, DataType::U16),
                     d.byte_size() as u16,
@@ -128,6 +144,10 @@ impl Statement for MemcpyStatement {
                     if remaining > 0 {
                         asm.extend(asm_incr.clone());
                     }
+                }
+
+                if remaining == 0 {
+                    break;
                 }
             }
         } else {
