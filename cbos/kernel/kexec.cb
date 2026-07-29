@@ -9,11 +9,15 @@ export struct k_exec_state_t {
     state: *u32;
 }
 
-fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+fn k_link_start_executable(entry: k_fs_entry_id_t, state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
+    def disk: *k_disk_fs_t = k_disk_get(entry.disk_index);
+    if (!disk) {
+        return -1;
+    }
 
-    if (k_fs_io_state_init(disk, entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
+    if (k_disk_fs_io_state_init(disk, entry.entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
         def read_size: u32 = sizeof(exec_hdr);
         def read_remaining: u32 = sizeof(exec_hdr);
         def copy_loc: *u8 = &exec_hdr;
@@ -35,7 +39,7 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, state: *k_exec_state_
     def app_data: *u8 = NULL;
     def init_loc: *u8 = NULL;
 
-    if (k_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
+    if (k_disk_fs_io_state_init(disk, entry.entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
         const DATA_SIZE: u32 = 128;
         //def run_data: [DATA_SIZE]u8;
         def read_size: u32 = DATA_SIZE;
@@ -71,7 +75,7 @@ fn k_link_start_executable(disk: *k_fs_disk_t, entry: u16, state: *k_exec_state_
     if (exec_hdr.import_size > 0) {
         def link_data: *u8 = k_malloc(exec_hdr.import_size);
 
-        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
+        if ((link_data != NULL) && (k_disk_fs_io_state_init(disk, entry.entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
             const DATA_SIZE: u32 = 128;
             //def run_data: [DATA_SIZE]u8;
             def read_size: u32 = DATA_SIZE;

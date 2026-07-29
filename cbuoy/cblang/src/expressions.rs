@@ -1070,13 +1070,13 @@ impl Display for FieldAccessExpression {
 #[derive(Debug, Clone)]
 struct AssignmentExpression {
     token: Token,
-    addr_expr: Rc<dyn Expression>,
-    val_expr: Rc<dyn Expression>,
+    lh_addr_expr: Rc<dyn Expression>,
+    rh_val_expr: Rc<dyn Expression>,
 }
 
 impl Display for AssignmentExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.addr_expr, self.val_expr)
+        write!(f, "{} = {}", self.lh_addr_expr, self.rh_val_expr)
     }
 }
 
@@ -1086,7 +1086,7 @@ impl Expression for AssignmentExpression {
     }
 
     fn get_type(&self) -> Result<Type, TokenError> {
-        self.addr_expr.get_type()
+        self.lh_addr_expr.get_type()
     }
 
     fn load_value_to_register(
@@ -1095,29 +1095,30 @@ impl Expression for AssignmentExpression {
         reg: RegisterDef,
         required_stack: &mut TemporaryStackTracker,
     ) -> Result<ExpressionData, TokenError> {
-        let tok = self.addr_expr.get_token();
+        let tok = self.lh_addr_expr.get_token();
 
         let mut asm = ExpressionData::default();
         asm.push_asm(self.token.to_asm(AsmToken::Comment(format!(
             "assignment of {} with {}",
-            self.addr_expr, self.val_expr
+            self.lh_addr_expr, self.rh_val_expr
         ))));
 
         let addr_def = reg;
         let val_def = addr_def.increment_token(tok)?;
 
-        if let Some(dest_dtype) = self.addr_expr.get_type()?.primitive_type() {
-            let val_dtype = self.val_expr.get_primitive_type()?;
+        if let Some(dest_dtype) = self.lh_addr_expr.get_type()?.primitive_type() {
+            let val_dtype = self.rh_val_expr.get_primitive_type()?;
 
-            asm.append(self.addr_expr.load_address_to_register(
+            asm.append(self.lh_addr_expr.load_address_to_register(
                 options,
                 addr_def,
                 required_stack,
             )?);
-            asm.append(
-                self.val_expr
-                    .load_value_to_register(options, val_def, required_stack)?,
-            );
+            asm.append(self.rh_val_expr.load_value_to_register(
+                options,
+                val_def,
+                required_stack,
+            )?);
 
             if val_dtype != dest_dtype {
                 asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpConv::new(
@@ -1132,16 +1133,16 @@ impl Expression for AssignmentExpression {
             )))));
 
             Ok(asm)
-        } else if let Ok(val_type) = self.val_expr.get_type()
-            && let Ok(target_type) = self.addr_expr.get_type()
+        } else if let Ok(rh_val_type) = self.rh_val_expr.get_type()
+            && let Ok(lh_addr_type) = self.lh_addr_expr.get_type()
         {
-            if val_type == target_type {
-                asm.append(self.addr_expr.load_address_to_register(
+            if rh_val_type == lh_addr_type {
+                asm.append(self.lh_addr_expr.load_address_to_register(
                     options,
                     addr_def,
                     required_stack,
                 )?);
-                asm.append(self.val_expr.load_address_to_register(
+                asm.append(self.rh_val_expr.load_address_to_register(
                     options,
                     val_def,
                     required_stack,
@@ -1151,7 +1152,7 @@ impl Expression for AssignmentExpression {
                     self.token.clone(),
                     val_def.reg,
                     addr_def.reg,
-                    val_type.byte_size(),
+                    rh_val_type.byte_size(),
                 );
 
                 asm.extend_asm(mem.get_exec_code(options, required_stack)?);
@@ -1159,7 +1160,7 @@ impl Expression for AssignmentExpression {
                 Ok(asm)
             } else {
                 Err(tok.clone().into_err(format!(
-                    "mismatch of types assigning {val_type} to {target_type}"
+                    "mismatch of types assigning {rh_val_type} to {lh_addr_type}"
                 )))
             }
         } else {
@@ -1431,20 +1432,20 @@ impl Expression for FunctionCallExpression {
 
             // Use an assignment expression for better control over the register usage
             let assign = Rc::new(AssignmentExpression {
-                addr_expr: var,
+                lh_addr_expr: var,
                 token: self.token.clone(),
-                val_expr: e.clone(),
+                rh_val_expr: e.clone(),
             });
 
-            let mut tmp_vals = *required_stack;
+            let mut tmp_stack = *required_stack;
             asm.push_asm(self.token.to_asm(AsmToken::Comment(format!(
                     "func {} arg {} :: {}",
                     self.func,
                     p.name.as_ref().map(|x| x.get_value().to_string()).unwrap_or("??".to_string()),
                     assign
                 ))));
-            asm.append(assign.load_value_to_register(options, next_load, &mut tmp_vals)?);
-            required_stack.merge(tmp_vals);
+            asm.append(assign.load_value_to_register(options, next_load, &mut tmp_stack)?);
+            required_stack.merge(tmp_stack);
         }
 
         // Load the function location
@@ -1691,8 +1692,8 @@ fn process_binary_expressions(
                     if !a.get_type()?.is_const() {
                         Ok(Rc::new(AssignmentExpression {
                             token: token.clone(),
-                            addr_expr: a,
-                            val_expr: b,
+                            lh_addr_expr: a,
+                            rh_val_expr: b,
                         }))
                     } else {
                         Err(token

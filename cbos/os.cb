@@ -23,7 +23,7 @@ fn os_main() void {
 
     def run_shell: u8 = 1;
 
-    k_fs_init();
+    k_disk_init();
 
     def sh_state: k_shell_state_t;
     k_memset(&sh_state, 0, sizeof(k_shell_state_t));

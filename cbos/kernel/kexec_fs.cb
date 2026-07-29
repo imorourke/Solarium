@@ -4,20 +4,11 @@
 #include kshell.cb
 #include kexec.cb
 
-export struct k_exec_fs_io_state_t {
-    dev: *u32;
-    sector_offset: u32;
-    bytes_read: u32;
-    span_size: u32;
-    entry: u16;
+export fn k_exec_fs_io_state_init(entry: k_fs_entry_id_t, offset: u32, size: u32, read_state: *k_fs_io_state_t) i32 {
+    return k_fs_io_state_init(entry, offset, size, read_state);
 }
 
-export fn k_exec_fs_io_state_init(entry: k_fs_entry_id_t, offset: u32, size: u32, read_state: *k_exec_fs_io_state_t) i32 {
-    def disk: *k_fs_disk_t = k_fs_disk_get(entry.disk_index);
-    return k_fs_io_state_init(disk, entry.entry, offset, size, read_state);
-}
-
-export fn k_exec_fs_io_state_read_next_section(read_state: *k_exec_fs_io_state_t, data: *u8, size: *u32) i32 {
+export fn k_exec_fs_io_state_read_next_section(read_state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
     return k_fs_io_state_read_next_section(read_state, data, size);
 }
 
@@ -26,10 +17,8 @@ export fn k_exec_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, d
         return -1;
     }
 
-    def disk: *k_fs_disk_t = k_fs_disk_get(entry.disk_index);
-
     def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(disk, entry.entry, offset, *size, &read_state) >= 0) {
+    if (k_fs_io_state_init(entry, offset, *size, &read_state) >= 0) {
         // Update the size based on the input
         if (read_state.span_size < *size) {
             *size = read_state.span_size;
@@ -60,8 +49,7 @@ export fn k_exec_fs_read_entry_header(entry: k_fs_entry_id_t, header: *k_fs_entr
         return -1;
     }
 
-    def disk: *k_fs_disk_t = k_fs_disk_get(entry.disk_index);
-    return k_fs_read_entry_header(disk, entry.entry, header);
+    return k_fs_read_entry_header(entry, header);
 }
 
 export fn k_exec_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, header: *k_fs_directory_entry_t) i32 {
@@ -69,8 +57,7 @@ export fn k_exec_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, header: *k_fs_di
         return -1;
     }
 
-    def disk: *k_fs_disk_t = k_fs_disk_get(entry.disk_index);
-    return k_fs_get_dir_entry_by_id_only(disk, entry.entry, header);
+    return k_fs_get_dir_entry_by_id_only(entry, header);
 }
 
 #endif // K_EXEC_FS

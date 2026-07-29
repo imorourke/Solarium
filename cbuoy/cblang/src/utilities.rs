@@ -79,13 +79,6 @@ impl Statement for MemcpyStatement {
             asm.push(AsmToken::Comment(format!("memcpy {}", self.token)));
         }
 
-        asm.push(AsmToken::OperationLiteral(Box::new(OpPush::new(
-            self.to_addr.into(),
-        ))));
-        asm.push(AsmToken::OperationLiteral(Box::new(OpPush::new(
-            self.from_addr.into(),
-        ))));
-
         const DTYPES: [DataType; 3] = [DataType::U32, DataType::U16, DataType::U8];
 
         if let Some(dt) = DTYPES
@@ -104,116 +97,127 @@ impl Statement for MemcpyStatement {
                     val_reg.into(),
                 ))),
             ]);
-        } else if self.size <= 16 * INST_SIZE {
-            let mut remaining = self.size;
+        } else {
+            // Push the current values onto the stack
+            asm.push(AsmToken::OperationLiteral(Box::new(OpPush::new(
+                self.to_addr.into(),
+            ))));
+            asm.push(AsmToken::OperationLiteral(Box::new(OpPush::new(
+                self.from_addr.into(),
+            ))));
 
-            for d in DTYPES {
+            if self.size <= 16 * INST_SIZE {
+                let mut remaining = self.size;
+
+                for d in DTYPES {
+                    asm.push(AsmToken::OperationLiteral(Box::new(OpLdi::new(
+                        ArgumentType::new(num_reg, DataType::U16),
+                        d.byte_size() as u16,
+                    ))));
+
+                    let asm_load_save = [
+                        AsmToken::OperationLiteral(Box::new(OpLd::new(
+                            ArgumentType::new(val_reg, d),
+                            self.from_addr.into(),
+                        ))),
+                        AsmToken::OperationLiteral(Box::new(OpSav::new(
+                            ArgumentType::new(self.to_addr, d),
+                            val_reg.into(),
+                        ))),
+                    ];
+
+                    let asm_incr = [
+                        AsmToken::OperationLiteral(Box::new(OpAdd::new(
+                            ArgumentType::new(self.to_addr, DataType::U32),
+                            self.to_addr.into(),
+                            num_reg.into(),
+                        ))),
+                        AsmToken::OperationLiteral(Box::new(OpAdd::new(
+                            ArgumentType::new(self.from_addr, DataType::U32),
+                            self.from_addr.into(),
+                            num_reg.into(),
+                        ))),
+                    ];
+
+                    while remaining >= d.byte_size() {
+                        asm.extend(asm_load_save.clone());
+                        remaining -= d.byte_size();
+
+                        if remaining > 0 {
+                            asm.extend(asm_incr.clone());
+                        }
+                    }
+
+                    if remaining == 0 {
+                        break;
+                    }
+                }
+            } else {
                 asm.push(AsmToken::OperationLiteral(Box::new(OpLdi::new(
                     ArgumentType::new(num_reg, DataType::U16),
-                    d.byte_size() as u16,
+                    1,
                 ))));
 
-                let asm_load_save = [
-                    AsmToken::OperationLiteral(Box::new(OpLd::new(
-                        ArgumentType::new(val_reg, d),
+                // Define helper functions for the number of instructions in the loop
+                enum LoopInstruction {
+                    InstructionCount(Box<dyn Fn(usize) -> Box<dyn Instruction>>),
+                    Raw(Box<dyn Instruction>),
+                }
+
+                // Define the core loop. Use count - 1 for the sizes to not include the Tz instruction
+                let copy_loop_asm: Vec<LoopInstruction> = vec![
+                    LoopInstruction::Raw(Box::new(OpTz::new(spare_reg.into()))),
+                    LoopInstruction::InstructionCount(Box::new(|count| {
+                        Box::new(OpJmpri::new(((count - 1) * INST_SIZE) as i16))
+                    })),
+                    LoopInstruction::Raw(Box::new(OpLd::new(
+                        ArgumentType::new(val_reg, DataType::U8),
                         self.from_addr.into(),
                     ))),
-                    AsmToken::OperationLiteral(Box::new(OpSav::new(
-                        ArgumentType::new(self.to_addr, d),
+                    LoopInstruction::Raw(Box::new(OpSav::new(
+                        ArgumentType::new(self.to_addr, DataType::U8),
                         val_reg.into(),
                     ))),
-                ];
-
-                let asm_incr = [
-                    AsmToken::OperationLiteral(Box::new(OpAdd::new(
+                    LoopInstruction::Raw(Box::new(OpAdd::new(
                         ArgumentType::new(self.to_addr, DataType::U32),
                         self.to_addr.into(),
                         num_reg.into(),
                     ))),
-                    AsmToken::OperationLiteral(Box::new(OpAdd::new(
+                    LoopInstruction::Raw(Box::new(OpAdd::new(
                         ArgumentType::new(self.from_addr, DataType::U32),
                         self.from_addr.into(),
                         num_reg.into(),
                     ))),
+                    LoopInstruction::Raw(Box::new(OpSub::new(
+                        ArgumentType::new(spare_reg, DataType::U32),
+                        spare_reg.into(),
+                        num_reg.into(),
+                    ))),
+                    LoopInstruction::InstructionCount(Box::new(|count| {
+                        Box::new(OpJmpri::new(-((count - 1) as i16) * INST_SIZE as i16))
+                    })),
                 ];
 
-                while remaining >= d.byte_size() {
-                    asm.extend(asm_load_save.clone());
-                    remaining -= d.byte_size();
-
-                    if remaining > 0 {
-                        asm.extend(asm_incr.clone());
-                    }
-                }
-
-                if remaining == 0 {
-                    break;
-                }
+                let loop_count = copy_loop_asm.len();
+                asm.extend(
+                    copy_loop_asm
+                        .into_iter()
+                        .map(|x| match x {
+                            LoopInstruction::Raw(x) => x,
+                            LoopInstruction::InstructionCount(x) => x(loop_count),
+                        })
+                        .map(AsmToken::OperationLiteral),
+                );
             }
-        } else {
-            asm.push(AsmToken::OperationLiteral(Box::new(OpLdi::new(
-                ArgumentType::new(num_reg, DataType::U16),
-                1,
+
+            // Pop the results from the stack
+            asm.push(AsmToken::OperationLiteral(Box::new(OpPopr::new(
+                self.from_addr.into(),
             ))));
-
-            // Define helper functions for the number of instructions in the loop
-            enum LoopInstruction {
-                InstructionCount(Box<dyn Fn(usize) -> Box<dyn Instruction>>),
-                Raw(Box<dyn Instruction>),
-            }
-
-            // Define the core loop. Use count - 1 for the sizes to not include the Tz instruction
-            let copy_loop_asm: Vec<LoopInstruction> = vec![
-                LoopInstruction::Raw(Box::new(OpTz::new(spare_reg.into()))),
-                LoopInstruction::InstructionCount(Box::new(|count| {
-                    Box::new(OpJmpri::new(((count - 1) * INST_SIZE) as i16))
-                })),
-                LoopInstruction::Raw(Box::new(OpLd::new(
-                    ArgumentType::new(val_reg, DataType::U8),
-                    self.from_addr.into(),
-                ))),
-                LoopInstruction::Raw(Box::new(OpSav::new(
-                    ArgumentType::new(self.to_addr, DataType::U8),
-                    val_reg.into(),
-                ))),
-                LoopInstruction::Raw(Box::new(OpAdd::new(
-                    ArgumentType::new(self.to_addr, DataType::U32),
-                    self.to_addr.into(),
-                    num_reg.into(),
-                ))),
-                LoopInstruction::Raw(Box::new(OpAdd::new(
-                    ArgumentType::new(self.from_addr, DataType::U32),
-                    self.from_addr.into(),
-                    num_reg.into(),
-                ))),
-                LoopInstruction::Raw(Box::new(OpSub::new(
-                    ArgumentType::new(spare_reg, DataType::U32),
-                    spare_reg.into(),
-                    num_reg.into(),
-                ))),
-                LoopInstruction::InstructionCount(Box::new(|count| {
-                    Box::new(OpJmpri::new(-((count - 1) as i16) * INST_SIZE as i16))
-                })),
-            ];
-
-            let loop_count = copy_loop_asm.len();
-            asm.extend(
-                copy_loop_asm
-                    .into_iter()
-                    .map(|x| match x {
-                        LoopInstruction::Raw(x) => x,
-                        LoopInstruction::InstructionCount(x) => x(loop_count),
-                    })
-                    .map(AsmToken::OperationLiteral),
-            );
+            asm.push(AsmToken::OperationLiteral(Box::new(OpPopr::new(
+                self.to_addr.into(),
+            ))));
         }
-
-        asm.push(AsmToken::OperationLiteral(Box::new(OpPopr::new(
-            self.from_addr.into(),
-        ))));
-        asm.push(AsmToken::OperationLiteral(Box::new(OpPopr::new(
-            self.to_addr.into(),
-        ))));
 
         Ok(self.token.to_asm_iter(asm).into_iter().collect())
     }

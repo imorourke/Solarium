@@ -8,12 +8,12 @@
 global BOOT_KERNEL_NAME: *u8 = "boot.bin";
 const LOAD_LOC: u32 = 0x2000u32;
 
-fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
+fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16) i32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
     def copy_loc: *u8;
 
-    if (k_fs_io_state_init(disk, entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
+    if (k_disk_fs_io_state_init(disk, entry, 0, sizeof(exec_hdr), &read_state) >= 0) {
         def read_size: u32 = sizeof(exec_hdr);
         def read_remaining: u32 = sizeof(exec_hdr);
         copy_loc = &exec_hdr;
@@ -40,7 +40,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
     def app_data: *u8 = LOAD_LOC;
     copy_loc = app_data;
 
-    if (k_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
+    if (k_disk_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
         const DATA_SIZE: u32 = 128;
         def read_size: u32 = DATA_SIZE;
 
@@ -67,7 +67,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
 
     if (exec_hdr.export_size > 0) {
         k_io_print("Loading export table\n");
-        if (k_fs_io_state_init(disk, entry, exec_hdr.export_offset, exec_hdr.export_size, &read_state) >= 0) {
+        if (k_disk_fs_io_state_init(disk, entry, exec_hdr.export_offset, exec_hdr.export_size, &read_state) >= 0) {
             const DATA_SIZE: u32 = 128;
             def read_size: u32 = DATA_SIZE;
 
@@ -87,7 +87,7 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
         k_io_print("Loading import table\n");
         def link_data: *u8 = k_malloc(exec_hdr.import_size);
 
-        if ((link_data != NULL) && (k_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
+        if ((link_data != NULL) && (k_disk_fs_io_state_init(disk, entry, exec_hdr.import_offset, exec_hdr.import_size, &read_state) >= 0)) {
             const DATA_SIZE: u32 = 128;
             def read_size: u32 = DATA_SIZE;
 
@@ -152,12 +152,12 @@ fn k_link_start_kernel(disk: *k_fs_disk_t, entry: u16) i32 {
 fn main() void {
     k_device_init(0);
     k_io_init();
-    k_fs_init();
+    k_disk_init();
 
     def cwd: u16; // Current Directory
 
     k_io_print("Opening disk...\n");
-    def disk: *k_fs_disk_t = k_fs_disk_open(0);
+    def disk: *k_disk_fs_t = k_fs_disk_open(0);
     if (disk != 0) {
         cwd = disk->vol_hdr.root_sector;
     }
@@ -167,7 +167,7 @@ fn main() void {
     k_io_print("'...\n");
 
     def out_entry: k_fs_directory_entry_t;
-    if (k_fs_get_dir_entry_by_name(disk, cwd, BOOT_KERNEL_NAME, &out_entry) == 0) {
+    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, BOOT_KERNEL_NAME, &out_entry) == 0) {
         k_io_print("Found boot entry\n");
         if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
             if (k_link_start_kernel(disk, out_entry.base_block) == 0) {
