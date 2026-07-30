@@ -70,11 +70,6 @@ export struct k_fs_io_state_t {
     entry: u16;
 }
 
-export struct k_fs_entry_id_t {
-    disk_index: i16;
-    entry: u16;
-}
-
 const K_DISK_NUM_MOUNTS: u32 = 4;
 
 struct k_disk_mount_state_t {
@@ -110,17 +105,17 @@ fn k_disk_move(ctl: *k_disk_control_t, offset: u32) void {
     }
 }
 
-fn k_fs_entry_valid(entry: u16) u8 {
+fn k_disk_fs_entry_valid(entry: u16) u8 {
     return entry != 0 && entry != K_FS_ENTRY_END;
 }
 
 fn k_disk_fs_next_sector(dev: *k_disk_fs_t, entry: u16) u16 {
-    if (!k_fs_entry_valid(entry)) {
+    if (!k_disk_fs_entry_valid(entry)) {
         return 0;
     }
 
     def next: u16 = dev->entry_table[entry];
-    if (k_fs_entry_valid(next)) {
+    if (k_disk_fs_entry_valid(next)) {
         return next;
     } else {
         return 0;
@@ -197,7 +192,7 @@ fn k_disk_fs_write_entry_table(dev: *k_disk_fs_t) i32 {
 }
 
 fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entry_header_t) i32 {
-    if (!dev || !k_fs_entry_valid(entry)) {
+    if (!dev || !k_disk_fs_entry_valid(entry)) {
         return -1;
     }
     k_disk_move(dev->ctl, (dev->vol_hdr.sector_size : u32) * (entry : u32));
@@ -206,12 +201,8 @@ fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entr
     return 0;
 }
 
-fn k_fs_read_entry_header(entry: k_fs_entry_id_t, header: *k_fs_entry_header_t) i32 {
-    return k_disk_fs_read_entry_header(k_disk_get(entry.disk_index), entry.entry, header);
-}
-
 fn k_disk_fs_io_state_init_hdr(dev: *k_disk_fs_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
-    if (!k_fs_entry_valid(entry)) {
+    if (!k_disk_fs_entry_valid(entry)) {
         k_io_print("\nInvalid Entry: ");
         k_io_print_uint(entry);
         k_io_print("\n");
@@ -257,22 +248,12 @@ fn k_disk_fs_io_state_init_hdr(dev: *k_disk_fs_t, entry: u16, offset: u32, size:
     return state->span_size;
 }
 
-fn k_fs_io_state_init_hdr(entry: k_fs_entry_id_t, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
-    def disk: *k_disk_fs_t = k_disk_get(entry.disk_index);
-    return k_disk_fs_io_state_init_hdr(disk, entry.entry, offset, size, state, entry_hdr);
-}
-
 fn k_disk_fs_io_state_init(dev: *k_disk_fs_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t) i32 {
     def entry_hdr: k_fs_entry_header_t;
     return k_disk_fs_io_state_init_hdr(dev, entry, offset, size, state, &entry_hdr);
 }
 
-fn k_fs_io_state_init(entry: k_fs_entry_id_t, offset: u32, size: u32, state: *k_fs_io_state_t) i32 {
-    def disk: *k_disk_fs_t = k_disk_get(entry.disk_index);
-    return k_disk_fs_io_state_init(disk, entry.entry, offset, size, state);
-}
-
-fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, size: *u32, until: *u8) i32 {
+export fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, size: *u32, until: *u8) i32 {
     if (state == 0) {
         return -1;
     }
@@ -355,11 +336,11 @@ fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8,
     return data_size;
 }
 
-fn k_fs_io_state_read_next_section(state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
+export fn k_fs_io_state_read_next_section(state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
     return k_fs_io_state_read_next_section_until_ptr(state, data, size, 0);
 }
 
-fn k_fs_io_state_read_next_section_until(state: *k_fs_io_state_t, data: *u8, size: *u32, until: u8) i32 {
+export fn k_fs_io_state_read_next_section_until(state: *k_fs_io_state_t, data: *u8, size: *u32, until: u8) i32 {
     return k_fs_io_state_read_next_section_until_ptr(state, data, size, &until);
 }
 
@@ -375,7 +356,7 @@ fn k_disk_fs_next_free_entry(dev: *k_disk_fs_t) u16 {
     return 0;
 }
 
-fn k_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, hdr: *k_fs_entry_header_t) i32 {
+fn k_disk_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, hdr: *k_fs_entry_header_t) i32 {
     def required_sectors: u32 = hdr->payload_size / dev->vol_hdr.sector_size;
     if (hdr->payload_size % dev->vol_hdr.sector_size != 0) {
         required_sectors = required_sectors + 1;
@@ -485,16 +466,6 @@ fn k_disk_fs_read_directory_entries(
     return 0;
 }
 
-fn k_fs_read_directory_entries(
-    entry: k_fs_entry_id_t,
-    entries: *k_fs_directory_entry_t,
-    entry_size: *u32,
-    entry_offset: u32) i32
-{
-    def dev: *k_disk_fs_t = k_disk_get(entry.disk_index);
-    return k_disk_fs_read_directory_entries(dev, entry.entry, entries, entry_size, entry_offset);
-}
-
 fn k_disk_fs_get_dir_entry_by_name(disk: *k_disk_fs_t, parent: u16, name: *u8, entry: *k_fs_directory_entry_t) i32 {
     def offset: u32 = 0;
     def entry_size: u32 = 1;
@@ -515,42 +486,7 @@ fn k_disk_fs_get_dir_entry_by_name(disk: *k_disk_fs_t, parent: u16, name: *u8, e
     return -1;
 }
 
-fn k_fs_get_dir_entry_by_name(parent: k_fs_entry_id_t, name: *u8, entry: *k_fs_directory_entry_t) i32 {
-    def disk: *k_disk_fs_t = k_disk_get(parent.disk_index);
-    return k_disk_fs_get_dir_entry_by_name(disk, parent.entry, name, entry);
-}
-
-fn k_fs_get_dir_entry_by_id(parent: k_fs_entry_id_t, base_block: u16, entry: *k_fs_directory_entry_t) i32 {
-    def offset: u32 = 0;
-    def entry_size: u32 = 1;
-    def tmp: k_fs_directory_entry_t;
-
-    while ((k_fs_read_directory_entries(parent, &tmp, &entry_size, offset) == 0) && (entry_size > 0)) {
-        if (tmp.base_block == base_block) {
-            *entry = tmp;
-            return 0;
-        }
-
-        offset = offset + 1;
-    }
-
-    return -1;
-}
-
-fn k_fs_get_dir_entry_by_id_only(entry: k_fs_entry_id_t, dir_entry: *k_fs_directory_entry_t) i32 {
-    def header: k_fs_entry_header_t;
-    if (k_fs_read_entry_header(entry, &header) != 0) {
-        return -1;
-    }
-
-    def parent: k_fs_entry_id_t;
-    parent.disk_index = entry.disk_index;
-    parent.entry = header.parent;
-
-    return k_fs_get_dir_entry_by_id(parent, entry.entry, dir_entry);
-}
-
-fn k_fs_disk_flush(dev: *k_disk_fs_t) i32 {
+fn k_disk_fs_flush(dev: *k_disk_fs_t) i32 {
     if (dev->entry_table_dirty) {
         k_disk_fs_write_entry_table(dev);
         return 1;
@@ -559,7 +495,7 @@ fn k_fs_disk_flush(dev: *k_disk_fs_t) i32 {
     }
 }
 
-fn _k_fs_disk_open_direct(device_num: u32) *k_disk_fs_t {
+fn _k_disk_fs_open_direct(device_num: u32) *k_disk_fs_t {
     // Allocate the disk
     def dev: *k_disk_fs_t = k_malloc(sizeof(k_disk_fs_t));
     k_memset(dev, 0, sizeof(k_disk_fs_t));
@@ -604,14 +540,14 @@ fn _k_fs_disk_open_direct(device_num: u32) *k_disk_fs_t {
     return dev;
 }
 
-fn k_fs_disk_open(disk_num: i32) *k_disk_fs_t {
+fn k_disk_fs_open(disk_num: i32) *k_disk_fs_t {
     if ((disk_num < 0) || (disk_num >= K_DISK_NUM_MOUNTS)) {
         return NULL;
     }
 
     def disk: *k_disk_fs_t = K_DISK_MOUNT_STATE.disks[disk_num];
     if (disk == NULL) {
-        disk = _k_fs_disk_open_direct(disk_num);
+        disk = _k_disk_fs_open_direct(disk_num);
         K_DISK_MOUNT_STATE.disks[disk_num] = disk;
         return disk;
     } else {
@@ -619,14 +555,14 @@ fn k_fs_disk_open(disk_num: i32) *k_disk_fs_t {
     }
 }
 
-fn k_fs_disk_close(disk_num: i32) i32 {
+fn k_disk_fs_close(disk_num: i32) i32 {
     if ((disk_num < 0) || (disk_num >= K_DISK_NUM_MOUNTS)) {
         return -1;
     }
 
     def disk: *k_disk_fs_t = K_DISK_MOUNT_STATE.disks[disk_num];
     if (disk != NULL) {
-        k_fs_disk_flush(disk);
+        k_disk_fs_flush(disk);
         k_free(disk->entry_table);
         k_free(disk);
         K_DISK_MOUNT_STATE.disks[disk_num] = NULL;
@@ -636,11 +572,11 @@ fn k_fs_disk_close(disk_num: i32) i32 {
     }
 }
 
-fn k_fs_disk_close_all() void {
+fn k_disk_fs_close_all() void {
     def i: i32 = 0;
     while (i < K_DISK_NUM_MOUNTS) {
         if (K_DISK_MOUNT_STATE.disks[i] != NULL) {
-            k_fs_disk_close(i);
+            k_disk_fs_close(i);
         }
         i = i + 1;
     }

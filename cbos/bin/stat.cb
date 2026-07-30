@@ -24,10 +24,10 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     def filename: *u8 = argv[1];
 
     def out_header: k_fs_entry_header_t;
-    if (k_exec_fs_read_entry_header(loc, &out_header) == 0) {
+    if (k_fs_read_entry_header(loc, &out_header) == 0) {
         if (out_header.entry_type == K_FS_ENTRY_TYPE_FILE) {
             def out_entry: k_fs_directory_entry_t;
-            if (k_exec_fs_get_dir_entry_by_id(loc, &out_entry) != 0) {
+            if (k_fs_get_dir_entry_by_id(loc, &out_entry) != 0) {
                 k_io_print("unable to get directory entry\n");
                 return -1;
             }

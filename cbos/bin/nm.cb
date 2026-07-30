@@ -31,7 +31,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         return -1;
     }
 
-    if (0 != k_exec_fs_file_read(loc, 0, &hdr_size, &hdr)) {
+    if (0 != k_fs_file_read(loc, 0, &hdr_size, &hdr)) {
         k_io_print("unable to read ");
         k_io_print(argv[1]);
         k_io_print("\n");
@@ -77,7 +77,7 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
             return -1;
         }
 
-        if (0 != k_exec_fs_file_read(loc, offset, &data_size, data)) {
+        if (0 != k_fs_file_read(loc, offset, &data_size, data)) {
             k_io_print("unable to read link table\n");
             k_free(data);
             return -1;

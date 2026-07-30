@@ -25,13 +25,13 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def read_state: k_fs_io_state_t;
-    if (k_exec_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
+    if (k_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
         // Add one to the data size for null character in the array
         const DATA_SIZE: u32 = 128;
         def run_data: [DATA_SIZE + 1]u8;
         def read_size: u32 = DATA_SIZE;
 
-        while (k_exec_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
+        while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
             // Add the null character to the end
             run_data[read_size] = 0;
 

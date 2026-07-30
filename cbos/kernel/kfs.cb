@@ -3,6 +3,70 @@
 
 #include kdisk.cb
 
+export struct k_fs_entry_id_t {
+    disk_index: i16;
+    entry: u16;
+}
+
+export fn k_fs_read_entry_header(entry: k_fs_entry_id_t, header: *k_fs_entry_header_t) i32 {
+    return k_disk_fs_read_entry_header(k_disk_get(entry.disk_index), entry.entry, header);
+}
+
+export fn k_fs_io_state_init_hdr(entry: k_fs_entry_id_t, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
+    def disk: *k_disk_fs_t = k_disk_get(entry.disk_index);
+    return k_disk_fs_io_state_init_hdr(disk, entry.entry, offset, size, state, entry_hdr);
+}
+
+export fn k_fs_io_state_init(entry: k_fs_entry_id_t, offset: u32, size: u32, state: *k_fs_io_state_t) i32 {
+    def disk: *k_disk_fs_t = k_disk_get(entry.disk_index);
+    return k_disk_fs_io_state_init(disk, entry.entry, offset, size, state);
+}
+
+export fn k_fs_read_directory_entries(
+    entry: k_fs_entry_id_t,
+    entries: *k_fs_directory_entry_t,
+    entry_size: *u32,
+    entry_offset: u32) i32
+{
+    def dev: *k_disk_fs_t = k_disk_get(entry.disk_index);
+    return k_disk_fs_read_directory_entries(dev, entry.entry, entries, entry_size, entry_offset);
+}
+
+export fn k_fs_get_dir_entry_by_parent_id(parent: k_fs_entry_id_t, base_block: u16, entry: *k_fs_directory_entry_t) i32 {
+    def offset: u32 = 0;
+    def entry_size: u32 = 1;
+    def tmp: k_fs_directory_entry_t;
+
+    while ((k_fs_read_directory_entries(parent, &tmp, &entry_size, offset) == 0) && (entry_size > 0)) {
+        if (tmp.base_block == base_block) {
+            *entry = tmp;
+            return 0;
+        }
+
+        offset = offset + 1;
+    }
+
+    return -1;
+}
+
+export fn k_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, dir_entry: *k_fs_directory_entry_t) i32 {
+    def header: k_fs_entry_header_t;
+    if (k_fs_read_entry_header(entry, &header) != 0) {
+        return -1;
+    }
+
+    def parent: k_fs_entry_id_t;
+    parent.disk_index = entry.disk_index;
+    parent.entry = header.parent;
+
+    return k_fs_get_dir_entry_by_parent_id(parent, entry.entry, dir_entry);
+}
+
+export fn k_fs_get_dir_entry_by_name(parent: k_fs_entry_id_t, name: *u8, entry: *k_fs_directory_entry_t) i32 {
+    def disk: *k_disk_fs_t = k_disk_get(parent.disk_index);
+    return k_disk_fs_get_dir_entry_by_name(disk, parent.entry, name, entry);
+}
+
 /// Converts the string path into a entry ID for a disk and file entry ID
 /// Inputs:
 ///     pathname provides the name of the path to find
@@ -113,6 +177,38 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
             k_io_print("??");
         }
         k_io_print("\n");
+        return -1;
+    }
+}
+
+export fn k_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, data: *u8) i32 {
+    if (!size || !data) {
+        return -1;
+    }
+
+    def read_state: k_fs_io_state_t;
+    if (k_fs_io_state_init(entry, offset, *size, &read_state) >= 0) {
+        // Update the size based on the input
+        if (read_state.span_size < *size) {
+            *size = read_state.span_size;
+            k_io_print("found file size as ");
+            k_io_print_uint(*size);
+            k_io_print("\n");
+        }
+
+        // Add one to the data size for null character in the array
+        const DATA_SIZE: u32 = 128;
+        def current: *u8 = data;
+        def read_size: u32 = DATA_SIZE;
+
+        while (k_fs_io_state_read_next_section(&read_state, current, &read_size) > 0) {
+            current = current + read_size;
+            read_size = DATA_SIZE;
+        }
+
+        return 0;
+    } else {
+        *size = 0;
         return -1;
     }
 }

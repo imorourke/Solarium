@@ -151,7 +151,7 @@ fn k_shell_fn_exec(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         }
 
         def dir_entry: k_fs_directory_entry_t;
-        if (k_fs_get_dir_entry_by_id_only(loc, &dir_entry) == 0) {
+        if (k_fs_get_dir_entry_by_id(loc, &dir_entry) == 0) {
             if (dir_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
                 if ((dir_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE) == 0) {
                     k_io_print("file is not marked as executable\n");
@@ -276,7 +276,7 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 entry_i.entry = parent;
 
                 def folder_entry: k_fs_directory_entry_t;
-                if (k_fs_get_dir_entry_by_id(entry_i, current, &folder_entry) == 0) {
+                if (k_fs_get_dir_entry_by_parent_id(entry_i, current, &folder_entry) == 0) {
                     k_memcpy(&name_array, &folder_entry.name, K_FS_ENTRY_NAME_LEN);
                     k_io_print(&name_array);
                 } else {
@@ -301,7 +301,7 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 }
 
 fn k_shell_fn_reset(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
-    k_fs_disk_close_all();
+    k_disk_fs_close_all();
     k_cpu_reset();
     return 0;
 }
@@ -315,7 +315,7 @@ fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk_num: i32 = 0;
     def disk: *k_disk_fs_t = k_disk_get(disk_num);
     if (disk == NULL) {
-        disk = k_fs_disk_open(disk_num);
+        disk = k_disk_fs_open(disk_num);
         if (disk != NULL) {
             k_io_print("Mounted disk ");
             k_io_print_int(disk_num);
@@ -361,7 +361,7 @@ fn k_shell_fn_umount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     state->path[disk_num] = 0;
     def disk: *k_disk_fs_t = k_disk_get(disk_num);
     if (disk != 0) {
-        if (k_fs_disk_close(disk_num) != 0) {
+        if (k_disk_fs_close(disk_num) != 0) {
             k_io_print("Error unmounting disk\n");
             return -1;
         } else {

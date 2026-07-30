@@ -4,60 +4,6 @@
 #include kshell.cb
 #include kexec.cb
 
-export fn k_exec_fs_io_state_init(entry: k_fs_entry_id_t, offset: u32, size: u32, read_state: *k_fs_io_state_t) i32 {
-    return k_fs_io_state_init(entry, offset, size, read_state);
-}
 
-export fn k_exec_fs_io_state_read_next_section(read_state: *k_fs_io_state_t, data: *u8, size: *u32) i32 {
-    return k_fs_io_state_read_next_section(read_state, data, size);
-}
-
-export fn k_exec_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, data: *u8) i32 {
-    if (!size || !data) {
-        return -1;
-    }
-
-    def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(entry, offset, *size, &read_state) >= 0) {
-        // Update the size based on the input
-        if (read_state.span_size < *size) {
-            *size = read_state.span_size;
-            k_io_print("found file size as ");
-            k_io_print_uint(*size);
-            k_io_print("\n");
-        }
-
-        // Add one to the data size for null character in the array
-        const DATA_SIZE: u32 = 128;
-        def current: *u8 = data;
-        def read_size: u32 = DATA_SIZE;
-
-        while (k_fs_io_state_read_next_section(&read_state, current, &read_size) > 0) {
-            current = current + read_size;
-            read_size = DATA_SIZE;
-        }
-
-        return 0;
-    } else {
-        *size = 0;
-        return -1;
-    }
-}
-
-export fn k_exec_fs_read_entry_header(entry: k_fs_entry_id_t, header: *k_fs_entry_header_t) i32 {
-    if (!header) {
-        return -1;
-    }
-
-    return k_fs_read_entry_header(entry, header);
-}
-
-export fn k_exec_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, header: *k_fs_directory_entry_t) i32 {
-    if (!header) {
-        return -1;
-    }
-
-    return k_fs_get_dir_entry_by_id_only(entry, header);
-}
 
 #endif // K_EXEC_FS
