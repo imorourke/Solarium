@@ -54,7 +54,6 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
     if (argc < 2) {
         target_dir = state->fs;
-        k_io_print("Print Current\n");
     } else if (argc == 2) {
         def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_DIR, &state->fs, &target_dir);
         if (0 != res) {
@@ -72,16 +71,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def test_entries: [ENTRY_SIZE_LIM]k_fs_directory_entry_t;
     def test_entry_size: u32 = ENTRY_SIZE_LIM;
 
-    k_io_print("  ");
-    k_io_print_int(target_dir.disk_index);
-    k_io_print("/");
-    k_io_print_uint(target_dir.entry);
-    k_io_print("\n");
-
     def res: i32 = k_fs_read_directory_entries(target_dir, &test_entries, &test_entry_size, 0);
-    k_io_print("ls res ");
-    k_io_print_int(res);
-    k_io_print("\n");
     if (res == 0) {
         def ii: u32 = 0;
         def name_tmp: [K_FS_ENTRY_NAME_LEN+1]u8;

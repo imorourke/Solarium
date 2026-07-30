@@ -1106,6 +1106,15 @@ impl Expression for AssignmentExpression {
         let addr_def = reg;
         let val_def = addr_def.increment_token(tok)?;
 
+        fn temp_type_from_input(t: &Type) -> Option<DataType> {
+            match t.byte_size() {
+                4 => Some(DataType::U32),
+                2 => Some(DataType::U16),
+                1 => Some(DataType::U8),
+                _ => None,
+            }
+        }
+
         if let Some(dest_dtype) = self.lh_addr_expr.get_type()?.primitive_type() {
             let val_dtype = self.rh_val_expr.get_primitive_type()?;
 
@@ -1129,6 +1138,31 @@ impl Expression for AssignmentExpression {
 
             asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpSav::new(
                 ArgumentType::new(addr_def.reg, dest_dtype),
+                val_def.reg.into(),
+            )))));
+
+            Ok(asm)
+        } else if let Some(t1) = temp_type_from_input(&self.rh_val_expr.get_type()?)
+            && let Some(t2) = temp_type_from_input(&self.lh_addr_expr.get_type()?)
+            && t1 == t2
+        {
+            asm.append(self.lh_addr_expr.load_address_to_register(
+                options,
+                addr_def,
+                required_stack,
+            )?);
+            asm.append(self.rh_val_expr.load_address_to_register(
+                options,
+                val_def,
+                required_stack,
+            )?);
+            asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpLd::new(
+                ArgumentType::new(val_def.reg, t1),
+                val_def.reg.into(),
+            )))));
+
+            asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpSav::new(
+                ArgumentType::new(addr_def.reg, t1),
                 val_def.reg.into(),
             )))));
 

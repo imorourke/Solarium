@@ -63,7 +63,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
             if (start_loc.entry == disk->vol_hdr.root_sector) {
                 k_io_print("unable to traverse above the root node\n");
                 return -1;
-            } else if (0 == k_fs_read_entry_header(start_loc, &out_entry)) {
+            } else if (0 == k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry)) {
                 start_loc.entry = out_entry.parent;
             } else {
                 k_io_print("unable to find parent node\n");
@@ -73,7 +73,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
             // Do Nothing
         } else {
             def out_entry: k_fs_directory_entry_t;
-            if (k_fs_get_dir_entry_by_name(start_loc, pathtmp, &out_entry) == 0) {
+            if (k_disk_fs_get_dir_entry_by_name(disk, start_loc.entry, pathtmp, &out_entry) == 0) {
                 if ((*next == NULL) || (out_entry.entry_type == K_FS_ENTRY_TYPE_DIR)) {
                     start_loc.entry = out_entry.base_block;
                 } else {
@@ -98,7 +98,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     }
 
     def out_entry: k_fs_entry_header_t;
-    if ((pathtype == 0) || ((0 == k_fs_read_entry_header(start_loc, &out_entry)) && (out_entry.entry_type == pathtype))) {
+    if ((pathtype == 0) || ((0 == k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry)) && (out_entry.entry_type == pathtype))) {
         output->entry = start_loc.entry;
         return 0;
     } else {

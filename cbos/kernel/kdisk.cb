@@ -447,14 +447,6 @@ fn k_disk_fs_read_directory_entries(
     entry_size: *u32,
     entry_offset: u32) i32
 {
-    k_io_print("got here 1\n");
-    k_io_print_uint(entries);
-    k_io_print(" ");
-    k_io_print_hex(dev);
-    k_io_print(" ");
-    k_io_print_hex(dev->entry_table[entry]);
-    k_io_print("\n");
-
     if (!entries || !dev) {
         return -1;
     } else if (dev->entry_table[entry] == 0) {
@@ -462,8 +454,6 @@ fn k_disk_fs_read_directory_entries(
     } else if (entry_size == NULL) {
         return 0;
     }
-
-    k_io_print("got here 2\n");
 
     const DATA_SIZE: u32 = sizeof(k_fs_directory_entry_t);
 
@@ -474,8 +464,6 @@ fn k_disk_fs_read_directory_entries(
     } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return -1;
     }
-
-    k_io_print("got here 3\n");
 
     def run_data: [DATA_SIZE]u8;
     def read_size: u32 = DATA_SIZE;
@@ -494,8 +482,6 @@ fn k_disk_fs_read_directory_entries(
 
     *entry_size = current_ind;
 
-    k_io_print("got here 4\n");
-
     return 0;
 }
 
@@ -506,23 +492,7 @@ fn k_fs_read_directory_entries(
     entry_offset: u32) i32
 {
     def dev: *k_disk_fs_t = k_disk_get(entry.disk_index);
-    k_io_print("disk: ");
-    k_io_print_int(entry.disk_index : i32);
-    k_io_print("/");
-    k_io_print_uint(entry.entry);
-    k_io_print(", ");
-    k_io_print("index: ");
-    k_io_print_hex(dev);
-    k_io_print("\n");
-    if (dev == NULL) {
-        return -1;
-    }
-    def ent: u16 = entry.entry;
-    def res: i32 = k_disk_fs_read_directory_entries(dev, ent, entries, entry_size, entry_offset);
-    k_io_print("Res: ");
-    k_io_print_int(res);
-    k_io_print("\n");
-    return res;
+    return k_disk_fs_read_directory_entries(dev, entry.entry, entries, entry_size, entry_offset);
 }
 
 fn k_disk_fs_get_dir_entry_by_name(disk: *k_disk_fs_t, parent: u16, name: *u8, entry: *k_fs_directory_entry_t) i32 {
