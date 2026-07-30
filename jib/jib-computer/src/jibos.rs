@@ -25,6 +25,9 @@ impl JibOsImage {
     /// OS Code
     const CODE_OS: &str = include_str!("../../../cbos/os.cb");
 
+    /// Definitions name
+    const DEFS_FILENAME: &str = "cbos_defs.cb";
+
     /// Application Code
     const CODE_APPS: &[JibApplication] = &[
         JibApplication {
@@ -87,13 +90,19 @@ impl JibOsImage {
         Ok(cblang::compile(tokens, options)?)
     }
 
-    pub fn compile_app_code(&self, code: &str) -> Result<CompilingState, ComputerError> {
+    pub fn compile_app_code(
+        &self,
+        code: &str,
+        name: Option<&str>,
+    ) -> Result<CompilingState, ComputerError> {
+        const DEFUALT_NAME: &str = "main.cb";
+
         let mut fs = VirtualFilesystem::default();
-        fs.add_file(Path::new("main.cb"), code)?;
-        fs.add_file(Path::new("cbos_defs.cb"), &self.kernel_header)?;
+        fs.add_file(Path::new(&name.unwrap_or(DEFUALT_NAME)), code)?;
+        fs.add_file(Path::new(Self::DEFS_FILENAME), &self.kernel_header)?;
 
         let preprocessed = cblang::preprocessor::preprocess_code_with_fs(
-            Path::new("main.cb"),
+            Path::new(name.unwrap_or(DEFUALT_NAME)),
             fs,
             [].into_iter(),
         )?;
@@ -141,7 +150,9 @@ impl JibOsImage {
         for app in Self::CODE_APPS {
             os_image.applications.push((
                 app.exec.into(),
-                os_image.compile_app_code(app.code)?.get_binary()?,
+                os_image
+                    .compile_app_code(app.code, Some(app.filename))?
+                    .get_binary()?,
             ));
         }
 
@@ -204,7 +215,7 @@ impl JibOsImage {
         let src = fs.create_directory(fs.root_sector(), "src")?;
 
         fs.create_file(src, "os.cb", Self::CODE_OS.as_bytes())?;
-        fs.create_file(src, "cbos_defs.cb", self.kernel_header.as_bytes())?;
+        fs.create_file(src, Self::DEFS_FILENAME, self.kernel_header.as_bytes())?;
 
         let src_bin = fs.create_directory(src, "bin")?;
         for app in Self::CODE_APPS {
