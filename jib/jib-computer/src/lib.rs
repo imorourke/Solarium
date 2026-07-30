@@ -228,6 +228,7 @@ impl JibComputer {
         // Compile and setup bootloader
         for (i, x) in JibOsImage::compile_kernel_code(
             include_str!("../../../cbos/bootloader.cb"),
+            "bootloader.cb",
             Some(Self::BOOTLOADER_START),
             true,
         )?
@@ -443,7 +444,7 @@ mod test {
     use jib_cpu::cpu::Processor;
 
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
-        let asm = JibOsImage::compile_kernel_code(in_code, None, true)
+        let asm = JibOsImage::compile_kernel_code(in_code, "input.cb", None, true)
             .unwrap()
             .get_assembler()
             .unwrap();

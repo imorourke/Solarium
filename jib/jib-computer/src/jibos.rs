@@ -67,14 +67,12 @@ impl JibOsImage {
 
     pub fn compile_kernel_code(
         code: &str,
+        name: &str,
         start_offset: Option<u32>,
         trim_code: bool,
     ) -> Result<CompilingState, ComputerError> {
-        let preprocessed = cblang::preprocessor::preprocess_code_as_file(
-            code,
-            Path::new("input.cb"),
-            [].into_iter(),
-        )?;
+        let preprocessed =
+            cblang::preprocessor::preprocess_code_as_file(code, Path::new(name), [].into_iter())?;
 
         let tokens = preprocessed.tokenize()?;
 
@@ -120,7 +118,7 @@ impl JibOsImage {
 
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
         // Compile OS into a file
-        let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, None, false)?;
+        let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false)?;
         let kernel_data = kernel_compiled.get_binary()?;
 
         // Obtain the default interface value
