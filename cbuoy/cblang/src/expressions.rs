@@ -1146,27 +1146,33 @@ impl Expression for AssignmentExpression {
             && let Some(t2) = temp_type_from_input(&self.lh_addr_expr.get_type()?)
             && t1 == t2
         {
-            asm.append(self.lh_addr_expr.load_address_to_register(
-                options,
-                addr_def,
-                required_stack,
-            )?);
-            asm.append(self.rh_val_expr.load_address_to_register(
-                options,
-                val_def,
-                required_stack,
-            )?);
-            asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpLd::new(
-                ArgumentType::new(val_def.reg, t1),
-                val_def.reg.into(),
-            )))));
+            if t1 == t2 {
+                asm.append(self.lh_addr_expr.load_address_to_register(
+                    options,
+                    addr_def,
+                    required_stack,
+                )?);
+                asm.append(self.rh_val_expr.load_address_to_register(
+                    options,
+                    val_def,
+                    required_stack,
+                )?);
+                asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpLd::new(
+                    ArgumentType::new(val_def.reg, t1),
+                    val_def.reg.into(),
+                )))));
 
-            asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpSav::new(
-                ArgumentType::new(addr_def.reg, t1),
-                val_def.reg.into(),
-            )))));
+                asm.push_asm(tok.to_asm(AsmToken::OperationLiteral(Box::new(OpSav::new(
+                    ArgumentType::new(addr_def.reg, t1),
+                    val_def.reg.into(),
+                )))));
 
-            Ok(asm)
+                Ok(asm)
+            } else {
+                Err(tok.clone().into_err(format!(
+                    "mismatch of types assigning register values {t1} to {t2}"
+                )))
+            }
         } else if let Ok(rh_val_type) = self.rh_val_expr.get_type()
             && let Ok(lh_addr_type) = self.lh_addr_expr.get_type()
         {
