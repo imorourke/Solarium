@@ -1480,10 +1480,11 @@ impl Expression for FunctionCallExpression {
 
             let mut tmp_stack = *required_stack;
             asm.push_asm(self.token.to_asm(AsmToken::Comment(format!(
-                    "func {} arg {} :: {}",
+                    "func {} arg {} :: {} @ {}",
                     self.func,
                     p.name.as_ref().map(|x| x.get_value().to_string()).unwrap_or("??".to_string()),
-                    assign
+                    assign,
+                    p.dtype
                 ))));
             asm.append(assign.load_value_to_register(options, next_load, &mut tmp_stack)?);
             required_stack.merge(tmp_stack);
