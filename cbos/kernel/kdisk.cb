@@ -62,7 +62,7 @@ struct k_disk_fs_t {
     entry_table_dirty: u8;
 }
 
-struct k_fs_io_state_t {
+export struct k_fs_io_state_t {
     dev: *k_disk_fs_t;
     sector_offset: u32;
     bytes_read: u32;
