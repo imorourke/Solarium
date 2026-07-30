@@ -211,6 +211,7 @@ impl StructDefinition {
     }
 
     pub fn without_non_exported(&self) -> Option<Self> {
+        // TODO - Perhaps return a list of used unexported structures instead of rewriting with *u32
         fn type_without_exported(t: &Type, rewrite_ok: bool) -> Result<Type, Type> {
             match t {
                 Type::Array(size, inner) => Ok(Type::Array(

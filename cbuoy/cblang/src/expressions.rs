@@ -1468,7 +1468,7 @@ impl Expression for FunctionCallExpression {
             let assign = Rc::new(AssignmentExpression {
                 lh_addr_expr: var,
                 token: self.token.clone(),
-                rh_val_expr: e.clone(),
+                rh_val_expr: e.clone(), // TODO - If this memcpys, it will be wrong. There is an address mismatch
             });
 
             let mut tmp_stack = *required_stack;
