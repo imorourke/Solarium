@@ -148,6 +148,7 @@ pub struct StructDefinition {
     name: String,
     fields: HashMap<String, Rc<StructField>>,
     size: usize,
+    vis: Visiblity,
 }
 
 impl StructDefinition {
@@ -170,6 +171,7 @@ impl StructDefinition {
             name: name.get_value().to_string(),
             fields: HashMap::new(),
             size: 0,
+            vis: visiblity,
         };
 
         tokens.expect("{")?;
@@ -208,6 +210,47 @@ impl StructDefinition {
         Ok((rs, name))
     }
 
+    pub fn without_non_exported(&self) -> Option<Self> {
+        fn type_without_exported(t: &Type, rewrite_ok: bool) -> Result<Type, Type> {
+            match t {
+                Type::Array(size, inner) => Ok(Type::Array(
+                    *size,
+                    Box::new(type_without_exported(inner, false)?),
+                )),
+                Type::Pointer(inner) => {
+                    Ok(Type::Pointer(Box::new(type_without_exported(inner, true)?)))
+                }
+                Type::Const(inner) => Ok(Type::Const(Box::new(type_without_exported(
+                    inner, rewrite_ok,
+                )?))),
+                Type::Struct(def) => {
+                    if rewrite_ok || def.get_visibility() == Visiblity::Export {
+                        Ok(match def.get_visibility() {
+                            Visiblity::Export => Type::Struct(def.clone()),
+                            _ => Type::Primitive(DataType::U32),
+                        })
+                    } else {
+                        Err(t.clone())
+                    }
+                }
+                x => Ok(x.clone()),
+            }
+        }
+
+        let mut new_struct = self.clone();
+        for (name, field) in new_struct.fields.iter_mut() {
+            match type_without_exported(&field.dtype, false) {
+                Ok(t) => {
+                    let mut new_field = field.as_ref().clone();
+                    new_field.dtype = t;
+                    *field = Rc::new(new_field);
+                }
+                Err(_s) => panic!("{} - {}", self.name, name),
+            }
+        }
+        Some(new_struct)
+    }
+
     pub fn get_name(&self) -> &str {
         &self.name
     }
@@ -222,6 +265,10 @@ impl StructDefinition {
 
     pub fn get_size(&self) -> usize {
         self.size
+    }
+
+    pub fn get_visibility(&self) -> Visiblity {
+        self.vis
     }
 }
 
