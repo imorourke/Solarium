@@ -1,9 +1,0 @@
-#ifndef K_EXEC_FS
-#define K_EXEC_FS
-
-#include kshell.cb
-#include kexec.cb
-
-
-
-#endif // K_EXEC_FS

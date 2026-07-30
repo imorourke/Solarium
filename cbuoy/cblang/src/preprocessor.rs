@@ -51,10 +51,6 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
         include_str!("../../../cbos/kernel/kexec.cb"),
     ),
     (
-        "kernel/kexec_fs.cb",
-        include_str!("../../../cbos/kernel/kexec_fs.cb"),
-    ),
-    (
         "kernel/kirq.cb",
         include_str!("../../../cbos/kernel/kirq.cb"),
     ),
