@@ -60,11 +60,6 @@ impl JibOsImage {
             filename: "stat.cb",
             code: include_str!("../../../cbos/bin/stat.cb"),
         },
-        JibApplication {
-            exec: "struct_test",
-            filename: "struct_test.cb",
-            code: include_str!("../../../cbos/bin/struct_test.cb"),
-        },
     ];
 
     /// Get the build date

@@ -524,4 +524,13 @@ mod test {
             EXPECTED,
         );
     }
+
+    #[test]
+    fn test_struct_func() {
+        static EXPECTED: &str = "A: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\n";
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_struct_func.cb"),
+            EXPECTED,
+        );
+    }
 }
