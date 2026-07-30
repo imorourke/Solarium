@@ -832,7 +832,7 @@ impl CodeWindow {
 
                     for v in cmp.get_import_interface().unwrap_or_default().variables {
                         if v.name == VAR_EXPORT_DATA {
-                            assign_data = Some((v.loc - asm.start_address, export_loc as u32));
+                            assign_data = Some((v.loc - asm.start_address, export_loc));
                         } else if v.name == VAR_EXPORT_SIZE {
                             assign_size = Some((v.loc - asm.start_address, export_len as u32));
                         }

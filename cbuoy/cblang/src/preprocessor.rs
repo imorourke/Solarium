@@ -515,15 +515,13 @@ impl PreprocessorFilesystem for ImageFilesystem {
 
         match std::str::from_utf8(&file_data) {
             Ok(val) => Ok(val.into()),
-            Err(e) => {
-                return Err(FilesystemError::UnableToLoadFile(
-                    file.into(),
-                    format!(
-                        "unable to load as utf8 '{}' - {e}",
-                        file.as_os_str().to_str().unwrap_or_default()
-                    ),
-                ));
-            }
+            Err(e) => Err(FilesystemError::UnableToLoadFile(
+                file.into(),
+                format!(
+                    "unable to load as utf8 '{}' - {e}",
+                    file.as_os_str().to_str().unwrap_or_default()
+                ),
+            )),
         }
     }
 }
@@ -543,7 +541,7 @@ impl PreprocessorFilesystem for OverlayFilesystem {
             }
         }
 
-        return Err(FilesystemError::FileNotFound(file.into()));
+        Err(FilesystemError::FileNotFound(file.into()))
     }
 }
 

@@ -81,12 +81,7 @@ impl Statement for MemcpyStatement {
 
         const DTYPES: [DataType; 3] = [DataType::U32, DataType::U16, DataType::U8];
 
-        if let Some(dt) = DTYPES
-            .iter()
-            .filter(|x| x.byte_size() == self.size)
-            .next()
-            .copied()
-        {
+        if let Some(dt) = DTYPES.iter().find(|x| x.byte_size() == self.size).copied() {
             asm.extend([
                 AsmToken::OperationLiteral(Box::new(OpLd::new(
                     ArgumentType::new(val_reg, dt),

@@ -529,7 +529,7 @@ impl CompilingState {
         let asm = self.get_assembler()?;
 
         Ok({
-            const MAGIC_NUM: [u8; 4] = [b'C', b'B', b'A', b'P'];
+            const MAGIC_NUM: [u8; 4] = *b"CBAP";
 
             let import_sec = self.get_import_interface()?.get_interface_region()?;
             let export_sec = self.get_export_interface()?.get_interface_region()?;
@@ -785,7 +785,7 @@ impl CompilingState {
                             &opaque_token,
                         )?))),
                         value: GlobalType::UserType(opaque_token, ty),
-                        visibility: visibility,
+                        visibility,
                     };
                     Ok(())
                 } else {
@@ -802,7 +802,7 @@ impl CompilingState {
                 e.insert(GlobalScopeValue {
                     access_state: Rc::new(RefCell::new(AccessState::new(get_identifier(&name)?))),
                     value: GlobalType::UserType(name, ty),
-                    visibility: visibility,
+                    visibility,
                 });
                 Ok(())
             }
@@ -911,7 +911,7 @@ impl CompilingState {
                     return Err(func
                         .get_token()
                         .clone()
-                        .into_err("visiblity mismatch on function vs. declaration".to_string()));
+                        .into_err("visiblity mismatch on function vs. declaration"));
                 }
 
                 Some(e.remove_entry().1.access_state)
@@ -968,7 +968,7 @@ impl CompilingState {
             Entry::Vacant(e) => e.insert(GlobalScopeValue {
                 access_state: used_val,
                 value: t,
-                visibility: visibility,
+                visibility,
             }),
             Entry::Occupied(_) => {
                 return Err(t
@@ -1211,7 +1211,7 @@ impl CompilingState {
                         interface.variables.push(InterfaceVariable {
                             name: name.clone(),
                             def: var.get_type()?.clone(),
-                            loc: loc,
+                            loc,
                         })
                     }
                 }
@@ -1472,7 +1472,7 @@ impl InterfaceDefinition {
             region.write_all(&((name_bytes.len() + 1) as u8).to_be_bytes())?;
             region.write_all(&offset.to_be_bytes())?;
             region.write_all(name_bytes)?;
-            region.write_all(&[b'\0'])?;
+            region.write_all(b"\0")?;
         }
 
         Ok(region)
