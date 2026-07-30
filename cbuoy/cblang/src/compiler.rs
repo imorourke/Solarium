@@ -1226,10 +1226,12 @@ impl CompilingState {
 
         // Add structures to the interface in the order that they are defined
         for (token, def) in self.struct_defs.iter() {
-            interface.structs.push(InterfaceStruct {
-                name: token.get_value().to_string(),
-                def: def.as_ref().clone(),
-            });
+            if def.get_visibility() == Visiblity::Export {
+                interface.structs.push(InterfaceStruct {
+                    name: token.get_value().to_string(),
+                    def: def.as_ref().clone(),
+                });
+            }
         }
 
         // Sort the results
