@@ -7,9 +7,9 @@ use jib_asm::{
 use jib_cpu::cpu::{DataType, Register};
 
 use crate::{
-    TokenError,
+    TokenError, Type,
     compiler::{CodeGenerationOptions, Statement},
-    expressions::{RegisterDef, TemporaryStackTracker},
+    expressions::{Expression, ExpressionData, RegisterDef, TemporaryStackTracker},
     tokenizer::Token,
 };
 
@@ -45,8 +45,12 @@ impl MemcpyStatement {
         }
     }
 
-    fn get_avail_reg(&self, used_regs: &[Register]) -> Result<Register, TokenError> {
-        for i in RegisterDef::FIRST_USEABLE.get_index()..=Register::last_register().get_index() {
+    fn get_avail_reg(
+        &self,
+        base_reg: Register,
+        used_regs: &[Register],
+    ) -> Result<Register, TokenError> {
+        for i in base_reg.get_index()..=Register::last_register().get_index() {
             let r = Register::GeneralPurpose(i);
 
             if !used_regs.contains(&r) {
@@ -61,17 +65,27 @@ impl MemcpyStatement {
     }
 }
 
-impl Statement for MemcpyStatement {
-    fn get_exec_code(
+impl Expression for MemcpyStatement {
+    fn get_token(&self) -> &Token {
+        &self.token
+    }
+
+    fn get_type(&self) -> Result<Type, TokenError> {
+        Ok(Type::Primitive(DataType::U32))
+    }
+
+    fn load_value_to_register(
         &self,
         options: &CodeGenerationOptions,
+        reg: RegisterDef,
         _required_stack: &mut TemporaryStackTracker,
-    ) -> Result<Vec<AsmTokenLoc>, TokenError> {
+    ) -> Result<ExpressionData, TokenError> {
         let mut asm = Vec::new();
 
-        let spare_reg = RegisterDef::SPARE;
-        let val_reg = self.get_avail_reg(&[self.from_addr, self.to_addr, spare_reg])?;
-        let num_reg = self.get_avail_reg(&[self.from_addr, self.to_addr, spare_reg, val_reg])?;
+        let spare_reg = reg.spare;
+        let val_reg = self.get_avail_reg(reg.reg, &[self.from_addr, self.to_addr, spare_reg])?;
+        let num_reg =
+            self.get_avail_reg(reg.reg, &[self.from_addr, self.to_addr, spare_reg, val_reg])?;
 
         asm.extend_from_slice(&load_to_register(spare_reg, self.size as u32));
 
@@ -214,7 +228,28 @@ impl Statement for MemcpyStatement {
             ))));
         }
 
-        Ok(self.token.to_asm_iter(asm).into_iter().collect())
+        Ok(ExpressionData {
+            asm: self.token.to_asm_iter(asm).into_iter().collect(),
+        })
+    }
+}
+
+impl Statement for MemcpyStatement {
+    fn get_exec_code(
+        &self,
+        options: &CodeGenerationOptions,
+        required_stack: &mut TemporaryStackTracker,
+    ) -> Result<Vec<AsmTokenLoc>, TokenError> {
+        Ok(self
+            .load_value_to_register(
+                options,
+                RegisterDef {
+                    reg: RegisterDef::FIRST_USEABLE,
+                    spare: RegisterDef::SPARE,
+                },
+                required_stack,
+            )?
+            .asm)
     }
 }
 

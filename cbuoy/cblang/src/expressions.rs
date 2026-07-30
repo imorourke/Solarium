@@ -14,7 +14,7 @@ use jib_cpu::cpu::{DataType, Register, convert_types};
 
 use crate::{
     TokenError,
-    compiler::{CodeGenerationOptions, CompilingState, Statement},
+    compiler::{CodeGenerationOptions, CompilingState},
     literals::{Literal, LiteralValue},
     tokenizer::{KEYWORD_SIZEOF, Token, TokenIter, get_identifier, is_identifier},
     typing::{StructDefinition, StructField, Type},
@@ -1195,7 +1195,7 @@ impl Expression for AssignmentExpression {
                     rh_val_type.byte_size(),
                 );
 
-                asm.extend_asm(mem.get_exec_code(options, required_stack)?);
+                asm.append(mem.load_value_to_register(options, reg, required_stack)?);
 
                 Ok(asm)
             } else {
