@@ -506,8 +506,8 @@ impl Statement for LocalVariableStatement {
 
                     let mem = MemcpyStatement::new(
                         var.token.clone(),
-                        load_val.reg,
                         local_reg,
+                        load_val.reg,
                         var.dtype.byte_size(),
                     );
 

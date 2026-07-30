@@ -36,7 +36,7 @@ pub struct MemcpyStatement {
 }
 
 impl MemcpyStatement {
-    pub fn new(token: Token, from_addr: Register, to_addr: Register, size: usize) -> Self {
+    pub fn new(token: Token, to_addr: Register, from_addr: Register, size: usize) -> Self {
         Self {
             token,
             from_addr,

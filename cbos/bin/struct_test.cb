@@ -1,0 +1,56 @@
+#include cbos_defs.cb
+
+struct test_struct {
+    a: i32;
+    b: i16;
+    c: i8;
+}
+
+fn struct_func(val: test_struct) void {
+    k_io_print("A: ");
+    k_io_print_hex(val.a);
+    k_io_print(", B: ");
+    k_io_print_hex(val.b);
+    k_io_print(", C: ");
+    k_io_print_hex(val.c);
+    k_io_print("\n");
+}
+
+fn struct_func_ptr(val: *test_struct) void {
+    k_io_print("A: ");
+    k_io_print_hex(val->a);
+    k_io_print(", B: ");
+    k_io_print_hex(val->b);
+    k_io_print(", C: ");
+    k_io_print_hex(val->c);
+    k_io_print("\n");
+}
+
+fn struct_func2(tmp: u8, val: test_struct) void {
+    k_io_print("A: ");
+    k_io_print_hex(val.a);
+    k_io_print(", B: ");
+    k_io_print_hex(val.b);
+    k_io_print(", C: ");
+    k_io_print_hex(val.c);
+    k_io_print("\n");
+}
+
+fn main() i32 {
+    def s: test_struct;
+    s.a = 1;
+    s.b = 2;
+    s.c = 3;
+
+    def s2: test_struct = s;
+
+    struct_func_ptr(&s);
+    struct_func(s);
+    struct_func2(0, s);
+
+    struct_func_ptr(&s2);
+    struct_func(s2);
+    struct_func2(0, s2);
+
+    return 0;
+}

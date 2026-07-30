@@ -1184,8 +1184,8 @@ impl Expression for AssignmentExpression {
 
                 let mem = MemcpyStatement::new(
                     self.token.clone(),
-                    val_def.reg,
                     addr_def.reg,
+                    val_def.reg,
                     rh_val_type.byte_size(),
                 );
 
@@ -1455,6 +1455,7 @@ impl Expression for FunctionCallExpression {
                 &format!("arg_{i}"),
                 self.token.get_loc().clone(),
             ));
+
             let var = Rc::new(LocalVariable::new(
                 p_name,
                 p.dtype.clone(),
