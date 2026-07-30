@@ -52,5 +52,12 @@ fn main() i32 {
     struct_func(s2);
     struct_func2(0, s2);
 
+    def s3: test_struct;
+    s3 = s;
+
+    struct_func_ptr(&s3);
+    struct_func(s3);
+    struct_func2(0, s3);
+
     return 0;
 }
