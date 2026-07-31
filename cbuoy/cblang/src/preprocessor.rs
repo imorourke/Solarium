@@ -4,7 +4,8 @@
 //! to help with C/Buoy code compilation.
 
 use std::{
-    collections::{HashMap, HashSet},
+    cell::RefCell,
+    collections::{HashMap, HashSet, hash_map::Entry},
     fmt::{Debug, Display},
     ops::RangeInclusive,
     path::{Path, PathBuf},
@@ -424,18 +425,20 @@ impl Display for FilesystemError {
 }
 
 pub trait PreprocessorFilesystem: Debug {
-    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError>;
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError>;
 }
 
 #[derive(Debug, Default)]
 pub struct RealFilesystem {
-    files: HashMap<PathBuf, Rc<str>>,
+    files: Rc<RefCell<HashMap<PathBuf, Rc<str>>>>,
 }
 
 impl PreprocessorFilesystem for RealFilesystem {
-    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
-        let txt: Rc<str> = match std::fs::read_to_string(file) {
-            Ok(s) => s.into(),
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+        let mut stored = self.files.borrow_mut();
+
+        let file_path = match file.canonicalize() {
+            Ok(path) => path,
             Err(e) => {
                 return Err(FilesystemError::UnableToLoadFile(
                     file.to_path_buf(),
@@ -444,15 +447,22 @@ impl PreprocessorFilesystem for RealFilesystem {
             }
         };
 
-        match file.canonicalize() {
-            Ok(path) => {
-                self.files.insert(path, txt.clone());
+        match stored.entry(file_path) {
+            Entry::Occupied(e) => Ok(e.get().clone()),
+            Entry::Vacant(e) => {
+                let txt: Rc<str> = match std::fs::read_to_string(file) {
+                    Ok(s) => s.into(),
+                    Err(e) => {
+                        return Err(FilesystemError::UnableToLoadFile(
+                            file.to_path_buf(),
+                            e.to_string(),
+                        ));
+                    }
+                };
+
+                e.insert(txt.clone());
                 Ok(txt)
             }
-            Err(e) => Err(FilesystemError::UnableToLoadFile(
-                file.to_path_buf(),
-                e.to_string(),
-            )),
         }
     }
 }
@@ -466,7 +476,7 @@ pub struct ImageFilesystem {
 
 #[cfg(feature = "cbfs")]
 impl PreprocessorFilesystem for ImageFilesystem {
-    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         let mut current = self.root.unwrap_or(self.fs.root_sector());
 
         'next_path: for p in file.iter() {
@@ -528,8 +538,8 @@ pub struct OverlayFilesystem {
 }
 
 impl PreprocessorFilesystem for OverlayFilesystem {
-    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
-        for s in self.systems.iter_mut().rev() {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+        for s in self.systems.iter().rev() {
             match s.read_file(file) {
                 Ok(f) => return Ok(f),
                 Err(FilesystemError::FileNotFound(_)) => continue,
@@ -580,7 +590,7 @@ impl VirtualFilesystem {
 }
 
 impl PreprocessorFilesystem for VirtualFilesystem {
-    fn read_file(&mut self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         if let Some(val) = self.files.get(file) {
             Ok(val.clone())
         } else {
