@@ -13,7 +13,6 @@
 #include <std/list.cb>
 #include <std/string.cb>
 
-
 fn os_main() void {
     k_io_print("Starting C/Buoy OS\n");
 

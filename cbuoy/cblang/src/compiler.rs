@@ -425,41 +425,36 @@ pub enum CompilerError {
     PreprocessorError(PreprocessorError),
 }
 
-impl CompilerError {
-    pub fn print_error(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Error: {}", self)?;
-
-        if let Self::TokenErrorFancy(err, txt) = &self
-            && let Some(t) = &err.token
-        {
-            for l in txt.get_lines() {
-                if l.loc.line == t.get_loc().line && Some(&l.loc.file) == t.get_loc().file.as_ref()
-                {
-                    let line = &l.text;
-                    writeln!(f, "{} >> {line}", l.loc)?;
-                    write!(f, "{}    ", l.loc)?;
-                    for _ in 0..t.get_loc().column {
-                        write!(f, " ")?;
-                    }
-                    for _ in 0..t.get_value().len() {
-                        write!(f, "^")?;
-                    }
-                    writeln!(f)?;
-                    break;
-                }
-            }
-        }
-
-        std::fmt::Result::Ok(())
-    }
-}
-
 impl Display for CompilerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AssemblerError(e) => write!(f, "Assembler: {e}"),
             Self::TokenError(e) => write!(f, "Token: {e}"),
-            Self::TokenErrorFancy(e, _) => write!(f, "Token: {e}"),
+            Self::TokenErrorFancy(e, txt) => {
+                writeln!(f, "Token Error: {}", e)?;
+
+                if let Some(t) = &e.token {
+                    for l in txt.get_lines() {
+                        if l.loc.line == t.get_loc().line
+                            && Some(&l.loc.file) == t.get_loc().file.as_ref()
+                        {
+                            let line = &l.text;
+                            writeln!(f, "{} >> {line}", l.loc)?;
+                            write!(f, "{}    ", l.loc)?;
+                            for _ in 0..t.get_loc().column {
+                                write!(f, " ")?;
+                            }
+                            for _ in 0..t.get_value().len() {
+                                write!(f, "^")?;
+                            }
+                            writeln!(f)?;
+                            break;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
             Self::IoError(e) => write!(f, "IO: {e}"),
             Self::PreprocessorError(e) => write!(f, "Preprocessor: {e}"),
         }
