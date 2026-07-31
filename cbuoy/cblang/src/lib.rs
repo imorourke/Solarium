@@ -9,11 +9,73 @@ mod typing;
 mod utilities;
 mod variables;
 
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+};
+
 pub use compiler::{CodeGenerationOptions, CompilerError, CompilingState, ProgramType};
 pub use parser::{compile_str, compile_tokens};
 use preprocessor::read_and_preprocess;
 pub use tokenizer::{TokenError, tokenize, tokenize_file, tokenize_str};
 pub use typing::Type;
+
+use crate::preprocessor::{
+    PreprocessorFilesystem, PreprocessorOutput, PreprocessorState, RealFilesystem,
+    VirtualFilesystem,
+};
+
+#[derive(Debug)]
+pub struct CompileResults {
+    pub preprocessed: PreprocessorOutput,
+    pub state: CompilingState,
+}
+
+#[derive(Debug)]
+pub struct Compiler {
+    pub system_root: Rc<dyn PreprocessorFilesystem>,
+    pub start_file: PathBuf,
+    pub definitions: Vec<String>,
+    pub options: CodeGenerationOptions,
+}
+
+impl Compiler {
+    pub fn compile_file(&self, file: &Path) -> Result<CompileResults, CompilerError> {
+        self.compile_fs(file, Rc::new(RealFilesystem::default()))
+    }
+
+    pub fn compile_string(
+        &self,
+        s: &str,
+        name: Option<&Path>,
+    ) -> Result<CompileResults, CompilerError> {
+        let file = name.map_or(PathBuf::from("input.cb"), |x| x.to_path_buf());
+        self.compile_fs(&file, Rc::new(VirtualFilesystem::new(s, &file)))
+    }
+
+    fn compile_fs(
+        &self,
+        file: &Path,
+        fs: Rc<dyn PreprocessorFilesystem>,
+    ) -> Result<CompileResults, CompilerError> {
+        let mut state = PreprocessorState::new_system(fs, self.system_root.clone());
+        for d in self.definitions.iter().cloned() {
+            state.definitions.insert(d);
+        }
+        let preprocessed = state.read_file(file)?;
+
+        // Tokenize the input preprocessed data
+        let input_tokens = preprocessed.tokenize()?;
+
+        // Compile the program
+        let cbstate = compile_tokens(input_tokens.clone(), self.options.clone())?;
+
+        Ok(CompileResults {
+            preprocessed,
+            state: cbstate,
+        })
+    }
+}
 
 #[cfg(test)]
 mod test {

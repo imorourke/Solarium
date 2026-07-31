@@ -17,6 +17,7 @@ use crate::{
     expressions::{Expression, RegisterDef, TemporaryStackTracker},
     functions::{FunctionDeclaration, FunctionDefinition},
     literals::{Literal, StringLiteral},
+    preprocessor::PreprocessorError,
     tokenizer::{
         KEYWORD_CONST, KEYWORD_GLOBAL, KEYWORD_IMPORT, KEYWORD_STRUCT, Token, TokenIter,
         get_identifier, is_identifier, tokenize_str,
@@ -420,6 +421,7 @@ pub enum CompilerError {
     AssemblerError(AssemblerErrorLoc),
     TokenError(TokenError),
     IoError(io::Error),
+    PreprocessorError(PreprocessorError),
 }
 
 impl Display for CompilerError {
@@ -428,6 +430,7 @@ impl Display for CompilerError {
             Self::AssemblerError(e) => write!(f, "Assembler: {e}"),
             Self::TokenError(e) => write!(f, "Token: {e}"),
             Self::IoError(e) => write!(f, "IO: {e}"),
+            Self::PreprocessorError(e) => write!(f, "Preprocessor: {e}"),
         }
     }
 }
@@ -447,6 +450,12 @@ impl From<TokenError> for CompilerError {
 impl From<io::Error> for CompilerError {
     fn from(value: io::Error) -> Self {
         Self::IoError(value)
+    }
+}
+
+impl From<PreprocessorError> for CompilerError {
+    fn from(value: PreprocessorError) -> Self {
+        Self::PreprocessorError(value)
     }
 }
 
