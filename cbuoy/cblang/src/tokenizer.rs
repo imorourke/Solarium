@@ -387,6 +387,8 @@ pub const KEYWORD_STRUCT: &str = "struct";
 pub const KEYWORD_VOID: &str = "void";
 pub const KEYWORD_BREAK: &str = "break";
 pub const KEYWORD_RETURN: &str = "return";
+pub const KEYWORD_UPTR: &str = "uptr";
+pub const KEYWORD_IPTR: &str = "iptr";
 
 static RESERVED_KEYWORDS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let keywords = [
@@ -408,6 +410,8 @@ static RESERVED_KEYWORDS: LazyLock<HashSet<String>> = LazyLock::new(|| {
         KEYWORD_VOID,
         KEYWORD_BREAK,
         KEYWORD_RETURN,
+        KEYWORD_UPTR,
+        KEYWORD_IPTR,
     ]
     .map(|v| v.to_string());
     let primitives = DataType::ALL.iter().map(|v| v.to_string());

@@ -8,7 +8,7 @@ use jib_cpu::cpu::DataType;
 
 use crate::compiler::{CompilingState, UserTypeOptions, UserTypeReference};
 use crate::expressions::parse_expression;
-use crate::tokenizer::KEYWORD_VOID;
+use crate::tokenizer::{KEYWORD_IPTR, KEYWORD_UPTR, KEYWORD_VOID};
 use crate::{
     tokenizer::{
         KEYWORD_CONST, KEYWORD_FN, KEYWORD_STRUCT, Token, TokenError, TokenIter, get_identifier,
@@ -55,6 +55,10 @@ impl Type {
             Ok(Self::Function(Rc::new(Function::read_tokens(
                 tokens, state, false,
             )?)))
+        } else if t.get_value() == KEYWORD_UPTR {
+            Ok(Self::Primitive(DataType::U32))
+        } else if t.get_value() == KEYWORD_IPTR {
+            Ok(Self::Primitive(DataType::I32))
         } else if is_identifier(t.get_value()) {
             state.get_user_type(&t)?.get_type(false)
         } else if let Ok(p) = DataType::try_from(t.get_value()) {
