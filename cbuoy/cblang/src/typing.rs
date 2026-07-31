@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::rc::Rc;
@@ -220,46 +221,26 @@ impl StructDefinition {
         Ok(())
     }
 
-    pub fn without_non_exported(&self) -> Option<Self> {
-        // TODO - Perhaps return a list of used unexported structures instead of rewriting with *u32
-        fn type_without_exported(t: &Type, rewrite_ok: bool) -> Result<Type, Type> {
+    pub fn find_unexported_structs(&self) -> HashSet<String> {
+        let mut structs = HashSet::new();
+
+        fn type_without_exported(t: &Type, unexported: &mut HashSet<String>) {
             match t {
-                Type::Array(size, inner) => Ok(Type::Array(
-                    *size,
-                    Box::new(type_without_exported(inner, false)?),
-                )),
-                Type::Pointer(inner) => {
-                    Ok(Type::Pointer(Box::new(type_without_exported(inner, true)?)))
+                Type::Array(_, inner) => type_without_exported(&inner, unexported),
+                Type::Pointer(inner) => type_without_exported(&inner, unexported),
+                Type::Const(inner) => type_without_exported(inner, unexported),
+                Type::Struct(def) if def.get_visibility() != Visiblity::Export => {
+                    unexported.insert(def.name.clone());
                 }
-                Type::Const(inner) => Ok(Type::Const(Box::new(type_without_exported(
-                    inner, rewrite_ok,
-                )?))),
-                Type::Struct(def) => {
-                    if rewrite_ok || def.get_visibility() == Visiblity::Export {
-                        Ok(match def.get_visibility() {
-                            Visiblity::Export => Type::Struct(def.clone()),
-                            _ => Type::Primitive(DataType::U32),
-                        })
-                    } else {
-                        Err(t.clone())
-                    }
-                }
-                x => Ok(x.clone()),
+                _ => (),
             }
         }
 
-        let mut new_struct = self.clone();
-        for (name, field) in new_struct.fields.iter_mut() {
-            match type_without_exported(&field.dtype, false) {
-                Ok(t) => {
-                    let mut new_field = field.as_ref().clone();
-                    new_field.dtype = t;
-                    *field = Rc::new(new_field);
-                }
-                Err(_s) => panic!("{} - {}", self.name, name),
-            }
+        for (_, field) in self.fields.iter() {
+            type_without_exported(&field.dtype, &mut structs);
         }
-        Some(new_struct)
+
+        structs
     }
 
     pub fn get_name(&self) -> &str {

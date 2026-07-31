@@ -1414,13 +1414,27 @@ impl InterfaceDefinition {
     pub fn write_interface<T: Write>(&self, f: &mut T) -> Result<(), std::io::Error> {
         if !self.structs.is_empty() {
             writeln!(f)?;
+            writeln!(f, "// Opaque Structures")?;
+            writeln!(f)?;
+
+            let mut opaque = HashSet::new();
+            for s in &self.structs {
+                opaque.extend(s.def.find_unexported_structs());
+            }
+
+            let mut sorted: Vec<_> = opaque.into_iter().collect();
+            sorted.sort();
+            for s in sorted {
+                writeln!(f, "{} {};", KEYWORD_STRUCT, s)?;
+            }
+
+            writeln!(f)?;
             writeln!(f, "// Structures")?;
             for i in &self.structs {
                 writeln!(f)?;
                 writeln!(f, "{} {} {{", KEYWORD_STRUCT, i.name)?;
 
-                let test_struct = i.def.without_non_exported().unwrap();
-                let mut fields = test_struct.get_fields().iter().collect::<Vec<_>>();
+                let mut fields = i.def.get_fields().iter().collect::<Vec<_>>();
                 fields.sort_by_key(|(_, x)| x.offset);
 
                 for (name, field) in fields {
