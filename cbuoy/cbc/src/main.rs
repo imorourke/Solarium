@@ -2,10 +2,7 @@
 /// interactively compile arbitary programs and use in various formats
 use std::{io::Write, path::PathBuf};
 
-use cblang::{
-    CodeGenerationOptions, CompilerError, ProgramType, compile_tokens,
-    preprocessor::{PreprocessorLine, read_and_preprocess},
-};
+use cblang::{CodeGenerationOptions, Compiler, ProgramType};
 use clap::Parser;
 
 /// Compiler arguments used to control how the compiler functions
@@ -129,20 +126,25 @@ fn main() -> std::process::ExitCode {
     let args = CompilerArguments::parse();
 
     // Construct the preprocessed argument list
-    let preprocessed =
-        match read_and_preprocess(&args.input_file, args.definitions.clone().into_iter()) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("{e}");
-                return std::process::ExitCode::FAILURE;
-            }
-        };
+    let compiled = Compiler {
+        definitions: args.definitions.clone(),
+        options: args.compiler_options(),
+        ..Default::default()
+    };
+
+    let result = match compiled.compile_file(&args.input_file) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
 
     // Write the preprocessed data if provided
     if let Some(file) = &args.output_preproc {
         match std::fs::File::create(file) {
             Ok(mut f) => {
-                for l in preprocessed.get_lines() {
+                for l in result.preprocessed.get_lines() {
                     writeln!(f, "{}", l.text).unwrap();
                 }
             }
@@ -156,29 +158,9 @@ fn main() -> std::process::ExitCode {
         }
     }
 
-    // Tokenize the input preprocessed data
-    let input_tokens = {
-        match preprocessed.tokenize() {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("{e}");
-                return std::process::ExitCode::FAILURE;
-            }
-        }
-    };
-
-    // Compile the program
-    let cbstate = match compile_tokens(input_tokens.clone(), args.compiler_options()) {
-        Ok(asm) => asm,
-        Err(e) => {
-            print_error(preprocessed.get_lines(), &e.into());
-            return std::process::ExitCode::FAILURE;
-        }
-    };
-
     // Prints the AST if requested
     if args.print_ast {
-        println!("{}", cbstate.get_statements().join("\n"));
+        println!("{}", result.ast_statements.join("\n"));
     }
 
     // Define the interface file if requested
@@ -191,34 +173,23 @@ fn main() -> std::process::ExitCode {
             }
         };
 
-        match cbstate.get_export_interface() {
-            Ok(mut x) => {
-                // Check compiler options
-                if args.zero_locations {
-                    x = x.zero_offsets();
-                }
+        let mut x = result.interface.clone();
+        if args.zero_locations {
+            x = x.zero_offsets();
+        }
 
-                // Write to the output file
-                x.write_interface(&mut interface_file).unwrap();
-            }
+        match x.write_interface(&mut interface_file) {
+            Ok(_) => (),
             Err(e) => {
-                print_error(preprocessed.get_lines(), &e);
+                eprintln!("{e}");
                 return std::process::ExitCode::FAILURE;
             }
         }
     }
 
-    // Assemble the compiled program
-    let asm = match cbstate.get_assembler() {
-        Ok(v) => v,
-        Err(e) => {
-            print_error(preprocessed.get_lines(), &e);
-            return std::process::ExitCode::FAILURE;
-        }
-    };
-
     // Output the assembly if requested
     if let Some(out) = args.output_assembly {
+        let asm = &result.asm;
         match std::fs::File::create(out) {
             Ok(mut f) => {
                 for l in &asm.assembly_lines {
@@ -239,16 +210,8 @@ fn main() -> std::process::ExitCode {
 
     // Output the binary if requested
     if let Some(out) = args.output_binary {
-        let data = match cbstate.get_binary() {
-            Ok(v) => v,
-            Err(e) => {
-                print_error(preprocessed.get_lines(), &e);
-                return std::process::ExitCode::FAILURE;
-            }
-        };
-
         match std::fs::File::create(out) {
-            Ok(mut f) => f.write_all(&data).unwrap(),
+            Ok(mut f) => f.write_all(&result.binary).unwrap(),
             Err(e) => {
                 eprintln!("{e}");
                 return std::process::ExitCode::FAILURE;
@@ -257,29 +220,4 @@ fn main() -> std::process::ExitCode {
     }
 
     std::process::ExitCode::SUCCESS
-}
-
-/// Helper funciton to print an error with teh associated context
-fn print_error(txt: &[PreprocessorLine], err: &CompilerError) {
-    eprintln!("Error: {}", err);
-
-    if let CompilerError::TokenError(err) = err
-        && let Some(t) = &err.token
-    {
-        for l in txt.iter() {
-            if l.loc.line == t.get_loc().line && Some(&l.loc.file) == t.get_loc().file.as_ref() {
-                let line = &l.text;
-                eprintln!("{} >> {line}", l.loc);
-                eprint!("{}    ", l.loc);
-                for _ in 0..t.get_loc().column {
-                    eprint!(" ");
-                }
-                for _ in 0..t.get_value().len() {
-                    eprint!("^");
-                }
-                eprintln!();
-                break;
-            }
-        }
-    }
 }

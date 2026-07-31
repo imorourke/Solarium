@@ -15,33 +15,39 @@ use std::{
 };
 
 pub use compiler::{CodeGenerationOptions, CompilerError, CompilingState, ProgramType};
+use jib_asm::AssemblerOutput;
 pub use parser::{compile_str, compile_tokens};
 use preprocessor::read_and_preprocess;
 pub use tokenizer::{TokenError, tokenize, tokenize_file, tokenize_str};
 pub use typing::Type;
 
-use crate::preprocessor::{
-    PreprocessorFilesystem, PreprocessorOutput, PreprocessorState, RealFilesystem,
-    VirtualFilesystem,
+use crate::{
+    compiler::InterfaceDefinition,
+    preprocessor::{
+        PreprocessorFilesystem, PreprocessorOutput, PreprocessorState, RealFilesystem,
+        VirtualFilesystem,
+    },
 };
 
 #[derive(Debug)]
 pub struct CompileResults {
     pub preprocessed: PreprocessorOutput,
-    pub state: CompilingState,
+    pub interface: InterfaceDefinition,
+    pub asm: AssemblerOutput,
+    pub binary: Vec<u8>,
+    pub ast_statements: Vec<String>,
 }
 
 #[derive(Debug)]
 pub struct Compiler {
     pub system_root: Rc<dyn PreprocessorFilesystem>,
-    pub start_file: PathBuf,
     pub definitions: Vec<String>,
     pub options: CodeGenerationOptions,
 }
 
 impl Compiler {
     pub fn compile_file(&self, file: &Path) -> Result<CompileResults, CompilerError> {
-        self.compile_fs(file, Rc::new(RealFilesystem::default()))
+        self.compile_inner(file, Rc::new(RealFilesystem::default()))
     }
 
     pub fn compile_string(
@@ -50,10 +56,10 @@ impl Compiler {
         name: Option<&Path>,
     ) -> Result<CompileResults, CompilerError> {
         let file = name.map_or(PathBuf::from("input.cb"), |x| x.to_path_buf());
-        self.compile_fs(&file, Rc::new(VirtualFilesystem::new(s, &file)))
+        self.compile_inner(&file, Rc::new(VirtualFilesystem::new(s, &file)))
     }
 
-    fn compile_fs(
+    fn compile_inner(
         &self,
         file: &Path,
         fs: Rc<dyn PreprocessorFilesystem>,
@@ -68,22 +74,68 @@ impl Compiler {
         let input_tokens = preprocessed.tokenize()?;
 
         // Compile the program
-        let cbstate = compile_tokens(input_tokens.clone(), self.options.clone())?;
+        let state = match compile_tokens(input_tokens.clone(), self.options.clone()) {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(CompilerError::TokenErrorFancy(e, preprocessed));
+            }
+        };
+
+        let asm = match state.get_assembler() {
+            Ok(v) => v,
+            Err(CompilerError::TokenError(e)) => {
+                return Err(CompilerError::TokenErrorFancy(e, preprocessed));
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        let interface = match state.get_export_interface() {
+            Ok(v) => v,
+            Err(CompilerError::TokenError(e)) => {
+                return Err(CompilerError::TokenErrorFancy(e, preprocessed));
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        let binary = match state.get_binary() {
+            Ok(v) => v,
+            Err(CompilerError::TokenError(e)) => {
+                return Err(CompilerError::TokenErrorFancy(e, preprocessed));
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         Ok(CompileResults {
             preprocessed,
-            state: cbstate,
+            interface,
+            asm,
+            binary,
+            ast_statements: state.get_statements(),
         })
+    }
+}
+
+impl Default for Compiler {
+    fn default() -> Self {
+        Self {
+            definitions: Vec::default(),
+            options: CodeGenerationOptions::default(),
+            system_root: Rc::new(VirtualFilesystem::new_system()),
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
+    use crate::Compiler;
     use jib_asm::assemble_lines;
-
-    use crate::{CodeGenerationOptions, compile_tokens, tokenize_file};
+    use std::path::Path;
 
     static EXAMPLE_FILES: &[&str] = &[
         "examples/array_test.cb",
@@ -94,19 +146,21 @@ mod test {
         "tests/test_kmalloc.cb",
         "tests/test_struct_ptr.cb",
         "tests/test_comment.cb",
+        "tests/test_struct_ptr.cb",
     ];
 
     #[test]
     fn valid_compiling_and_assembler_output() {
         for s in EXAMPLE_FILES {
             let input_file = Path::join(&Path::new(env!("CARGO_MANIFEST_DIR")), &Path::new(s));
-            let tokens = tokenize_file(&input_file).unwrap();
-            let cb_out = compile_tokens(tokens, CodeGenerationOptions::default()).unwrap();
-            let asm_out_main = cb_out.get_assembler().unwrap();
-            let asm_out_duplicate =
-                assemble_lines(asm_out_main.assembly_lines.iter().map(|x| x.as_ref())).unwrap();
+            let compiler = Compiler::default();
 
-            assert_eq!(asm_out_main.bytes, asm_out_duplicate.bytes);
+            let res = compiler.compile_file(&input_file).unwrap();
+
+            let asm_out_duplicate =
+                assemble_lines(res.asm.assembly_lines.iter().map(|x| x.as_ref())).unwrap();
+
+            assert_eq!(res.asm.bytes, asm_out_duplicate.bytes);
         }
     }
 }

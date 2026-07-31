@@ -377,6 +377,7 @@ impl From<CompilerError> for ComputerError {
         match value {
             CompilerError::AssemblerError(v) => Self::AssemblerErrorLoc(v),
             CompilerError::TokenError(v) => Self::TokenError(v),
+            CompilerError::TokenErrorFancy(v, _) => Self::TokenError(v),
             CompilerError::IoError(v) => Self::IoError(v),
             CompilerError::PreprocessorError(v) => Self::PreprocessorError(v),
         }

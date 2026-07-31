@@ -17,7 +17,7 @@ use crate::{
     expressions::{Expression, RegisterDef, TemporaryStackTracker},
     functions::{FunctionDeclaration, FunctionDefinition},
     literals::{Literal, StringLiteral},
-    preprocessor::PreprocessorError,
+    preprocessor::{PreprocessorError, PreprocessorOutput},
     tokenizer::{
         KEYWORD_CONST, KEYWORD_GLOBAL, KEYWORD_IMPORT, KEYWORD_STRUCT, Token, TokenIter,
         get_identifier, is_identifier, tokenize_str,
@@ -420,8 +420,38 @@ impl AccessState {
 pub enum CompilerError {
     AssemblerError(AssemblerErrorLoc),
     TokenError(TokenError),
+    TokenErrorFancy(TokenError, PreprocessorOutput),
     IoError(io::Error),
     PreprocessorError(PreprocessorError),
+}
+
+impl CompilerError {
+    pub fn print_error(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Error: {}", self)?;
+
+        if let Self::TokenErrorFancy(err, txt) = &self
+            && let Some(t) = &err.token
+        {
+            for l in txt.get_lines() {
+                if l.loc.line == t.get_loc().line && Some(&l.loc.file) == t.get_loc().file.as_ref()
+                {
+                    let line = &l.text;
+                    writeln!(f, "{} >> {line}", l.loc)?;
+                    write!(f, "{}    ", l.loc)?;
+                    for _ in 0..t.get_loc().column {
+                        write!(f, " ")?;
+                    }
+                    for _ in 0..t.get_value().len() {
+                        write!(f, "^")?;
+                    }
+                    writeln!(f)?;
+                    break;
+                }
+            }
+        }
+
+        std::fmt::Result::Ok(())
+    }
 }
 
 impl Display for CompilerError {
@@ -429,6 +459,7 @@ impl Display for CompilerError {
         match self {
             Self::AssemblerError(e) => write!(f, "Assembler: {e}"),
             Self::TokenError(e) => write!(f, "Token: {e}"),
+            Self::TokenErrorFancy(e, _) => write!(f, "Token: {e}"),
             Self::IoError(e) => write!(f, "IO: {e}"),
             Self::PreprocessorError(e) => write!(f, "Preprocessor: {e}"),
         }
