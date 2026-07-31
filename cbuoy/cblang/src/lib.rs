@@ -10,7 +10,7 @@ mod utilities;
 mod variables;
 
 pub use compiler::{CodeGenerationOptions, CompilerError, CompilingState, ProgramType};
-pub use parser::{compile, compile_str};
+pub use parser::{compile_str, compile_tokens};
 use preprocessor::read_and_preprocess;
 pub use tokenizer::{TokenError, tokenize, tokenize_file, tokenize_str};
 pub use typing::Type;
@@ -21,7 +21,7 @@ mod test {
 
     use jib_asm::assemble_lines;
 
-    use crate::{CodeGenerationOptions, compile, tokenize_file};
+    use crate::{CodeGenerationOptions, compile_tokens, tokenize_file};
 
     static EXAMPLE_FILES: &[&str] = &[
         "examples/array_test.cb",
@@ -39,7 +39,7 @@ mod test {
         for s in EXAMPLE_FILES {
             let input_file = Path::join(&Path::new(env!("CARGO_MANIFEST_DIR")), &Path::new(s));
             let tokens = tokenize_file(&input_file).unwrap();
-            let cb_out = compile(tokens, CodeGenerationOptions::default()).unwrap();
+            let cb_out = compile_tokens(tokens, CodeGenerationOptions::default()).unwrap();
             let asm_out_main = cb_out.get_assembler().unwrap();
             let asm_out_duplicate =
                 assemble_lines(asm_out_main.assembly_lines.iter().map(|x| x.as_ref())).unwrap();

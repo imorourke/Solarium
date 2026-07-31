@@ -791,7 +791,7 @@ impl CodeWindow {
 
         let options = CodeGenerationOptions::default();
 
-        match cblang::compile(tokens, options).map_err(CompilerError::from) {
+        match cblang::compile_tokens(tokens, options).map_err(CompilerError::from) {
             Ok(cmp) => Some(cmp),
             Err(CompilerError::TokenError(e)) => {
                 self.log_error(TokenErrorContext {

@@ -3,7 +3,7 @@
 use std::{io::Write, path::PathBuf};
 
 use cblang::{
-    CodeGenerationOptions, CompilerError, ProgramType, compile,
+    CodeGenerationOptions, CompilerError, ProgramType, compile_tokens,
     preprocessor::{PreprocessorLine, read_and_preprocess},
 };
 use clap::Parser;
@@ -168,7 +168,7 @@ fn main() -> std::process::ExitCode {
     };
 
     // Compile the program
-    let cbstate = match compile(input_tokens.clone(), args.compiler_options()) {
+    let cbstate = match compile_tokens(input_tokens.clone(), args.compiler_options()) {
         Ok(asm) => asm,
         Err(e) => {
             print_error(preprocessed.get_lines(), &e.into());

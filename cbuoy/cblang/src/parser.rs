@@ -10,10 +10,10 @@ use crate::{
 };
 
 pub fn compile_str(s: &str, options: CodeGenerationOptions) -> Result<CompilingState, TokenError> {
-    compile(tokenize_str(s)?, options)
+    compile_tokens(tokenize_str(s)?, options)
 }
 
-pub fn compile(
+pub fn compile_tokens(
     tokens: Vec<Token>,
     options: CodeGenerationOptions,
 ) -> Result<CompilingState, TokenError> {

@@ -85,7 +85,7 @@ impl JibOsImage {
             ..Default::default()
         };
 
-        Ok(cblang::compile(tokens, options)?)
+        Ok(cblang::compile_tokens(tokens, options)?)
     }
 
     pub fn compile_app_code(
@@ -113,7 +113,7 @@ impl JibOsImage {
             ..Default::default()
         };
 
-        Ok(cblang::compile(tokens, options)?)
+        Ok(cblang::compile_tokens(tokens, options)?)
     }
 
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
