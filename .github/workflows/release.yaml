@@ -399,4 +399,6 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
+          generate_release_notes: true
+          make_latest: true
           files: release-artifacts/*
