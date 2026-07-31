@@ -120,38 +120,39 @@ impl PreprocessorOutput {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PreprocessorState {
-    pub filesystem: Box<dyn PreprocessorFilesystem>,
-    pub system_fs: Box<dyn PreprocessorFilesystem>,
-    definitions: HashSet<String>,
-    if_statements: Vec<IfState>,
+    pub filesystem: Rc<dyn PreprocessorFilesystem>,
+    pub system_fs: Rc<dyn PreprocessorFilesystem>,
+    pub definitions: HashSet<String>,
 }
 
 impl PreprocessorState {
-    pub fn new(fs: Box<dyn PreprocessorFilesystem>) -> PreprocessorState {
+    pub fn new(fs: Rc<dyn PreprocessorFilesystem>) -> PreprocessorState {
         Self {
             filesystem: fs,
-            system_fs: Box::new(VirtualFilesystem::new_system()),
+            system_fs: Rc::new(VirtualFilesystem::new_system()),
             definitions: HashSet::default(),
-            if_statements: Vec::default(),
         }
     }
 
     pub fn new_system(
-        fs: Box<dyn PreprocessorFilesystem>,
-        sys: Box<dyn PreprocessorFilesystem>,
+        fs: Rc<dyn PreprocessorFilesystem>,
+        sys: Rc<dyn PreprocessorFilesystem>,
     ) -> PreprocessorState {
         Self {
             filesystem: fs,
             system_fs: sys,
             definitions: HashSet::default(),
-            if_statements: Vec::default(),
         }
     }
 
-    fn read_file(&mut self, file: &Path) -> Result<PreprocessorOutput, PreprocessorError> {
-        self.read_file_inner(file, 0, false)
+    pub(crate) fn read_file(
+        &mut self,
+        file: &Path,
+    ) -> Result<PreprocessorOutput, PreprocessorError> {
+        let mut if_statements = Vec::default();
+        self.read_file_inner(file, 0, false, &mut if_statements)
     }
 
     fn find_comment_spans(
@@ -273,6 +274,7 @@ impl PreprocessorState {
         file: &Path,
         level: i32,
         use_system_fs: bool,
+        if_statements: &mut Vec<IfState>,
     ) -> Result<PreprocessorOutput, PreprocessorError> {
         let fname: Rc<str> = file.to_str().unwrap().into();
 
@@ -337,15 +339,14 @@ impl PreprocessorState {
                             &file_to_load,
                             level + 1,
                             use_system_fs || use_system,
+                            if_statements,
                         )?
                         .lines,
                     );
                 } else if verb == "ifdef" {
-                    self.if_statements
-                        .push(IfState::new(self.definitions.contains(arg)));
+                    if_statements.push(IfState::new(self.definitions.contains(arg)));
                 } else if verb == "ifndef" {
-                    self.if_statements
-                        .push(IfState::new(!self.definitions.contains(arg)));
+                    if_statements.push(IfState::new(!self.definitions.contains(arg)));
                 } else if verb == "define" {
                     self.definitions.insert(arg.into());
                 } else if verb == "else" {
@@ -353,7 +354,7 @@ impl PreprocessorState {
                         return Err(gen_error("no argument expected for line"));
                     }
 
-                    if let Some(state) = self.if_statements.last_mut() {
+                    if let Some(state) = if_statements.last_mut() {
                         if state.is_else {
                             return Err(gen_error(
                                 "else statement already used for this statement",
@@ -365,7 +366,7 @@ impl PreprocessorState {
                 } else if verb == "endif" {
                     if !arg.is_empty() {
                         return Err(gen_error("no argument expected for line"));
-                    } else if self.if_statements.pop().is_none() {
+                    } else if if_statements.pop().is_none() {
                         return Err(gen_error(
                             "cannot end an if statement after all statements have been applied already",
                         ));
@@ -375,7 +376,7 @@ impl PreprocessorState {
                         "unknown preprocessor action '{verb}' with arg '{arg}'"
                     )));
                 }
-            } else if self.if_statements.iter().all(|x| x.get_current()) {
+            } else if if_statements.iter().all(|x| x.get_current()) {
                 lines.push(PreprocessorLine {
                     text: l.into(),
                     loc: PreprocessorLocation {
@@ -386,7 +387,7 @@ impl PreprocessorState {
             }
         }
 
-        if level == 0 && !self.if_statements.is_empty() {
+        if level == 0 && !if_statements.is_empty() {
             Err(PreprocessorError {
                 loc: None,
                 text: String::default(),
@@ -683,7 +684,7 @@ pub fn preprocess_code_with_fs<I: Iterator<Item = String>>(
     fs: VirtualFilesystem,
     defs: I,
 ) -> Result<PreprocessorOutput, PreprocessorError> {
-    let mut state = PreprocessorState::new(Box::new(fs));
+    let mut state = PreprocessorState::new(Rc::new(fs));
     for d in defs.into_iter() {
         state.definitions.insert(d);
     }
@@ -694,7 +695,7 @@ pub fn read_and_preprocess<I: Iterator<Item = String>>(
     file: &Path,
     defs: I,
 ) -> Result<PreprocessorOutput, PreprocessorError> {
-    let mut state = PreprocessorState::new(Box::new(RealFilesystem::default()));
+    let mut state = PreprocessorState::new(Rc::new(RealFilesystem::default()));
     for d in defs.into_iter() {
         state.definitions.insert(d);
     }
