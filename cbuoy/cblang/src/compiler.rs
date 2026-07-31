@@ -811,22 +811,28 @@ impl CompilingState {
                     }
                 };
 
-                if matches!(ty, UserTypeOptions::ConcreteType(_)) {
-                    if let UserTypeOptions::ConcreteType(Type::Struct(s)) = &ty {
-                        self.struct_defs.push((opaque_token.clone(), s.clone()));
+                match ty {
+                    UserTypeOptions::ConcreteType(_) => {
+                        if let UserTypeOptions::ConcreteType(Type::Struct(s)) = &ty {
+                            self.struct_defs.push((opaque_token.clone(), s.clone()));
+                        }
+                        *e.get_mut() = GlobalScopeValue {
+                            access_state: Rc::new(RefCell::new(AccessState::new(get_identifier(
+                                &opaque_token,
+                            )?))),
+                            value: GlobalType::UserType(opaque_token, ty),
+                            visibility,
+                        };
+                        Ok(())
                     }
-                    *e.get_mut() = GlobalScopeValue {
-                        access_state: Rc::new(RefCell::new(AccessState::new(get_identifier(
-                            &opaque_token,
-                        )?))),
-                        value: GlobalType::UserType(opaque_token, ty),
-                        visibility,
-                    };
-                    Ok(())
-                } else {
-                    Err(name.into_err(
+                    UserTypeOptions::OpaqueType(tok)
+                        if tok.get_value() == opaque_token.get_value() =>
+                    {
+                        Ok(()) // Allow duplicate entries
+                    }
+                    _ => Err(name.into_err(
                         "provided type is not a concrete type to upgrade opaque type with",
-                    ))
+                    )),
                 }
             }
             Entry::Vacant(e) => {

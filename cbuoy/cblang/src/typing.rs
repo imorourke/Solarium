@@ -160,7 +160,7 @@ impl StructDefinition {
         tokens: &mut TokenIter,
         state: &mut CompilingState,
         visiblity: Visiblity,
-    ) -> Result<(Rc<Self>, Token), TokenError> {
+    ) -> Result<(), TokenError> {
         tokens.expect(KEYWORD_STRUCT)?;
         let name = tokens.next()?;
         get_identifier(&name)?;
@@ -170,6 +170,11 @@ impl StructDefinition {
             UserTypeOptions::OpaqueType(name.clone()),
             visiblity,
         )?;
+
+        if tokens.expect_peek(";") {
+            tokens.expect(";")?;
+            return Ok(());
+        }
 
         let mut s = Self {
             name: name.get_value().to_string(),
@@ -211,7 +216,8 @@ impl StructDefinition {
             UserTypeOptions::ConcreteType(Type::Struct(rs.clone())),
             visiblity,
         )?;
-        Ok((rs, name))
+
+        Ok(())
     }
 
     pub fn without_non_exported(&self) -> Option<Self> {
