@@ -416,7 +416,7 @@ impl eframe::App for VisualJib {
                                 "threading.cb",
                             ),
                             (
-                                "kmalloc",
+                                "Memory",
                                 include_str!("../../cbuoy/cblang/tests/test_kmalloc.cb"),
                                 "test/kmalloc.cb",
                             ),
