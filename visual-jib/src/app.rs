@@ -1,9 +1,7 @@
 use crate::cpu_thread::CpuState;
 use crate::messages::{ThreadToUi, UiToThread};
-use cblang::{
-    CodeGenerationOptions, CompilerError, CompilingState, TokenError,
-    preprocessor::PreprocessorOutput,
-};
+use cblang::{CompileResults, Compiler};
+use cblang::{CompilerError, TokenError};
 use eframe::egui::{
     self, CentralPanel, Context, Grid, Id, Layout, MenuBar, ScrollArea, Slider, TextBuffer,
     TextEdit,
@@ -11,7 +9,8 @@ use eframe::egui::{
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::JibCode;
 use jib_cpu::cpu::RegisterManager;
-use std::{path::PathBuf, sync::LazyLock, time::Duration};
+use std::path::Path;
+use std::{sync::LazyLock, time::Duration};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct ProgramCounterView {
@@ -759,49 +758,17 @@ impl CodeWindow {
             .unwrap();
     }
 
-    fn compile_cbuoy_to_asm(&self) -> Option<CompilingState> {
-        let preprocessed = match cblang::preprocessor::preprocess_code_as_file(
-            &self.code,
-            &if let Some(f) = &self.filename {
-                PathBuf::from(f)
-            } else {
-                PathBuf::from("code.cb")
-            },
-            [].into_iter(),
-        ) {
-            Ok(val) => val,
+    fn compile_cbuoy_to_asm(&self) -> Option<CompileResults> {
+        let compiler = Compiler::default();
+        match compiler.compile_string(&self.code, self.filename.map(Path::new)) {
+            Ok(val) => Some(val),
             Err(err) => {
                 self.tx_thread
                     .send(ThreadToUi::LogMessage(format!(
-                        "{} Preprocessor: {err}",
+                        "{} Compiler: {err}",
                         Self::CB_NAME
                     )))
                     .unwrap();
-                return None;
-            }
-        };
-
-        let tokens = match preprocessed.tokenize() {
-            Ok(val) => val,
-            Err(e) => {
-                self.log_error(e);
-                return None;
-            }
-        };
-
-        let options = CodeGenerationOptions::default();
-
-        match cblang::compile_tokens(tokens, options).map_err(CompilerError::from) {
-            Ok(cmp) => Some(cmp),
-            Err(CompilerError::TokenError(e)) => {
-                self.log_error(TokenErrorContext {
-                    e,
-                    preprocessed: Some(preprocessed),
-                });
-                None
-            }
-            Err(e) => {
-                self.log_error(e);
                 None
             }
         }
@@ -809,66 +776,58 @@ impl CodeWindow {
 
     fn compile_cbuoy(&self) {
         if let Some(cmp) = self.compile_cbuoy_to_asm() {
-            match cmp.get_assembler() {
-                Ok(asm) => {
-                    let mut code = asm.bytes;
+            let asm = cmp.asm;
+            let mut code = asm.bytes;
 
-                    // Determine the export region location and length values, searching
-                    // for the key variables to assign into the kernel
-                    let export_bytes = cmp
-                        .get_export_interface()
-                        .unwrap()
-                        .get_interface_region()
-                        .unwrap();
+            // Determine the export region location and length values, searching
+            // for the key variables to assign into the kernel
+            let export_bytes = cmp.interface.get_interface_region().unwrap();
 
-                    const VAR_EXPORT_DATA: &str = "K_LINK_EXPORT_DATA";
-                    const VAR_EXPORT_SIZE: &str = "K_LINK_EXPORT_SIZE";
+            const VAR_EXPORT_DATA: &str = "K_LINK_EXPORT_DATA";
+            const VAR_EXPORT_SIZE: &str = "K_LINK_EXPORT_SIZE";
 
-                    let export_loc = code.len() as u32 + asm.start_address;
-                    let export_len = export_bytes.len();
+            let export_loc = code.len() as u32 + asm.start_address;
+            let export_len = export_bytes.len();
 
-                    let mut assign_data = None;
-                    let mut assign_size = None;
+            let mut assign_data = None;
+            let mut assign_size = None;
 
-                    for v in cmp.get_import_interface().unwrap_or_default().variables {
-                        if v.name == VAR_EXPORT_DATA {
-                            assign_data = Some((v.loc - asm.start_address, export_loc));
-                        } else if v.name == VAR_EXPORT_SIZE {
-                            assign_size = Some((v.loc - asm.start_address, export_len as u32));
-                        }
-                    }
-
-                    // If both variables were found, assign the respective variables and add the
-                    // export region to the compiled code
-                    if let Some(a1) = assign_data
-                        && let Some(a2) = assign_size
-                    {
-                        for (copy_loc, val) in [a1, a2] {
-                            let bytes = val.to_be_bytes();
-                            for (i, b) in bytes.iter().enumerate() {
-                                code[copy_loc as usize + i] = *b;
-                            }
-                        }
-
-                        code.extend(export_bytes);
-                    }
-
-                    // Send the code
-                    self.tx_ui
-                        .send(UiToThread::SetCode(JibCode {
-                            start_location: asm.start_address,
-                            code,
-                        }))
-                        .unwrap();
-                    self.tx_thread
-                        .send(ThreadToUi::LogMessage(format!(
-                            "{}: Compile Successful",
-                            Self::CB_NAME
-                        )))
-                        .unwrap();
+            for v in cmp.interface.variables {
+                if v.name == VAR_EXPORT_DATA {
+                    assign_data = Some((v.loc - asm.start_address, export_loc));
+                } else if v.name == VAR_EXPORT_SIZE {
+                    assign_size = Some((v.loc - asm.start_address, export_len as u32));
                 }
-                Err(e) => self.log_error(e),
             }
+
+            // If both variables were found, assign the respective variables and add the
+            // export region to the compiled code
+            if let Some(a1) = assign_data
+                && let Some(a2) = assign_size
+            {
+                for (copy_loc, val) in [a1, a2] {
+                    let bytes = val.to_be_bytes();
+                    for (i, b) in bytes.iter().enumerate() {
+                        code[copy_loc as usize + i] = *b;
+                    }
+                }
+
+                code.extend(export_bytes);
+            }
+
+            // Send the code
+            self.tx_ui
+                .send(UiToThread::SetCode(JibCode {
+                    start_location: asm.start_address,
+                    code,
+                }))
+                .unwrap();
+            self.tx_thread
+                .send(ThreadToUi::LogMessage(format!(
+                    "{}: Compile Successful",
+                    Self::CB_NAME
+                )))
+                .unwrap();
         }
     }
 
@@ -895,8 +854,8 @@ impl CodeWindow {
                 if self.compiled == CodeWindowType::Cbuoy
                     && ui.button("Show Assembly").clicked()
                     && let Some(cmp_out) = self.compile_cbuoy_to_asm()
-                    && let Some(asm_out) = cmp_out.get_assembler().ok()
                 {
+                    let asm_out = cmp_out.asm;
                     let asm = format!(
                         "{}\n{}",
                         asm_out.assembly_lines.join("\n"),
@@ -944,41 +903,5 @@ impl ErrorString for CompilerError {
 impl ErrorString for TokenError {
     fn get_error_string(&self) -> String {
         format!("{}: Tokenize error {self}", CodeWindow::CB_NAME)
-    }
-}
-
-struct TokenErrorContext {
-    e: TokenError,
-    preprocessed: Option<PreprocessorOutput>,
-}
-
-impl ErrorString for TokenErrorContext {
-    fn get_error_string(&self) -> String {
-        let mut lines = Vec::new();
-        lines.push(format!("{}: {}", CodeWindow::CB_NAME, self.e));
-
-        if let Some(t) = &self.e.token
-            && let Some(preprocessed) = self.preprocessed.as_ref()
-        {
-            for l in preprocessed.get_lines().iter() {
-                if l.loc.line == t.get_loc().line && Some(&l.loc.file) == t.get_loc().file.as_ref()
-                {
-                    let line = &l.text;
-
-                    let mut err_msg = format!("{} >> {line}\n", l.loc);
-                    err_msg += &format!("{}    ", l.loc);
-                    for _ in 0..t.get_loc().column {
-                        err_msg += " ";
-                    }
-                    for _ in 0..t.get_value().len() {
-                        err_msg += "^";
-                    }
-                    lines.push(err_msg);
-                    break;
-                }
-            }
-        }
-
-        lines.join("\n")
     }
 }

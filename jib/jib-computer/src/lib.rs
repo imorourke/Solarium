@@ -232,7 +232,7 @@ impl JibComputer {
             Some(Self::BOOTLOADER_START),
             true,
         )?
-        .get_assembler()?
+        .asm
         .bytes
         .iter()
         .enumerate()
@@ -448,8 +448,7 @@ mod test {
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
         let asm = JibOsImage::compile_kernel_code(in_code, "input.cb", None, true)
             .unwrap()
-            .get_assembler()
-            .unwrap();
+            .asm;
 
         let mut cpu = JibComputer::new().unwrap();
         cpu.set_code(&JibCode {

@@ -552,7 +552,7 @@ pub struct VariableDefinition {
 }
 
 impl VariableDefinition {
-    pub fn parse(
+    pub(crate) fn parse(
         def_name: &str,
         tokens: &mut TokenIter,
         state: &mut CompilingState,

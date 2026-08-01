@@ -2,7 +2,7 @@
 /// interactively compile arbitary programs and use in various formats
 use std::{io::Write, path::PathBuf};
 
-use cblang::{CodeGenerationOptions, Compiler, ProgramType};
+use cblang::{CodeGenerationOptions, Compiler, ProgramType, compiler::InterfaceDefinition};
 use clap::Parser;
 
 /// Compiler arguments used to control how the compiler functions
@@ -94,7 +94,13 @@ struct CompilerArguments {
         long = "write-interface",
         help = "Writes an interface file for the provided symbols"
     )]
-    write_interface_file: Option<PathBuf>,
+    interface_file: Option<PathBuf>,
+    #[arg(
+        long = "interface-guard",
+        help = "The include guard to use for the interface file, or empty string for none",
+        default_value = "CBOS_DEFS"
+    )]
+    interface_guard: String,
     #[arg(
         short = 'z',
         long = "zero-locations",
@@ -164,8 +170,8 @@ fn main() -> std::process::ExitCode {
     }
 
     // Define the interface file if requested
-    if let Some(interface_path) = &args.write_interface_file {
-        let mut interface_file = match std::fs::File::create(interface_path) {
+    if let Some(interface_path) = &args.interface_file {
+        let interface_file = match std::fs::File::create(interface_path) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("Unable to open interface file - {e}");
@@ -173,15 +179,36 @@ fn main() -> std::process::ExitCode {
             }
         };
 
-        let mut x = result.interface.clone();
+        let mut interface = result.interface.clone();
         if args.zero_locations {
-            x = x.zero_offsets();
+            interface = interface.zero_offsets();
         }
 
-        match x.write_interface(&mut interface_file) {
+        fn write_interface(
+            mut interface_file: std::fs::File,
+            interface: InterfaceDefinition,
+            args: &CompilerArguments,
+        ) -> std::io::Result<()> {
+            if !args.interface_guard.is_empty() {
+                writeln!(interface_file, "#ifndef {}", args.interface_guard)?;
+                writeln!(interface_file, "#define {}", args.interface_guard)?;
+                writeln!(interface_file)?;
+            }
+
+            interface.write_interface(&mut interface_file)?;
+
+            if !args.interface_guard.is_empty() {
+                writeln!(interface_file)?;
+                writeln!(interface_file, "#endif // {}", args.interface_guard)?;
+            }
+
+            Ok(())
+        }
+
+        match write_interface(interface_file, interface, &args) {
             Ok(_) => (),
             Err(e) => {
-                eprintln!("{e}");
+                eprintln!("Error writing interface file - {e}");
                 return std::process::ExitCode::FAILURE;
             }
         }

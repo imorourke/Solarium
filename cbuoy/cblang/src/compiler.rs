@@ -493,7 +493,7 @@ struct GlobalScopeValue {
 }
 
 #[derive(Debug, Default)]
-pub struct CompilingState {
+pub(crate) struct CompilingState {
     statements: Vec<(Rc<str>, Rc<dyn GlobalStatement>)>,
     struct_defs: Vec<(Token, Rc<StructDefinition>)>,
     global_scope: HashMap<String, GlobalScopeValue>,
@@ -1413,25 +1413,27 @@ impl InterfaceDefinition {
     /// Provides the resulting interface text for
     pub fn write_interface<T: Write>(&self, f: &mut T) -> Result<(), std::io::Error> {
         if !self.structs.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "// Opaque Structures")?;
-            writeln!(f)?;
-
             let mut opaque = HashSet::new();
             for s in &self.structs {
                 opaque.extend(s.def.find_unexported_structs());
             }
 
             let mut sorted: Vec<_> = opaque.into_iter().collect();
-            sorted.sort();
-            for s in sorted {
-                writeln!(f, "{} {};", KEYWORD_STRUCT, s)?;
+            if !sorted.is_empty() {
+                writeln!(f, "// Opaque Structures")?;
+                writeln!(f)?;
+
+                sorted.sort();
+                for s in sorted {
+                    writeln!(f, "{} {};", KEYWORD_STRUCT, s)?;
+                }
+                writeln!(f)?;
             }
 
-            writeln!(f)?;
             writeln!(f, "// Structures")?;
+            writeln!(f)?;
+
             for i in &self.structs {
-                writeln!(f)?;
                 writeln!(f, "{} {} {{", KEYWORD_STRUCT, i.name)?;
 
                 let mut fields = i.def.get_fields().iter().collect::<Vec<_>>();
@@ -1442,11 +1444,11 @@ impl InterfaceDefinition {
                 }
 
                 writeln!(f, "}}")?;
+                writeln!(f)?;
             }
         }
 
         if !self.consts.is_empty() {
-            writeln!(f)?;
             writeln!(f, "// Constants")?;
             writeln!(f)?;
             for c in &self.consts {
@@ -1459,10 +1461,10 @@ impl InterfaceDefinition {
                     c.value
                 )?;
             }
+            writeln!(f)?;
         }
 
         if !self.variables.is_empty() {
-            writeln!(f)?;
             writeln!(f, "// Variables")?;
             writeln!(f)?;
             for i in &self.variables {
@@ -1476,10 +1478,10 @@ impl InterfaceDefinition {
                     i.loc,
                 )?;
             }
+            writeln!(f)?;
         }
 
         if !self.functions.is_empty() {
-            writeln!(f)?;
             writeln!(f, "// Functions")?;
             writeln!(f)?;
             for i in &self.functions {

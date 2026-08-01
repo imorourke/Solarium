@@ -1,8 +1,11 @@
 use cbfs_lib::{FileSystem, SectorHandle, VolumeHeader};
-use cblang::{CodeGenerationOptions, CompilingState, ProgramType, preprocessor::VirtualFilesystem};
+use cblang::{
+    CodeGenerationOptions, CompileResults, Compiler, ProgramType, preprocessor::VirtualFilesystem,
+};
 use std::{
     format,
     path::{Component, Path},
+    rc::Rc,
     vec::Vec,
 };
 
@@ -70,63 +73,59 @@ impl JibOsImage {
         name: &str,
         start_offset: Option<u32>,
         trim_code: bool,
-    ) -> Result<CompilingState, ComputerError> {
-        let preprocessed =
-            cblang::preprocessor::preprocess_code_as_file(code, Path::new(name), [].into_iter())?;
-
-        let tokens = preprocessed.tokenize()?;
-
-        let options = CodeGenerationOptions {
-            prog_type: ProgramType::Kernel {
-                stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
+    ) -> Result<CompileResults, ComputerError> {
+        let compiler = Compiler {
+            options: CodeGenerationOptions {
+                prog_type: ProgramType::Kernel {
+                    stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
+                    base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
+                },
+                trim_code,
+                ..Default::default()
             },
-            trim_code,
             ..Default::default()
         };
 
-        Ok(cblang::compile_tokens(tokens, options)?)
+        Ok(compiler.compile_string(code, Some(Path::new(name)))?)
     }
 
     pub fn compile_app_code(
         &self,
         code: &str,
         name: Option<&str>,
-    ) -> Result<CompilingState, ComputerError> {
-        const DEFUALT_NAME: &str = "main.cb";
+    ) -> Result<CompileResults, ComputerError> {
+        const DEFAULT_NAME: &str = "main.cb";
 
-        let mut fs = VirtualFilesystem::default();
-        fs.add_file(Path::new(&name.unwrap_or(DEFUALT_NAME)), code)?;
-        fs.add_file(Path::new(Self::DEFS_FILENAME), &self.kernel_header)?;
-
-        let preprocessed = cblang::preprocessor::preprocess_code_with_fs(
-            Path::new(name.unwrap_or(DEFUALT_NAME)),
-            fs,
-            [].into_iter(),
-        )?;
-
-        let tokens = preprocessed.tokenize()?;
-
-        let options = CodeGenerationOptions {
-            prog_type: ProgramType::Application,
-            trim_code: true,
+        let compiler = Compiler {
+            options: CodeGenerationOptions {
+                prog_type: ProgramType::Application,
+                trim_code: true,
+                ..Default::default()
+            },
             ..Default::default()
         };
 
-        Ok(cblang::compile_tokens(tokens, options)?)
+        let name_val = name.unwrap_or(DEFAULT_NAME);
+        let path_val = Path::new(name_val);
+
+        let mut fs = VirtualFilesystem::default();
+        fs.add_file(path_val, code)?;
+        fs.add_file(Path::new(Self::DEFS_FILENAME), &self.kernel_header)?;
+
+        Ok(compiler.compile_fs(path_val, Rc::new(fs))?)
     }
 
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
         // Compile OS into a file
         let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false)?;
-        let kernel_data = kernel_compiled.get_binary()?;
+        let kernel_data = kernel_compiled.binary;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();
         {
             let mut writer = std::io::BufWriter::new(&mut interface_data);
             kernel_compiled
-                .get_export_interface()?
+                .interface
                 .zero_offsets()
                 .write_interface(&mut writer)?;
         }
@@ -150,7 +149,7 @@ impl JibOsImage {
                 app.exec.into(),
                 os_image
                     .compile_app_code(app.code, Some(app.filename))?
-                    .get_binary()?,
+                    .binary,
             ));
         }
 

@@ -30,7 +30,10 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn read_type(tokens: &mut TokenIter, state: &CompilingState) -> Result<Self, TokenError> {
+    pub(crate) fn read_type(
+        tokens: &mut TokenIter,
+        state: &CompilingState,
+    ) -> Result<Self, TokenError> {
         let t = tokens.next()?;
         if t.get_value() == "*" {
             Ok(Self::Pointer(Box::new(Self::read_type(tokens, state)?)))
@@ -157,7 +160,7 @@ pub struct StructDefinition {
 }
 
 impl StructDefinition {
-    pub fn read_definition(
+    pub(crate) fn read_definition(
         tokens: &mut TokenIter,
         state: &mut CompilingState,
         visiblity: Visiblity,
@@ -226,8 +229,8 @@ impl StructDefinition {
 
         fn type_without_exported(t: &Type, unexported: &mut HashSet<String>) {
             match t {
-                Type::Array(_, inner) => type_without_exported(&inner, unexported),
-                Type::Pointer(inner) => type_without_exported(&inner, unexported),
+                Type::Array(_, inner) => type_without_exported(inner, unexported),
+                Type::Pointer(inner) => type_without_exported(inner, unexported),
                 Type::Const(inner) => type_without_exported(inner, unexported),
                 Type::Struct(def) if def.get_visibility() != Visiblity::Export => {
                     unexported.insert(def.name.clone());
@@ -236,7 +239,7 @@ impl StructDefinition {
             }
         }
 
-        for (_, field) in self.fields.iter() {
+        for field in self.fields.values() {
             type_without_exported(&field.dtype, &mut structs);
         }
 
@@ -299,7 +302,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn read_tokens(
+    pub(crate) fn read_tokens(
         tokens: &mut TokenIter,
         state: &CompilingState,
         include_names: bool,

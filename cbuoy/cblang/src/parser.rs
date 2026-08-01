@@ -3,17 +3,13 @@ use crate::{
     functions::{AsmFunctionDefinition, StandardFunctionDefinition, StandardFunctionType},
     tokenizer::{
         KEYWORD_ASMFN, KEYWORD_CONST, KEYWORD_EXPORT, KEYWORD_FN, KEYWORD_FNINT, KEYWORD_GLOBAL,
-        KEYWORD_IMPORT, KEYWORD_STRUCT, KEYWORD_USING, Token, TokenError, TokenIter, tokenize_str,
+        KEYWORD_IMPORT, KEYWORD_STRUCT, KEYWORD_USING, Token, TokenError, TokenIter,
     },
     typing::{StructDefinition, Type},
     variables::{VariableDefinition, Visiblity},
 };
 
-pub fn compile_str(s: &str, options: CodeGenerationOptions) -> Result<CompilingState, TokenError> {
-    compile_tokens(tokenize_str(s)?, options)
-}
-
-pub fn compile_tokens(
+pub(crate) fn compile_tokens(
     tokens: Vec<Token>,
     options: CodeGenerationOptions,
 ) -> Result<CompilingState, TokenError> {

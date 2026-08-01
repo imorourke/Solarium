@@ -1,4 +1,4 @@
-mod compiler;
+pub mod compiler;
 mod expressions;
 mod functions;
 mod literals;
@@ -14,9 +14,9 @@ use std::{
     rc::Rc,
 };
 
-pub use compiler::{CodeGenerationOptions, CompilerError, CompilingState, ProgramType};
+pub use compiler::{CodeGenerationOptions, CompilerError, ProgramType};
 use jib_asm::AssemblerOutput;
-pub use parser::{compile_str, compile_tokens};
+use parser::compile_tokens;
 use preprocessor::read_and_preprocess;
 pub use tokenizer::{TokenError, tokenize, tokenize_file, tokenize_str};
 pub use typing::Type;
@@ -47,7 +47,7 @@ pub struct Compiler {
 
 impl Compiler {
     pub fn compile_file(&self, file: &Path) -> Result<CompileResults, CompilerError> {
-        self.compile_inner(file, Rc::new(RealFilesystem::default()))
+        self.compile_fs(file, Rc::new(RealFilesystem::default()))
     }
 
     pub fn compile_string(
@@ -56,10 +56,10 @@ impl Compiler {
         name: Option<&Path>,
     ) -> Result<CompileResults, CompilerError> {
         let file = name.map_or(PathBuf::from("input.cb"), |x| x.to_path_buf());
-        self.compile_inner(&file, Rc::new(VirtualFilesystem::new(s, &file)))
+        self.compile_fs(&file, Rc::new(VirtualFilesystem::new(s, &file)))
     }
 
-    fn compile_inner(
+    pub fn compile_fs(
         &self,
         file: &Path,
         fs: Rc<dyn PreprocessorFilesystem>,
