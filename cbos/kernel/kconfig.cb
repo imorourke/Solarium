@@ -9,6 +9,6 @@ const K_LOC_DEVICE_HD_START: u32 = 0xFFFFB000u32;
 const K_MEM_SIZE: u32 = 0x10000u32;
 const K_MEM_START: *u8 = 0x1000000u32;
 
-global K_OS_VERSION: *u8 = "0.6.3";
+global K_OS_VERSION: *u8 = "0.6.4";
 
 #endif // K_CONFIG
