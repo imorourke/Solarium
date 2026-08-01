@@ -39,9 +39,10 @@ cfg_select! {
             eframe::run_native(
                 VisualJib::name(),
                 native_options,
-                Box::new(|_ctx| {
+                Box::new(|ctx| {
                     #[cfg(target_os = "linux")]
-                    _ctx.egui_ctx.set_theme(eframe::egui::Theme::Light);
+                    ctx.egui_ctx.set_theme(eframe::egui::Theme::Light);
+                    ctx.egui_ctx.global_style_mut(|s| s.interaction.selectable_labels = false);
                     Ok(Box::<VisualJib>::default())
                 }),
             )
