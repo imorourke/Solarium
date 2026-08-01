@@ -284,6 +284,10 @@ impl VisualJib {
 }
 
 impl eframe::App for VisualJib {
+    fn logic(&mut self, _ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.read_cpu_responses();
+    }
+
     fn on_exit(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         if self.tx_ui.send(UiToThread::Exit).is_ok() {
@@ -294,8 +298,6 @@ impl eframe::App for VisualJib {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.read_cpu_responses();
-
         // Remove old windows
         self.code_windows
             .extract_if(.., |x| !x.shown)
