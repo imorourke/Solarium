@@ -32,7 +32,8 @@ use crate::{
 #[derive(Debug)]
 pub struct CompileResults {
     pub preprocessed: PreprocessorOutput,
-    pub interface: InterfaceDefinition,
+    pub export_interface: InterfaceDefinition,
+    pub import_interface: InterfaceDefinition,
     pub asm: AssemblerOutput,
     pub binary: Vec<u8>,
     pub ast_statements: Vec<String>,
@@ -91,7 +92,17 @@ impl Compiler {
             }
         };
 
-        let interface = match state.get_export_interface() {
+        let export_interface = match state.get_export_interface() {
+            Ok(v) => v,
+            Err(CompilerError::TokenError(e)) => {
+                return Err(CompilerError::TokenErrorFancy(e, preprocessed));
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        let import_interface = match state.get_import_interface() {
             Ok(v) => v,
             Err(CompilerError::TokenError(e)) => {
                 return Err(CompilerError::TokenErrorFancy(e, preprocessed));
@@ -113,7 +124,8 @@ impl Compiler {
 
         Ok(CompileResults {
             preprocessed,
-            interface,
+            export_interface,
+            import_interface,
             asm,
             binary,
             ast_statements: state.get_statements(),

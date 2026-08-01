@@ -208,7 +208,7 @@ fn main() -> std::process::ExitCode {
             }
         };
 
-        let mut interface = result.interface.clone();
+        let mut interface = result.export_interface.clone();
         if args.zero_locations {
             interface = interface.zero_offsets();
         }

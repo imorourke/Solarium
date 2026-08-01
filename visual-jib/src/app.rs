@@ -781,7 +781,7 @@ impl CodeWindow {
 
             // Determine the export region location and length values, searching
             // for the key variables to assign into the kernel
-            let export_bytes = cmp.interface.get_interface_region().unwrap();
+            let export_bytes = cmp.export_interface.get_interface_region().unwrap();
 
             const VAR_EXPORT_DATA: &str = "K_LINK_EXPORT_DATA";
             const VAR_EXPORT_SIZE: &str = "K_LINK_EXPORT_SIZE";
@@ -792,7 +792,7 @@ impl CodeWindow {
             let mut assign_data = None;
             let mut assign_size = None;
 
-            for v in cmp.interface.variables {
+            for v in cmp.import_interface.variables {
                 if v.name == VAR_EXPORT_DATA {
                     assign_data = Some((v.loc - asm.start_address, export_loc));
                 } else if v.name == VAR_EXPORT_SIZE {

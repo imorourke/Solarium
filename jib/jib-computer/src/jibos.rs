@@ -125,7 +125,7 @@ impl JibOsImage {
         {
             let mut writer = std::io::BufWriter::new(&mut interface_data);
             kernel_compiled
-                .interface
+                .export_interface
                 .zero_offsets()
                 .write_interface(&mut writer)?;
         }
