@@ -432,13 +432,32 @@ pub trait PreprocessorFilesystem: Debug {
 #[derive(Debug, Default)]
 pub struct RealFilesystem {
     files: Rc<RefCell<HashMap<PathBuf, Rc<str>>>>,
+    base: Option<PathBuf>,
+}
+
+impl RealFilesystem {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_relative<T: Into<PathBuf>>(base: T) -> Self {
+        Self {
+            base: Some(base.into().canonicalize().unwrap()),
+            ..Default::default()
+        }
+    }
 }
 
 impl PreprocessorFilesystem for RealFilesystem {
     fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         let mut stored = self.files.borrow_mut();
 
-        let file_path = match file.canonicalize() {
+        let file_path = match self
+            .base
+            .as_ref()
+            .map_or_else(|| file.to_path_buf(), |x| x.join(file))
+            .canonicalize()
+        {
             Ok(path) => path,
             Err(e) => {
                 return Err(FilesystemError::UnableToLoadFile(
@@ -448,10 +467,14 @@ impl PreprocessorFilesystem for RealFilesystem {
             }
         };
 
-        match stored.entry(file_path) {
+        if !file_path.exists() {
+            return Err(FilesystemError::FileNotFound(file_path));
+        }
+
+        match stored.entry(file_path.clone()) {
             Entry::Occupied(e) => Ok(e.get().clone()),
             Entry::Vacant(e) => {
-                let txt: Rc<str> = match std::fs::read_to_string(file) {
+                let txt: Rc<str> = match std::fs::read_to_string(file_path) {
                     Ok(s) => s.into(),
                     Err(e) => {
                         return Err(FilesystemError::UnableToLoadFile(
@@ -535,7 +558,7 @@ impl PreprocessorFilesystem for ImageFilesystem {
 
 #[derive(Debug, Default)]
 pub struct OverlayFilesystem {
-    systems: Vec<Box<dyn PreprocessorFilesystem>>,
+    pub systems: Vec<Rc<dyn PreprocessorFilesystem>>,
 }
 
 impl PreprocessorFilesystem for OverlayFilesystem {

@@ -1,8 +1,12 @@
 /// cbc is the command-line interface for the C/Buoy compiler. This provides a way to
 /// interactively compile arbitary programs and use in various formats
-use std::{io::Write, path::PathBuf};
+use std::{io::Write, path::PathBuf, rc::Rc};
 
-use cblang::{CodeGenerationOptions, Compiler, ProgramType, compiler::InterfaceDefinition};
+use cblang::{
+    CodeGenerationOptions, Compiler, ProgramType,
+    compiler::InterfaceDefinition,
+    preprocessor::{OverlayFilesystem, RealFilesystem, VirtualFilesystem},
+};
 use clap::Parser;
 
 /// Compiler arguments used to control how the compiler functions
@@ -37,7 +41,7 @@ struct CompilerArguments {
     kernel_start_offset: u32,
     /// The stack location for a kernel program
     #[arg(
-        short = 'S',
+        short = 's',
         long = "kernel-stack-loc",
         default_value_t = ProgramType::DEFAULT_STACK_LOC,
         help = "Initial stack location when generating in kernel mode",
@@ -88,6 +92,19 @@ struct CompilerArguments {
         help = "Adds compiler definitions to define from the start of compiling"
     )]
     definitions: Vec<String>,
+    /// Allows defining system include files
+    #[arg(
+        short = 'I',
+        long = "include",
+        help = "Defines the system include path. Defining any parameter here will replace the default include path"
+    )]
+    include_directories: Vec<String>,
+    #[arg(
+        short = 'S',
+        long = "stdlib-default",
+        help = "If true, will include the built-in system stdlib implementation of the <kernel> and <std> namespaces"
+    )]
+    default_lib: bool,
     /// Provides an output interface/map file to use for constants, structures, and functions
     #[arg(
         short = 'W',
@@ -129,13 +146,25 @@ impl CompilerArguments {
 
 /// Main entry function
 fn main() -> std::process::ExitCode {
+    // Define arguments
     let args = CompilerArguments::parse();
+
+    // Construct the system root
+    let mut sysfs = OverlayFilesystem::default();
+
+    for i in args.include_directories.iter() {
+        sysfs.systems.push(Rc::new(RealFilesystem::new_relative(i)));
+    }
+
+    if args.default_lib {
+        sysfs.systems.push(Rc::new(VirtualFilesystem::new_system()));
+    }
 
     // Construct the preprocessed argument list
     let compiled = Compiler {
         definitions: args.definitions.clone(),
         options: args.compiler_options(),
-        ..Default::default()
+        system_root: Rc::new(sysfs),
     };
 
     let result = match compiled.compile_file(&args.input_file) {
