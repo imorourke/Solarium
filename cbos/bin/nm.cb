@@ -41,7 +41,14 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("Header:\n");
     k_io_print("  magic_num: ");
     k_io_print_hex(hdr.magic_num);
-    k_io_print("\n");
+    k_io_print(" (");
+    def i: i32 = 0;
+    def base: *u8 = &hdr.magic_num;
+    while (i < sizeof(u32)) {
+        k_io_put(*(base + i));
+        i = i + 1;
+    }
+    k_io_print(")\n");
     k_io_print_stat("  import_offset", hdr.import_offset);
     k_io_print_stat("  import_size", hdr.import_size);
     k_io_print_stat("  export_offset", hdr.export_offset);
