@@ -365,7 +365,7 @@ jobs:
       - name: Generate sysroot
         working-directory: cbos
         run: |
-            cargo run -p cbc -- -k -z -W cbos_defs.cb os.cb
+            cargo run -p cbc -- -k -z -W cbos_defs.cb -S os.cb
             tar -zcvf defs.tar.gz kernel std cbos_defs.cb
 
       - name: Upload sysroot
