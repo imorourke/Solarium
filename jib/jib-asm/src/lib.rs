@@ -23,6 +23,8 @@ use immediate::{
 };
 use regex::Regex;
 
+use crate::instructions::OpHcf;
+
 static LABEL_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[a-z_](a-z0-9_)*").unwrap());
 
 pub fn is_valid_label(s: &str) -> bool {
@@ -521,7 +523,7 @@ impl Default for InstructionList {
     fn default() -> Self {
         let inst = create_instruction_map!(
             OpAdd, OpBand, OpBnot, OpBool, OpBor, OpBshl, OpBshr, OpBxor, OpCall, OpConv, OpCopy,
-            OpDiv, OpHalt, OpInt, OpIntoff, OpBrk, OpBswap, OpInton, OpIntr, OpJmp, OpJmpr,
+            OpDiv, OpHalt, OpInt, OpIntoff, OpBrk, OpHcf, OpBswap, OpInton, OpIntr, OpJmp, OpJmpr,
             OpJmpri, OpLd, OpLdi, OpLdn, OpLdno, OpLdr, OpLdri, OpMul, OpNeg, OpNoop, OpNot, OpPop,
             OpPopr, OpPush, OpRem, OpReset, OpRet, OpRetInt, OpSav, OpSavr, OpSub, OpTeq, OpTg,
             OpTge, OpTl, OpTle, OpTneq, OpTnz, OpTz

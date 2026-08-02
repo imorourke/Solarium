@@ -879,6 +879,7 @@ InstNoArg!(OpHalt, Processor::OP_HALT);
 InstNoArg!(OpInton, Processor::OP_INTERRUPT_ENABLE);
 InstNoArg!(OpIntoff, Processor::OP_INTERRUPT_DISABLE);
 InstNoArg!(OpBrk, Processor::OP_DEBUG_BREAK);
+InstNoArg!(OpHcf, Processor::OP_DEBUG_HCF);
 
 InstImmediateArg!(OpInt, Processor::OP_INTERRUPT);
 InstSingleArg!(OpIntr, Processor::OP_INTERRUPT_REGISTER);

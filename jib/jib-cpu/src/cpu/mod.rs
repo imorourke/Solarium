@@ -417,6 +417,10 @@ impl Processor {
         base: Self::OP_BASE_DEBUG,
         code: 0,
     };
+    pub const OP_DEBUG_HCF: Opcode = Opcode {
+        base: Self::OP_BASE_DEBUG,
+        code: 1,
+    };
 
     const OP_BASE_MATH: u8 = 10;
     pub const OP_ADD: Opcode = Opcode {
@@ -697,6 +701,16 @@ impl Processor {
         Ok(Opcode::from(self.get_current_inst()?.opcode()))
     }
 
+    pub fn should_stop(&self) -> Result<bool, ProcessorError> {
+        let op = self.get_current_op()?;
+        Ok(op == Self::OP_HALT || op == Self::OP_DEBUG_HCF)
+    }
+
+    pub fn should_stop_debug(&self) -> Result<bool, ProcessorError> {
+        let op = self.get_current_op()?;
+        Ok(op == Self::OP_DEBUG_BREAK || op == Self::OP_DEBUG_HCF)
+    }
+
     pub fn step(&mut self) -> Result<(), ProcessorError> {
         if let Err(err) = self.step_no_catch() {
             match err {
@@ -816,7 +830,7 @@ impl Processor {
                 )?;
                 inst_jump = None;
             }
-            Self::OP_HALT => {
+            Self::OP_HALT | Self::OP_DEBUG_HCF => {
                 inst_jump = None;
             }
             Self::OP_NOT => {

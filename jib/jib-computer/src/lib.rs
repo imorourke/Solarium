@@ -113,17 +113,16 @@ impl JibComputer {
             self.inst_history.push((pc, inst));
         }
 
-        let (debug_stop, cancel_run_request) =
-            if auto_break && let Ok(op) = self.cpu.get_current_op() {
-                (
-                    op == Processor::OP_DEBUG_BREAK || op == Processor::OP_HALT,
-                    op == Processor::OP_DEBUG_BREAK,
-                )
-            } else if let Some(brk) = breakpoint {
-                (brk == pc, true)
-            } else {
-                (false, true)
-            };
+        let (debug_stop, cancel_run_request) = if auto_break
+            && let Ok(stop_normal) = self.cpu.should_stop()
+            && let Ok(stop_debug) = self.cpu.should_stop_debug()
+        {
+            (stop_normal || stop_debug, stop_debug)
+        } else if let Some(brk) = breakpoint {
+            (brk == pc, true)
+        } else {
+            (false, true)
+        };
 
         if debug_stop {
             self.running = false;
@@ -440,10 +439,8 @@ impl From<std::io::Error> for ComputerError {
 
 #[cfg(test)]
 mod test {
-    use crate::{JibCode, JibOsImage};
-
     use super::JibComputer;
-    use jib_cpu::cpu::Processor;
+    use crate::{JibCode, JibOsImage};
 
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
         let asm = JibOsImage::compile_kernel_code(in_code, "input.cb", None, true)
@@ -460,7 +457,7 @@ mod test {
         let mut serial_output = Vec::new();
         let mut iter_count = 0;
 
-        while cpu.cpu.get_current_op().unwrap() != Processor::OP_HALT {
+        while !cpu.cpu.should_stop().unwrap() {
             cpu.step_cpu(None, false).unwrap();
             while let Some(c) = cpu.dev_serial_io.borrow_mut().pop_output() {
                 serial_output.push(c);
