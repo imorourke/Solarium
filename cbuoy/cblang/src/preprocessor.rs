@@ -5,7 +5,7 @@
 
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet, hash_map::Entry},
+    collections::{HashMap, hash_map::Entry},
     fmt::{Debug, Display},
     ops::RangeInclusive,
     path::{Path, PathBuf},
@@ -124,7 +124,7 @@ impl PreprocessorOutput {
 pub struct PreprocessorState {
     pub filesystem: Rc<dyn PreprocessorFilesystem>,
     pub system_fs: Rc<dyn PreprocessorFilesystem>,
-    pub definitions: HashSet<String>,
+    pub init_definitions: HashMap<String, String>,
 }
 
 impl PreprocessorState {
@@ -132,7 +132,7 @@ impl PreprocessorState {
         Self {
             filesystem: fs,
             system_fs: Rc::new(VirtualFilesystem::new_system()),
-            definitions: HashSet::default(),
+            init_definitions: HashMap::default(),
         }
     }
 
@@ -143,7 +143,7 @@ impl PreprocessorState {
         Self {
             filesystem: fs,
             system_fs: sys,
-            definitions: HashSet::default(),
+            init_definitions: HashMap::default(),
         }
     }
 
@@ -152,7 +152,8 @@ impl PreprocessorState {
         file: &Path,
     ) -> Result<PreprocessorOutput, PreprocessorError> {
         let mut if_statements = Vec::default();
-        self.read_file_inner(file, 0, false, &mut if_statements)
+        let mut definitions = self.init_definitions.clone();
+        self.read_file_inner(file, None, 0, &mut definitions, &mut if_statements)
     }
 
     fn find_comment_spans(
@@ -269,28 +270,72 @@ impl PreprocessorState {
         Ok(char_vec.into_iter().collect())
     }
 
+    fn get_file_path(
+        &self,
+        current: &Path,
+        arg: &str,
+    ) -> Result<(PathBuf, Option<&dyn PreprocessorFilesystem>), PreprocessorError> {
+        static SYS_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^<(?<file>.*)>$").unwrap());
+
+        Ok(
+            if let Some(m) = SYS_REGEX.captures(arg)
+                && let Some(file) = m.name("file")
+            {
+                (PathBuf::from(file.as_str()), Some(self.system_fs.as_ref()))
+            } else {
+                let mut current = Path::parent(current).map(|x| x.to_path_buf());
+                for c in Path::new(&arg).components() {
+                    if c.as_os_str() == "." {
+                        // Do Nothing
+                    } else if c.as_os_str() == ".." {
+                        current = current.and_then(|x| x.parent().map(|x| x.to_path_buf()));
+                    } else {
+                        current = current.map(|x| x.join(c));
+                    }
+                }
+                (current.unwrap_or(Path::new(&arg).to_path_buf()), None)
+            },
+        )
+    }
+
     fn read_file_inner(
-        &mut self,
+        &self,
         file: &Path,
+        fs: Option<&dyn PreprocessorFilesystem>,
         level: i32,
-        use_system_fs: bool,
+        definitions: &mut HashMap<String, String>,
         if_statements: &mut Vec<IfState>,
     ) -> Result<PreprocessorOutput, PreprocessorError> {
         let fname: Rc<str> = file.to_str().unwrap().into();
 
-        let file_text_orig = if use_system_fs {
-            self.system_fs.read_file(file)?
-        } else {
-            self.filesystem.read_file(file)?
-        };
+        let file_text_orig = fs.unwrap_or(self.filesystem.as_ref()).read_file(file)?;
+
         let file_text = Self::remove_comments(
             file_text_orig.as_ref(),
             file.as_os_str().to_str().unwrap_or(""),
         )?;
 
+        fn execute_line_replacements(l: &str, definitions: &HashMap<String, String>) -> String {
+            static REPLACE_REGEX: LazyLock<Regex> =
+                LazyLock::new(|| Regex::new(r"\$\{(?<key>[a-zA-Z_][\w\d]*)\}").unwrap());
+            let mut new_l = l.to_string();
+            for m in REPLACE_REGEX.captures_iter(l) {
+                let name = m.name("key").unwrap().as_str();
+                if let Some(val) = definitions.get(name) {
+                    new_l = new_l.replace(&format!("${{{name}}}"), val);
+                }
+            }
+            new_l
+        }
+
         let mut lines = Vec::new();
 
-        for (i, l) in file_text.lines().enumerate() {
+        for (i, line_unprocessed) in file_text.lines().enumerate() {
+            // First, run find/replace throughout the texts
+            let l = execute_line_replacements(line_unprocessed, definitions);
+
+            // Then, look for prefixes
             if let Some(after) = l.trim_start().strip_prefix("#") {
                 let verb;
                 let arg;
@@ -313,42 +358,29 @@ impl PreprocessorState {
                 };
 
                 if verb == "include" {
-                    static SYS_REGEX: LazyLock<Regex> =
-                        LazyLock::new(|| Regex::new(r"^<(?<file>.*)>$").unwrap());
-
-                    let (file_to_load, use_system) = if let Some(m) = SYS_REGEX.captures(arg)
-                        && let Some(file) = m.name("file")
-                    {
-                        (PathBuf::from(file.as_str()), true)
-                    } else {
-                        let mut current = Path::parent(file).map(|x| x.to_path_buf());
-                        for c in Path::new(&arg).components() {
-                            if c.as_os_str() == "." {
-                                // Do Nothing
-                            } else if c.as_os_str() == ".." {
-                                current = current.and_then(|x| x.parent().map(|x| x.to_path_buf()));
-                            } else {
-                                current = current.map(|x| x.join(c));
-                            }
-                        }
-                        (current.unwrap_or(Path::new(&arg).to_path_buf()), false)
-                    };
-
+                    let (file_to_load, file_fs) = self.get_file_path(file, arg)?;
                     lines.extend(
                         self.read_file_inner(
                             &file_to_load,
+                            file_fs.or(fs),
                             level + 1,
-                            use_system_fs || use_system,
+                            definitions,
                             if_statements,
                         )?
                         .lines,
                     );
                 } else if verb == "ifdef" {
-                    if_statements.push(IfState::new(self.definitions.contains(arg)));
+                    if_statements.push(IfState::new(definitions.contains_key(arg)));
+                } else if verb == "ifexist" {
+                    todo!("here!");
                 } else if verb == "ifndef" {
-                    if_statements.push(IfState::new(!self.definitions.contains(arg)));
+                    if_statements.push(IfState::new(!definitions.contains_key(arg)));
                 } else if verb == "define" {
-                    self.definitions.insert(arg.into());
+                    if let Some((key, val)) = arg.split_once('=') {
+                        definitions.insert(key.trim().into(), val.trim().into());
+                    } else {
+                        definitions.insert(arg.into(), String::default());
+                    }
                 } else if verb == "else" {
                     if !arg.is_empty() {
                         return Err(gen_error("no argument expected for line"));
@@ -378,7 +410,7 @@ impl PreprocessorState {
                 }
             } else if if_statements.iter().all(|x| x.get_current()) {
                 lines.push(PreprocessorLine {
-                    text: l.into(),
+                    text: l,
                     loc: PreprocessorLocation {
                         file: fname.clone(),
                         line: i + 1,
@@ -709,7 +741,7 @@ pub fn preprocess_code_with_fs<I: Iterator<Item = String>>(
 ) -> Result<PreprocessorOutput, PreprocessorError> {
     let mut state = PreprocessorState::new(Rc::new(fs));
     for d in defs.into_iter() {
-        state.definitions.insert(d);
+        state.init_definitions.insert(d, "".into());
     }
     state.read_file(file)
 }
@@ -720,7 +752,7 @@ pub fn read_and_preprocess<I: Iterator<Item = String>>(
 ) -> Result<PreprocessorOutput, PreprocessorError> {
     let mut state = PreprocessorState::new(Rc::new(RealFilesystem::default()));
     for d in defs.into_iter() {
-        state.definitions.insert(d);
+        state.init_definitions.insert(d, "".into());
     }
     state.read_file(file)
 }

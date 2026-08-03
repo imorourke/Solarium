@@ -10,6 +10,7 @@ mod utilities;
 mod variables;
 
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -42,7 +43,7 @@ pub struct CompileResults {
 #[derive(Debug)]
 pub struct Compiler {
     pub system_root: Rc<dyn PreprocessorFilesystem>,
-    pub definitions: Vec<String>,
+    pub definitions: HashMap<String, String>,
     pub options: CodeGenerationOptions,
 }
 
@@ -66,8 +67,8 @@ impl Compiler {
         fs: Rc<dyn PreprocessorFilesystem>,
     ) -> Result<CompileResults, CompilerError> {
         let mut state = PreprocessorState::new_system(fs, self.system_root.clone());
-        for d in self.definitions.iter().cloned() {
-            state.definitions.insert(d);
+        for (k, v) in self.definitions.iter() {
+            state.init_definitions.insert(k.clone(), v.clone());
         }
         let preprocessed = state.read_file(file)?;
 
@@ -136,7 +137,7 @@ impl Compiler {
 impl Default for Compiler {
     fn default() -> Self {
         Self {
-            definitions: Vec::default(),
+            definitions: HashMap::default(),
             options: CodeGenerationOptions::default(),
             system_root: Rc::new(VirtualFilesystem::new_system()),
         }

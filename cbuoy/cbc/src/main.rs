@@ -1,6 +1,6 @@
 /// cbc is the command-line interface for the C/Buoy compiler. This provides a way to
 /// interactively compile arbitary programs and use in various formats
-use std::{io::Write, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, io::Write, path::PathBuf, rc::Rc};
 
 use cblang::{
     CodeGenerationOptions, Compiler, ProgramType,
@@ -89,7 +89,7 @@ struct CompilerArguments {
     #[arg(
         short = 'D',
         long = "define",
-        help = "Adds compiler definitions to define from the start of compiling"
+        help = "Adds compiler definitions to define from the start of compiling. Use '=' to assign values"
     )]
     definitions: Vec<String>,
     /// Allows defining system include files
@@ -161,8 +161,17 @@ fn main() -> std::process::ExitCode {
     }
 
     // Construct the preprocessed argument list
+    let mut definitions = HashMap::new();
+    for d in args.definitions.iter() {
+        if let Some((k, v)) = d.split_once('=') {
+            definitions.insert(k.trim().into(), v.trim().into());
+        } else {
+            definitions.insert(d.trim().into(), String::new());
+        }
+    }
+
     let compiled = Compiler {
-        definitions: args.definitions.clone(),
+        definitions,
         options: args.compiler_options(),
         system_root: Rc::new(sysfs),
     };
