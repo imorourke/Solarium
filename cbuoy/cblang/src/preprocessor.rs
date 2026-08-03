@@ -372,7 +372,10 @@ impl PreprocessorState {
                 } else if verb == "ifdef" {
                     if_statements.push(IfState::new(definitions.contains_key(arg)));
                 } else if verb == "ifexist" {
-                    todo!("here!");
+                    let (file_path, file_fs) = self.get_file_path(file, arg)?;
+                    if_statements.push(IfState::new(
+                        file_fs.or(fs).map_or(false, |x| x.file_exists(&file_path)),
+                    ));
                 } else if verb == "ifndef" {
                     if_statements.push(IfState::new(!definitions.contains_key(arg)));
                 } else if verb == "define" {
@@ -459,6 +462,7 @@ impl Display for FilesystemError {
 
 pub trait PreprocessorFilesystem: Debug {
     fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError>;
+    fn file_exists(&self, file: &Path) -> bool;
 }
 
 #[derive(Debug, Default)]
@@ -480,25 +484,36 @@ impl RealFilesystem {
     }
 }
 
-impl PreprocessorFilesystem for RealFilesystem {
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
-        let mut stored = self.files.borrow_mut();
-
-        let file_path = match self
+impl RealFilesystem {
+    fn full_path(&self, file: &Path) -> Result<PathBuf, FilesystemError> {
+        match self
             .base
             .as_ref()
             .map_or_else(|| file.to_path_buf(), |x| x.join(file))
             .canonicalize()
         {
-            Ok(path) => path,
-            Err(e) => {
-                return Err(FilesystemError::UnableToLoadFile(
-                    file.to_path_buf(),
-                    e.to_string(),
-                ));
-            }
-        };
+            Ok(path) => Ok(path),
+            Err(e) => Err(FilesystemError::UnableToLoadFile(
+                file.to_path_buf(),
+                e.to_string(),
+            )),
+        }
+    }
+}
 
+impl PreprocessorFilesystem for RealFilesystem {
+    fn file_exists(&self, file: &Path) -> bool {
+        let stored = self.files.borrow();
+        match self.full_path(file) {
+            Ok(f) => stored.contains_key(&f) || f.exists(),
+            Err(_) => false,
+        }
+    }
+
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+        let mut stored = self.files.borrow_mut();
+
+        let file_path = self.full_path(file)?;
         if !file_path.exists() {
             return Err(FilesystemError::FileNotFound(file_path));
         }
@@ -532,6 +547,10 @@ pub struct ImageFilesystem {
 
 #[cfg(feature = "cbfs")]
 impl PreprocessorFilesystem for ImageFilesystem {
+    fn file_exists(&self, file: &Path) -> bool {
+        self.read_file(file).is_ok()
+    }
+
     fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         let mut current = self.root.unwrap_or(self.fs.root_sector());
 
@@ -594,6 +613,10 @@ pub struct OverlayFilesystem {
 }
 
 impl PreprocessorFilesystem for OverlayFilesystem {
+    fn file_exists(&self, file: &Path) -> bool {
+        self.systems.iter().rev().any(|x| x.file_exists(file))
+    }
+
     fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         for s in self.systems.iter().rev() {
             match s.read_file(file) {
@@ -646,6 +669,10 @@ impl VirtualFilesystem {
 }
 
 impl PreprocessorFilesystem for VirtualFilesystem {
+    fn file_exists(&self, file: &Path) -> bool {
+        self.files.contains_key(file)
+    }
+
     fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
         if let Some(val) = self.files.get(file) {
             Ok(val.clone())
