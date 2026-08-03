@@ -9,6 +9,7 @@ use eframe::egui::{
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::JibCode;
 use jib_cpu::cpu::RegisterManager;
+use std::collections::HashMap;
 use std::path::Path;
 use std::{sync::LazyLock, time::Duration};
 
@@ -143,7 +144,11 @@ impl Default for VisualJib {
             CodeWindowType::Cbuoy,
             None,
         )
-        .compile_cbuoy();
+        .compile_cbuoy_defs(
+            [("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into())]
+                .into_iter()
+                .collect(),
+        );
 
         let cbos_defs = jib_computer::JibOsImage::compile_os_image()
             .unwrap()
@@ -760,8 +765,12 @@ impl CodeWindow {
             .unwrap();
     }
 
-    fn compile_cbuoy_to_asm(&self) -> Option<CompileResults> {
-        let compiler = Compiler::default();
+    fn compile_cbuoy_to_asm(&self, defs: HashMap<String, String>) -> Option<CompileResults> {
+        let compiler = Compiler {
+            definitions: defs,
+            ..Default::default()
+        };
+
         match compiler.compile_string(&self.code, self.filename.map(Path::new)) {
             Ok(val) => Some(val),
             Err(err) => {
@@ -777,7 +786,11 @@ impl CodeWindow {
     }
 
     fn compile_cbuoy(&self) {
-        if let Some(cmp) = self.compile_cbuoy_to_asm() {
+        self.compile_cbuoy_defs(HashMap::default());
+    }
+
+    fn compile_cbuoy_defs(&self, defs: HashMap<String, String>) {
+        if let Some(cmp) = self.compile_cbuoy_to_asm(defs) {
             let asm = cmp.asm;
             let mut code = asm.bytes;
 
@@ -855,7 +868,7 @@ impl CodeWindow {
 
                 if self.compiled == CodeWindowType::Cbuoy
                     && ui.button("Show Assembly").clicked()
-                    && let Some(cmp_out) = self.compile_cbuoy_to_asm()
+                    && let Some(cmp_out) = self.compile_cbuoy_to_asm(HashMap::default())
                 {
                     let asm_out = cmp_out.asm;
                     let asm = format!(
