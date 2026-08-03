@@ -3,6 +3,7 @@ use cblang::{
     CodeGenerationOptions, CompileResults, Compiler, ProgramType, preprocessor::VirtualFilesystem,
 };
 use std::{
+    collections::HashMap,
     format,
     path::{Component, Path},
     rc::Rc,
@@ -74,7 +75,11 @@ impl JibOsImage {
         start_offset: Option<u32>,
         trim_code: bool,
     ) -> Result<CompileResults, ComputerError> {
+        let mut defs = HashMap::new();
+        defs.insert("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into());
+
         let compiler = Compiler {
+            definitions: defs,
             options: CodeGenerationOptions {
                 prog_type: ProgramType::Kernel {
                     stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
