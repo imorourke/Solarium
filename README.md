@@ -18,5 +18,6 @@ Programs included are listed below:
 * virtual-jib provides a visual test-bench to compile and run programs
 * cbc provides a front-end to the cbuoy compiler
 * cbfs provides a FUSE driver for the cbfs filesystem
+* cbfs-utils provides helpers to modify CBFS file system images
 
 <img src="doc/images/visual-jib.png" alt="VisualJib Program" width="700"/>
