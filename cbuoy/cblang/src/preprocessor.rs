@@ -18,6 +18,7 @@ use regex::Regex;
 use crate::{TokenError, tokenize, tokenizer::Token};
 
 /// Provides default files that should be included within the compiler standard library
+#[cfg(feature = "cbos")]
 pub static DEFAULT_FILES: &[(&str, &str)] = &[
     (
         "kernel/kconfig.cb",
@@ -636,6 +637,7 @@ pub struct VirtualFilesystem {
 }
 
 impl VirtualFilesystem {
+    #[cfg(feature = "cbos")]
     pub fn new_system() -> Self {
         let mut fs = Self::default();
 
