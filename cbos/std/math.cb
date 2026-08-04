@@ -1,0 +1,39 @@
+#ifndef STD_MATH
+#define STD_MATH
+
+export fn abs_i32(x: i32) i32 {
+    if (x < 0) return -x;
+    else return x;
+}
+
+export fn abs_f32(x: f32) f32 {
+    if (x < 0.0) return -x;
+    else return x;
+}
+
+export fn sqrt(x: f32) f32 {
+    if (x < 0.0) {
+        return 0.0;
+    }
+
+    def upper: f32 = x;
+    def lower: f32 = 0.0;
+    def y: f32 = x / 2.0;
+    def y2: f32 = y * y;
+    def i: i32 = 0;
+
+    while ((abs_f32(y2 - x) > 0.0001) && (i < 1000)) {
+        if (y2 > x) {
+            upper = y;
+        } else {
+            lower = y;
+        }
+        y = (upper + lower) / 2.0;
+        y2 = y * y;
+        i = i + 1;
+    }
+
+    return y;
+}
+
+#endif // STD_MATH

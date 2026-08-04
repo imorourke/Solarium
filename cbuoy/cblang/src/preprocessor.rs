@@ -86,6 +86,7 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
         include_str!("../../../cbos/kernel/ktsk.cb"),
     ),
     ("std/list.cb", include_str!("../../../cbos/std/list.cb")),
+    ("std/math.cb", include_str!("../../../cbos/std/math.cb")),
     (
         ("std/string.cb"),
         include_str!("../../../cbos/std/string.cb"),

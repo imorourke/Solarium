@@ -200,6 +200,17 @@ export fn k_io_print_stat(name: *u8, v: u32) void {
     k_io_print("\n");
 }
 
+export fn k_io_print_f32(val: f32) void {
+    def real: i32 = val as i32;
+    def real_pos: i32 = real;
+    if (real_pos < 0) real_pos = -real_pos;
+    if (val < 0) val = -val;
+    def decimal: i32 = ((val - real_pos) * 1000) as i32;
+    k_io_print_int(real);
+    k_io_print(".");
+    k_io_print_uint_width(decimal, 3);
+}
+
 export fn k_io_read_char() u8 {
     return (SERIAL_DEV->input_data);
 }

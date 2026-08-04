@@ -1,0 +1,17 @@
+#include cbos_defs.cb
+
+fn main() i32 {
+    k_io_print_f32(1);
+    k_io_print("\n");
+    k_io_print_f32(2);
+    k_io_print("\n");
+    k_io_print_f32(4);
+    k_io_print("\n");
+    k_io_print_f32(-1);
+    k_io_print("\n");
+    k_io_print_f32(-2);
+    k_io_print("\n");
+    k_io_print_f32(-4);
+    k_io_print("\n");
+    return 0;
+}
