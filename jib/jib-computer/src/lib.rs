@@ -469,7 +469,10 @@ mod test {
         println!("Step Count: {}", cpu.step_count);
         println!("{}", str::from_utf8(&serial_output).unwrap());
 
-        assert_eq!(str::from_utf8(&serial_output).unwrap(), expected_out);
+        assert_eq!(
+            str::from_utf8(&serial_output).unwrap(),
+            expected_out.replace("\r\n", "\n")
+        );
     }
 
     #[test]
