@@ -1,7 +1,7 @@
 #include cbos_defs.cb
 
 fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
-    if ((argc != 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
+    if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
         k_io_print(argv[0]);
         k_io_print(" [file]\n\n");
         k_io_print("  ");
@@ -15,33 +15,37 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         }
     }
 
-    def loc: k_fs_entry_id_t;
-    def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
-    if (res != 0) {
-        k_io_print("unable to find file for '");
-        k_io_print(argv[1]);
-        k_io_print("'\n");
-        return -1;
-    }
-
-    def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
-        // Add one to the data size for null character in the array
-        const DATA_SIZE: u32 = 128;
-        def run_data: [DATA_SIZE + 1]u8;
-        def read_size: u32 = DATA_SIZE;
-
-        while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
-            // Add the null character to the end
-            run_data[read_size] = 0;
-
-            // Ensure that there is enough space in the output buffer before printing
-            while ((k_io_serial_output_size() : u32) + read_size > 65535) {}
-            k_io_print(&run_data);
-
-            read_size = DATA_SIZE;
+    def i: i32 = 1;
+    while (i < argc) {
+        def loc: k_fs_entry_id_t;
+        def res: i32 = k_fs_readlink(argv[i], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
+        if (res != 0) {
+            k_io_print("unable to find file for '");
+            k_io_print(argv[1]);
+            k_io_print("'\n");
+            return -1;
         }
-        k_io_print("\n");
+
+        def read_state: k_fs_io_state_t;
+        if (k_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
+            // Add one to the data size for null character in the array
+            const DATA_SIZE: u32 = 128;
+            def run_data: [DATA_SIZE + 1]u8;
+            def read_size: u32 = DATA_SIZE;
+
+            while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
+                // Add the null character to the end
+                run_data[read_size] = 0;
+
+                // Ensure that there is enough space in the output buffer before printing
+                while ((k_io_serial_output_size() : u32) + read_size > 65535) {}
+                k_io_print(&run_data);
+
+                read_size = DATA_SIZE;
+            }
+            k_io_print("\n");
+        }
+        i = i + 1;
     }
 
     return 0;
