@@ -159,7 +159,6 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
 
                 if c.is_whitespace() {
                     tokens.push(Token::new(&l[start_index..col_num], get_loc(start_index)));
-
                     current_state = None;
                 } else if c == '\'' || c == '"' {
                     tokens.push(Token::new(&l[start_index..col_num], get_loc(start_index)));
@@ -167,9 +166,16 @@ pub fn tokenize<T: IntoIterator<Item = (String, Option<PreprocessorLocation>)>>(
                 } else if (OPERATORS.contains(prev) && !OPERATORS.contains(current))
                     || (!OPERATORS.contains(current) && OPERATOR_STARTS.contains(&c))
                 {
-                    tokens.push(Token::new(prev, get_loc(start_index)));
+                    static ALLOWED_INIT: LazyLock<Regex> =
+                        LazyLock::new(|| Regex::new(r"^[+\-]?\d*$").unwrap());
 
-                    current_state = Some(TokenStart::new(col_num));
+                    if c == '.' && ALLOWED_INIT.is_match(prev) {
+                        // This is the start of a number literal, so do nothing
+                    } else {
+                        tokens.push(Token::new(prev, get_loc(start_index)));
+
+                        current_state = Some(TokenStart::new(col_num));
+                    }
                 }
             } else if c == '\'' || c == '"' {
                 current_state = Some(TokenStart::new_str(col_num, c));
