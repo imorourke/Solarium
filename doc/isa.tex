@@ -679,6 +679,14 @@ A more complicated example is shown in Listing \ref{listing:cbuoy-hello-world-me
 
 \newpage
 
+Input arguments are provided as arguments into \texttt{main}. These include program state information, and then traditional arguments for the command line input values and number of command line arguments. The first argument is the program name. This is shown in an example for the \texttt{cat} program implementation in Listing \ref{listing:cbuoy-bin-cat} and the \texttt{echo} program implementation in Listing \ref{listing:cbuoy-bin-echo}.
+
+\lstinputlisting[label={listing:cbuoy-bin-cat},caption={The ``\texttt{cat}'' program takes in and reads a file, and echoes the file to the serial console}]{../cbos/bin/cat.cb}
+
+\lstinputlisting[label={listing:cbuoy-bin-echo},caption={The ``\texttt{echo}'' program echoes input arguments to the serial console}]{../cbos/bin/echo.cb}
+
+\newpage
+
 \subsection{Assembly Integration}
 
 To allow for additional optimization, Jib assembly code can also be mixed in with functions to increase the speed of certain functions. As the compiler is currently not an optimizing compiler, this provides the opportunity to convert commonly-used smaller functions into compact assembly code to increase the speed of execution. Identifiers from the overall C/Buoy program can be mixed into the assembly code by using replacement characters, as denoted in Table \ref{table:cbuoy-assembly-mixin}.
