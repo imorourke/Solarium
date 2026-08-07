@@ -1,0 +1,28 @@
+#include <kernel/kdevice.cb>
+#include <kernel/kserialio.cb>
+#include <std/math.cb>
+
+fn main() void {
+    k_device_init(0);
+    k_io_init();
+
+    const VAL_COUNT: u32 = 6;
+    def vals: [VAL_COUNT]f32;
+    vals[0] = 2.0;
+    vals[1] = 2.8;
+    vals[2] = 4.6;
+    vals[3] = -1.23;
+    vals[4] = -2.7;
+    vals[5] = -4.3;
+
+    def i: i32 = 0;
+    while (i < VAL_COUNT) {
+        def v: f32 = vals[i];
+        k_io_print_f32(v);
+        k_io_print(" => ");
+        def v2: f32 = sqrt_f32(v);
+        k_io_print_f32(v2);
+        k_io_print("\n");
+        i = i + 1;
+    }
+}

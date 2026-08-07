@@ -474,61 +474,33 @@ mod test {
 
     #[test]
     fn test_malloc() {
-        const EXPECTED: &str = "A\n\
-                0x1000000, 10\n\
-                0x1000016, 12\n\
-                0x100002E, 30\n\
-                0x1000058, 45\n\
-                B\n\
-                0x1000016, 12\n\
-                0x100002E, 30\n\
-                0x1000058, 45\n\
-                C\n\
-                0x1000000, 5\n\
-                0x1000016, 12\n\
-                0x100002E, 30\n\
-                0x1000058, 45\n\
-                D\n\
-                No Heap Allocations\n\
-                E\n\
-                0x1000000, 33\n\
-                F\n\
-                No Heap Allocations\n\
-                Heap Test Pass\n";
-
         run_cpu_serial_out_test(
             include_str!("../../../cbuoy/cblang/tests/test_kmalloc.cb"),
-            EXPECTED,
+            include_str!("../../../cbuoy/cblang/tests/test_kmalloc.out"),
         );
     }
 
     #[test]
     fn test_struct_ptr() {
-        static EXPECTED: &str = "Hello, world!\n\
-            13\n\
-            720\n\
-            13\n\
-            13\n\
-            13\n\
-            13\n\
-            0\n\
-            1\n\
-            1234\n\
-            Hello, world!\n\
-            7\n\
-            7\n";
         run_cpu_serial_out_test(
             include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.cb"),
-            EXPECTED,
+            include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.out"),
         );
     }
 
     #[test]
     fn test_struct_func() {
-        static EXPECTED: &str = "A: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\nA: 1, B: 2, C: 3\n";
         run_cpu_serial_out_test(
             include_str!("../../../cbuoy/cblang/tests/test_struct_func.cb"),
-            EXPECTED,
+            include_str!("../../../cbuoy/cblang/tests/test_struct_func.out"),
+        );
+    }
+
+    #[test]
+    fn test_math() {
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_math.cb"),
+            include_str!("../../../cbuoy/cblang/tests/test_math.out"),
         );
     }
 }

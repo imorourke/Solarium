@@ -151,14 +151,14 @@ mod test {
     use std::path::Path;
 
     static EXAMPLE_FILES: &[&str] = &[
+        "../../cbos/os.cb",
         "examples/array_test.cb",
         "examples/default.cb",
-        "../../cbos/os.cb",
         "examples/printing.cb",
         "examples/threading.cb",
-        "tests/test_kmalloc.cb",
-        "tests/test_struct_ptr.cb",
         "tests/test_comment.cb",
+        "tests/test_kmalloc.cb",
+        "tests/test_math.cb",
         "tests/test_struct_ptr.cb",
     ];
 
