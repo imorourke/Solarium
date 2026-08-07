@@ -11,7 +11,7 @@ export fn abs_f32(x: f32) f32 {
     else return x;
 }
 
-export fn sqrt(x: f32) f32 {
+export fn sqrt_f32(x: f32) f32 {
     if (x < 0.0) {
         return 0.0;
     }
@@ -22,7 +22,7 @@ export fn sqrt(x: f32) f32 {
     def y2: f32 = y * y;
     def i: i32 = 0;
 
-    while ((abs_f32(y2 - x) > 0.0001) && (i < 1000)) {
+    while (abs_f32(y2 - x) > 0.0001) {
         if (y2 > x) {
             upper = y;
         } else {
@@ -31,6 +31,9 @@ export fn sqrt(x: f32) f32 {
         y = (upper + lower) / 2.0;
         y2 = y * y;
         i = i + 1;
+        if (i > 1000) {
+            break;
+        }
     }
 
     return y;

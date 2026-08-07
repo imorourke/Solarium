@@ -11,6 +11,7 @@
 #include <kernel/kshell.cb>
 #include <kernel/krtc.cb>
 #include <std/list.cb>
+#include <std/math.cb>
 #include <std/string.cb>
 
 fn os_main() void {
