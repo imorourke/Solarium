@@ -18,7 +18,8 @@ export struct k_exec_hdr_t {
     attribute: u32;
 }
 
-export const K_EXEC_MAGIC_HDR: u32 = 1128415568;
+export const K_EXEC_MAGIC_HDR: u32 = 0x43424150;
+export const K_SHELL_MAGIC_HDR: u32 = 0x23217368;
 
 export struct k_link_rgn_t {
     data_size: u8;

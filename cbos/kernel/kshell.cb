@@ -478,6 +478,24 @@ fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         }
 
         def read_state: k_fs_io_state_t;
+        if (k_fs_io_state_init(loc, 0, sizeof(u32), &read_state) >= 0) {
+            def magic_data: u32 = 0;
+            def read_size: u32 = sizeof(magic_data);
+
+            if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
+                if (magic_data == K_EXEC_MAGIC_HDR) {
+                    k_io_print("file is a binary executable, not a script\n");
+                    return -1;
+                } else if (magic_data != K_SHELL_MAGIC_HDR) {
+                    k_io_print("unknown script type - should start with '#!sh'\n");
+                    return -1;
+                }
+            } else {
+                k_io_print("unable to read magic number\n");
+                return -1;
+            }
+        }
+
         if (k_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
             // Add one to the data size for null character in the array
             const DATA_SIZE: u32 = 128;
@@ -489,11 +507,14 @@ fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 run_data[read_size] = 0;
                 def input_data: *u8 = run_data;
 
-                def count: i32 = k_shell_split_args(input_data, &arg_buffer);
-                if (K_DBG_ENABLED) {
-                    k_io_print_stat("Arg Count", count);
+                // Only process if the line doesn't start with a #
+                if (run_data[0] != '#') {
+                    def count: i32 = k_shell_split_args(input_data, &arg_buffer);
+                    if (K_DBG_ENABLED) {
+                        k_io_print_stat("Arg Count", count);
+                    }
+                    k_shell_run_cmd(state, &arg_buffer, count);
                 }
-                k_shell_run_cmd(state, &arg_buffer, count);
                 read_size = DATA_SIZE;
             }
             k_io_print("\n");

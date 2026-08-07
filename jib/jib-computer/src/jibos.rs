@@ -246,7 +246,7 @@ impl JibOsImage {
         fs.create_file(
             home_dir,
             "script.run",
-            b"date\nmem\n\npwd\ncat hello.txt\ncat hello.txt",
+            b"#!sh\n\ndate\nmem\n\npwd\ncat hello.txt\ncat hello.txt",
         )?;
 
         let src = fs.create_directory(fs.root_sector(), "src")?;
