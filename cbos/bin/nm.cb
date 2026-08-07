@@ -39,7 +39,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     k_io_print("Header:\n");
-    k_io_print("  magic_num: ");
+    k_io_print("  magic_num: 0x");
     k_io_print_hex(hdr.magic_num);
     k_io_print(" (");
     def i: i32 = 0;
@@ -103,7 +103,7 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
 
             k_io_print("  ");
             k_io_print(name);
-            k_io_print(": ");
+            k_io_print(": 0x");
             k_io_print_hex(rgn->offset);
             k_io_print("\n");
         }
