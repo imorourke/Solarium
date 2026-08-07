@@ -16,58 +16,79 @@ use crate::ComputerError;
 pub struct JibOsImage {
     pub kernel: Vec<u8>,
     pub kernel_header: String,
-    pub applications: Vec<(String, Vec<u8>)>,
+    pub applications: Vec<(String, Vec<u8>, ApplicationCategory)>,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub enum ApplicationCategory {
+    #[default]
+    Binary,
+    Test,
 }
 
 struct JibApplication {
     exec: &'static str,
     filename: &'static str,
     code: &'static str,
+    category: ApplicationCategory,
+}
+
+macro_rules! os_dir {
+    ($p:expr) => {
+        concat!("../../../cbos/", $p)
+    };
 }
 
 impl JibOsImage {
     /// OS Code
-    const CODE_OS: &str = include_str!("../../../cbos/os.cb");
+    const CODE_OS: &str = include_str!(os_dir!("os.cb"));
 
     /// Definitions name
     const DEFS_FILENAME: &str = "cbos_defs.cb";
 
     /// Application Code
-    const CODE_APPS: &[JibApplication] = &[
+    const CODE_APP_BIN: &[JibApplication] = &[
         JibApplication {
             exec: "hello",
             filename: "hello.cb",
-            code: include_str!("../../../cbos/bin/hello.cb"),
+            code: include_str!(os_dir!("bin/hello.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "hello_mem",
             filename: "hello_mem.cb",
-            code: include_str!("../../../cbos/bin/hello_mem.cb"),
+            code: include_str!(os_dir!("bin/hello_mem.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "cat",
             filename: "cat.cb",
-            code: include_str!("../../../cbos/bin/cat.cb"),
+            code: include_str!(os_dir!("bin/cat.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "echo",
             filename: "echo.cb",
-            code: include_str!("../../../cbos/bin/echo.cb"),
+            code: include_str!(os_dir!("bin/echo.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "nm",
             filename: "nm.cb",
-            code: include_str!("../../../cbos/bin/nm.cb"),
+            code: include_str!(os_dir!("bin/nm.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "stat",
             filename: "stat.cb",
-            code: include_str!("../../../cbos/bin/stat.cb"),
+            code: include_str!(os_dir!("bin/stat.cb")),
+            category: ApplicationCategory::Binary,
         },
         JibApplication {
             exec: "math_test",
             filename: "math_test.cb",
-            code: include_str!("../../../cbos/bin/math_test.cb"),
+            code: include_str!(os_dir!("test/math_test.cb")),
+            category: ApplicationCategory::Test,
         },
     ];
 
@@ -154,12 +175,13 @@ impl JibOsImage {
             applications: Vec::new(),
         };
 
-        for app in Self::CODE_APPS {
+        for app in Self::CODE_APP_BIN {
             os_image.applications.push((
                 app.exec.into(),
                 os_image
                     .compile_app_code(app.code, Some(app.filename))?
                     .binary,
+                app.category,
             ));
         }
 
@@ -205,11 +227,19 @@ impl JibOsImage {
 
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
+        let test_dir = fs.create_directory(fs.root_sector(), "test")?;
 
         fs.create_file(home_dir, "hello.txt", b"Welcome to CB/OS!\n")?;
 
-        for (name, binary) in self.applications.iter() {
-            let entry = fs.create_file(bin_dir, name, binary)?;
+        for (name, binary, category) in self.applications.iter() {
+            let entry = fs.create_file(
+                match category {
+                    ApplicationCategory::Binary => bin_dir,
+                    ApplicationCategory::Test => test_dir,
+                },
+                name,
+                binary,
+            )?;
             Self::set_executable_attribute(&mut fs, entry)?;
         }
 
@@ -225,7 +255,7 @@ impl JibOsImage {
         fs.create_file(src, Self::DEFS_FILENAME, self.kernel_header.as_bytes())?;
 
         let src_bin = fs.create_directory(src, "bin")?;
-        for app in Self::CODE_APPS {
+        for app in Self::CODE_APP_BIN {
             fs.create_file(src_bin, app.filename, app.code.as_bytes())?;
         }
 
