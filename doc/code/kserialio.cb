@@ -1,23 +1,12 @@
-struct k_serial_control_t {
-    device_id: u16;
-    input_size: u16;
-    output_size: u16;
-    input_data: u8;
-    output_data: u8;
-    reset_input: u8;
-    reset_output: u8;
-    interrupt_num: u8;
-    interrupt_char: u8;
-}
-
-#ifdef K_SERIAL_IO_CBUOY_PRINT
-fn k_io_print_intf(out_dev: *u8, c: *u8) void {
+// C/Buoy version of print
+fn print(out_dev: *u8, c: *u8) void {
     while (*c != 0) {
         *out_dev = *c;
         c = c + 1;
     }
 }
-#else
+
+// ASM version of print
 asmfn k_io_print_intf(out_dev: *u8, c: *u8) void {
     "push $stat";
     "intoff";
@@ -37,4 +26,3 @@ asmfn k_io_print_intf(out_dev: *u8, c: *u8) void {
     "popr $stat";
     "ret";
 }
-#endif

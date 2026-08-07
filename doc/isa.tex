@@ -679,7 +679,7 @@ A more complicated example is shown in Listing \ref{listing:cbuoy-hello-world-me
 
 \newpage
 
-Input arguments are provided as arguments into \texttt{main}. These include program state information, and then traditional arguments for the command line input values and number of command line arguments. The first argument is the program name. This is shown in an example for the \texttt{cat} program implementation in Listing \ref{listing:cbuoy-bin-cat} and the \texttt{echo} program implementation in Listing \ref{listing:cbuoy-bin-echo}.
+Input arguments are provided as arguments into \texttt{main}. These include program state information, and then traditional arguments for the terminal input values and number of terminal arguments. The first argument is the program name. This is shown in an example for the \texttt{cat} program implementation in Listing \ref{listing:cbuoy-bin-cat} and the \texttt{echo} program implementation in Listing \ref{listing:cbuoy-bin-echo}.
 
 \lstinputlisting[label={listing:cbuoy-bin-cat},caption={The ``\texttt{cat}'' program takes in and reads a file, and echoes the file to the serial console}]{../cbos/bin/cat.cb}
 
@@ -689,7 +689,7 @@ Input arguments are provided as arguments into \texttt{main}. These include prog
 
 \subsection{Assembly Integration}
 
-To allow for additional optimization, Jib assembly code can also be mixed in with functions to increase the speed of certain functions. As the compiler is currently not an optimizing compiler, this provides the opportunity to convert commonly-used smaller functions into compact assembly code to increase the speed of execution. Identifiers from the overall C/Buoy program can be mixed into the assembly code by using replacement characters, as denoted in Table \ref{table:cbuoy-assembly-mixin}.
+To allow for additional optimization, Jib assembly code can also be mixed in with functions to increase the speed of certain functions. As the compiler is currently not an optimizing compiler, this provides the opportunity to convert commonly used smaller functions into compact assembly code to increase the speed of execution. Identifiers from the overall C/Buoy program can be mixed into the assembly code by using replacement characters, as denoted in Table \ref{table:cbuoy-assembly-mixin}.
 
 \begin{table}[h!]
     \centering
@@ -708,7 +708,7 @@ To allow for additional optimization, Jib assembly code can also be mixed in wit
     \label{table:cbuoy-assembly-mixin}
 \end{table}
 
-For example, the above listing could have the print function replaced by the print function in List \ref{listing:example-cbuoy-print-asm} and be considerably more efficient.
+For example, the original \texttt{print} function from Listing \ref{listing:example-cbuoy} could have the print function replaced by the assembly \texttt{print} function in Listing \ref{listing:example-cbuoy-print-asm} and be considerably more efficient.
 
 \lstinputlisting[label={listing:example-cbuoy-print-asm},caption={Replacement print function to improve the speed of the resulting output}]{code/kserialio.cb}
 
@@ -718,7 +718,9 @@ The original program in Listing \ref{listing:example-cbuoy} runs to a halt in 13
 
 Through direct modification of the stack, we can create a set of utilities to swap between different threads at runtime. Listing \ref{listing:cbuoy-threading-utils} provides several functions. \texttt{k\_tsk\_init} provides means to register a new thread. \texttt{k\_tsk\_main} is a function that is called to transition from the main thread into the inner executing threads. \texttt{k\_tsk\_yield} is both an interrupt handler (for a periodic device like a timer) and also a function that may be called by threaded functions to yield their execution to the next thread. This is simple round-robin threading, so there is no scheduler implemented in this example.
 
-\lstinputlisting[caption={Utilities that use a mix of Jib assembly and C/Buoy provide mechanisms to create threads at runtime and switch between threads, either through preemptive interrupts or task yielding.}, label={listing:cbuoy-threading-utils}]{../cbos/kernel/ktsk.cb}
+\newpage
+
+\lstinputlisting[caption={Utilities that use a mix of Jib assembly and C/Buoy provide mechanisms to create threads at runtime and switch between threads, either through preemptive interrupts or task yielding.}, label={listing:cbuoy-threading-utils}]{code/ktsk.cb}
 
 \subsection{Application Header}
 
