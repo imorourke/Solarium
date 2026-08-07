@@ -58,7 +58,7 @@ fn main() -> Result<(), ComputerError> {
         for _ in 0..1000 {
             match stdin_channel.try_recv() {
                 Ok(input) => {
-                    computer.set_serial_input(&input)?;
+                    computer.set_serial_input_unknown(&input)?;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => break,
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => panic!("stdin disconnected"),

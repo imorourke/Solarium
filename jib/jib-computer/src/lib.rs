@@ -307,16 +307,45 @@ impl JibComputer {
         self.reset(Some(code))
     }
 
-    pub fn set_serial_input(&mut self, s: &str) -> Result<bool, ComputerError> {
+    pub fn pub_serial_byte(&mut self, b: u8) -> Result<bool, ComputerError> {
+        if !self.dev_serial_io.borrow_mut().push_input(b) {
+            Ok(false)
+        } else if self.running_requested && !self.running && self.cpu.step_devices()? {
+            self.running = true;
+            Ok(true)
+        } else {
+            Ok(true)
+        }
+    }
+
+    fn set_serial_input_inner<const ALLOW_UNKNOWN: bool>(
+        &mut self,
+        s: &str,
+    ) -> Result<bool, ComputerError> {
         for c in s.chars().chain(['\n']) {
-            let cv = character_to_byte(c)?;
-            if !self.dev_serial_io.borrow_mut().push_input(cv) {
+            let cv = if ALLOW_UNKNOWN {
+                match character_to_byte(c) {
+                    Ok(v) => v,
+                    Err(CharacterError::CharacterToByte(_)) => b'?',
+                    Err(e) => return Err(e.into()),
+                }
+            } else {
+                character_to_byte(c)?
+            };
+
+            if !self.pub_serial_byte(cv)? {
                 return Ok(false);
-            } else if self.running_requested && !self.running && self.cpu.step_devices()? {
-                self.running = true;
             }
         }
         Ok(true)
+    }
+
+    pub fn set_serial_input(&mut self, s: &str) -> Result<bool, ComputerError> {
+        self.set_serial_input_inner::<false>(s)
+    }
+
+    pub fn set_serial_input_unknown(&mut self, s: &str) -> Result<bool, ComputerError> {
+        self.set_serial_input_inner::<true>(s)
     }
 
     pub fn get_serial_output(&mut self) -> Result<Vec<char>, ComputerError> {
