@@ -243,11 +243,12 @@ impl JibOsImage {
             Self::set_executable_attribute(&mut fs, entry)?;
         }
 
-        fs.create_file(
+        let test_script = fs.create_file(
             home_dir,
             "script.run",
             b"#!sh\n\ndate\nmem\n\npwd\ncat hello.txt\ncat hello.txt",
         )?;
+        Self::set_executable_attribute(&mut fs, test_script)?;
 
         let src = fs.create_directory(fs.root_sector(), "src")?;
 

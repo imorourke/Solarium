@@ -141,15 +141,15 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
                 if ((*next == NULL) || (out_entry.entry_type == K_FS_ENTRY_TYPE_DIR)) {
                     start_loc.entry = out_entry.base_block;
                 } else {
-                    k_io_print("entry '");
-                    k_io_print(pathname);
-                    k_io_print("' is not a directory entry\n");
+                    //k_io_print("entry '");
+                    //k_io_print(pathname);
+                    //k_io_print("' is not a directory entry\n");
                     return -1;
                 }
             } else {
-                k_io_print("unable to find entry with name '");
-                k_io_print(pathname);
-                k_io_print("'\n");
+                //k_io_print("unable to find entry with name '");
+                //k_io_print(pathname);
+                //k_io_print("'\n");
                 return -1;
             }
         }

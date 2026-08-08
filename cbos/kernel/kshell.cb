@@ -419,75 +419,6 @@ fn k_shell_split_args(input: *u8, args: **u8) i32 {
     return count;
 }
 
-fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
-    def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
-    if (disk == 0) {
-        return -1;
-    }
-
-    def arg_buffer: [K_SHELL_DEFAULT_ARG_SPLIT_SIZE]*u8;
-
-    if (argc >= 2) {
-        def loc: k_fs_entry_id_t;
-        def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->fs, &loc);
-        if (res != 0) {
-            k_io_print("unable to find file for '");
-            k_io_print(argv[1]);
-            k_io_print("'\n");
-            return -1;
-        }
-
-        def read_state: k_fs_io_state_t;
-        if (k_fs_io_state_init(loc, 0, sizeof(u32), &read_state) >= 0) {
-            def magic_data: u32 = 0;
-            def read_size: u32 = sizeof(magic_data);
-
-            if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
-                if (magic_data == K_EXEC_MAGIC_HDR) {
-                    return k_shell_fn_exec(state, argv, argc);
-                } else if (magic_data != K_SHELL_MAGIC_HDR) {
-                    k_io_print("unknown script type - should start with '#!sh'\n");
-                    return -1;
-                }
-            } else {
-                k_io_print("unable to read magic number\n");
-                return -1;
-            }
-        }
-
-        if (k_fs_io_state_init(loc, 0, 0, &read_state) >= 0) {
-            // Add one to the data size for null character in the array
-            const DATA_SIZE: u32 = 128;
-            def run_data: [DATA_SIZE + 1]u8;
-            def read_size: u32 = DATA_SIZE;
-
-            while (k_fs_io_state_read_next_section_until(&read_state, &run_data, &read_size, '\n') > 0) {
-                // Add the null character to the end
-                run_data[read_size] = 0;
-                def input_data: *u8 = run_data;
-
-                // Only process if the line doesn't start with a #
-                if (run_data[0] != '#') {
-                    def count: i32 = k_shell_split_args(input_data, &arg_buffer);
-                    if (K_DBG_ENABLED) {
-                        k_io_print_stat("Arg Count", count);
-                    }
-                    k_shell_run_cmd(state, &arg_buffer, count);
-                }
-                read_size = DATA_SIZE;
-            }
-            k_io_print("\n");
-        }
-
-        return 0;
-    } else {
-        k_io_print("unexpected number of entries for ");
-        k_io_print(argv[0]);
-        k_io_print("\n");
-        return -1;
-    }
-}
-
 fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     if (
         state &&
@@ -508,9 +439,7 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 exec_state.cwd = state->fs;
                 exec_state.state = state;
 
-                // Define the executable node
-                def exec_node: k_fs_entry_id_t;
-                exec_node.disk_index = state->fs.disk_index;
+                // Set the file path
                 exec_node.entry = out_entry.base_block;
 
                 // Start the executable
@@ -525,6 +454,156 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print(argv[0]);
     k_io_print("\n");
     return -1;
+}
+
+fn k_shell_run_script(state: *k_shell_state_t, script_file: k_fs_entry_id_t, argv: **u8, argc: i32) i32 {
+    def arg_buffer: [K_SHELL_DEFAULT_ARG_SPLIT_SIZE]*u8;
+
+    def read_state: k_fs_io_state_t;
+    if (k_fs_io_state_init(script_file, 0, 0, &read_state) >= 0) {
+        // Add one to the data size for null character in the array
+        const DATA_SIZE: u32 = 128;
+        def run_data: [DATA_SIZE + 1]u8;
+        def read_size: u32 = DATA_SIZE;
+
+        while (k_fs_io_state_read_next_section_until(&read_state, &run_data, &read_size, '\n') > 0) {
+            // Add the null character to the end
+            run_data[read_size] = 0;
+            def input_data: *u8 = run_data;
+
+            // Only process if the line doesn't start with a #
+            if (run_data[0] != '#') {
+                def count: i32 = k_shell_split_args(input_data, &arg_buffer);
+                if (K_DBG_ENABLED) {
+                    k_io_print_stat("Arg Count", count);
+                }
+                k_shell_run_cmd(state, &arg_buffer, count);
+            }
+            read_size = DATA_SIZE;
+        }
+        k_io_print("\n");
+    }
+
+    return 0;
+}
+
+fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
+    if (disk == 0) {
+        return -1;
+    }
+
+    if (argc >= 2) {
+        def loc: k_fs_entry_id_t;
+        def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->fs, &loc);
+        if (res != 0) {
+            k_io_print("unable to find file for '");
+            k_io_print(argv[1]);
+            k_io_print("'\n");
+            return -1;
+        }
+
+        def read_state: k_fs_io_state_t;
+        if (k_fs_io_state_init(loc, 0, sizeof(u32), &read_state) >= 0) {
+            def magic_data: u32 = 0;
+            def read_size: u32 = sizeof(magic_data);
+
+            if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
+                if (magic_data != K_SHELL_MAGIC_HDR) {
+                    k_io_print("unknown script type - should start with '#!sh'\n");
+                    return -1;
+                }
+            } else {
+                k_io_print("unable to read magic number\n");
+                return -1;
+            }
+        }
+
+        return k_shell_run_script(state, loc, &argv[1], argc - 1);
+    } else {
+        k_io_print("unexpected number of entries for ");
+        k_io_print(argv[0]);
+        k_io_print("\n");
+        return -1;
+    }
+}
+
+fn k_shell_run_binary(state: *k_shell_state_t, exec: k_fs_entry_id_t, argv: **u8, argc: i32) i32 {
+    def exec_state: k_exec_state_t;
+    exec_state.cwd = state->fs;
+    exec_state.state = state;
+    return k_link_start_executable(exec, &exec_state, argv, argc);
+}
+
+fn k_shell_find_in_path(state: *k_shell_state_t, file: *u8) k_fs_entry_id_t {
+    def out_entry: k_fs_directory_entry_t;
+    def search_node: k_fs_entry_id_t;
+
+    // First search the current directory
+    if (k_fs_readlink(file, K_FS_ENTRY_TYPE_FILE, &state->fs, &search_node) == 0) {
+        if ((search_node.entry != 0) &&
+            (k_fs_get_dir_entry_by_id(search_node, &out_entry) == 0) &&
+            (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) &&
+            (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE)
+            ) {
+            // Return the resulting file
+            search_node.entry = out_entry.base_block;
+            return search_node;
+        }
+    }
+
+    // Then search in PATH
+    def i: i32 = 0;
+    while (i < K_DISK_NUM_MOUNTS) {
+        search_node.disk_index = i;
+        search_node.entry = state->path[i];
+        if ((search_node.entry != 0) &&
+            (k_fs_get_dir_entry_by_name(search_node, file, &out_entry) == 0) &&
+            (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) &&
+            (out_entry.attributes & K_FS_ATTRIBUTE_EXECUTABLE)
+            ) {
+            // Return the resulting file
+            search_node.entry = out_entry.base_block;
+            return search_node;
+        }
+
+        i = i + 1;
+    }
+
+    search_node.entry = 0;
+    search_node.disk_index = -1;
+    return search_node;
+}
+
+fn k_shell_run_path(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
+    if (argc == 0) {
+        return -1;
+    }
+
+    // Search for file, first from local directory. If not, then look in PATH
+    def file: k_fs_entry_id_t = k_shell_find_in_path(state, argv[0]);
+
+    def read_state: k_fs_io_state_t;
+    if ((file.entry != 0) && (k_fs_io_state_init(file, 0, sizeof(u32), &read_state) >= 0)) {
+        def magic_data: u32 = 0;
+        def read_size: u32 = sizeof(magic_data);
+
+        if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
+            if (magic_data == K_EXEC_MAGIC_HDR) {
+                return k_shell_run_binary(state, file, argv, argc);
+            } else if (magic_data == K_SHELL_MAGIC_HDR) {
+                return k_shell_run_script(state, file, argv, argc);
+            } else {
+                k_io_print("unknown executable type\n");
+            }
+        } else {
+            k_io_print("unable to read magic number\n");
+            return -1;
+        }
+    } else {
+        k_io_print("unable no valid executable found\n");
+        return -1;
+    }
 }
 
 fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
@@ -594,7 +673,7 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             return res;
         }
 
-        return k_shell_fn_exec_path(state, argv, argc);
+        return k_shell_run_path(state, argv, argc);
     }
 }
 
