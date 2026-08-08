@@ -16,7 +16,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def i: i32 = 1;
-    while (i < argc) {
+    while ((i < argc) && !k_exec_should_exit()) {
         def loc: k_fs_entry_id_t;
         def res: i32 = k_fs_readlink(argv[i], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
         if (res != 0) {
@@ -33,7 +33,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
             def run_data: [DATA_SIZE + 1]u8;
             def read_size: u32 = DATA_SIZE;
 
-            while (k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) {
+            while ((k_fs_io_state_read_next_section(&read_state, &run_data, &read_size) > 0) && !k_exec_should_exit()) {
                 // Add the null character to the end
                 run_data[read_size] = 0;
 

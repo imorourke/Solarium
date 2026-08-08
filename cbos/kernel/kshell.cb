@@ -532,7 +532,11 @@ fn k_shell_run_binary(state: *k_shell_state_t, exec: k_fs_entry_id_t, argv: **u8
     def exec_state: k_exec_state_t;
     exec_state.cwd = state->fs;
     exec_state.state = state;
-    return k_link_start_executable(exec, &exec_state, argv, argc);
+    def ret: i32 = k_link_start_executable(exec, &exec_state, argv, argc);
+    if (k_exec_should_exit()) {
+        k_io_print("\nApplication Cancelled\n");
+    }
+    return ret;
 }
 
 fn k_shell_find_in_path(state: *k_shell_state_t, file: *u8) k_fs_entry_id_t {
