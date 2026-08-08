@@ -537,7 +537,7 @@ A block device allows for reading and writing from a mass storage device. This p
 
 \pagebreak
 
-\section{Examples}
+\section{Assembly Examples}
 
 The following list some simple example programs that can be run on the Jib.
 
@@ -677,7 +677,7 @@ A more complicated example is shown in Listing \ref{listing:cbuoy-hello-world-me
 
 \lstinputlisting[label={listing:cbuoy-hello-world-memory},caption={Example ``hello world'' application links into OS functionality to perform the printing and allocate memory from the shared kernel allocator}]{../cbos/bin/hello_mem.cb}
 
-\newpage
+\pagebreak
 
 Input arguments are provided as arguments into \texttt{main}. These include program state information, and then traditional arguments for the terminal input values and number of terminal arguments. The first argument is the program name. This is shown in an example for the \texttt{cat} program implementation in Listing \ref{listing:cbuoy-bin-cat} and the \texttt{echo} program implementation in Listing \ref{listing:cbuoy-bin-echo}.
 
@@ -722,56 +722,81 @@ Through direct modification of the stack, we can create a set of utilities to sw
 
 \lstinputlisting[caption={Utilities that use a mix of Jib assembly and C/Buoy provide mechanisms to create threads at runtime and switch between threads, either through preemptive interrupts or task yielding.}, label={listing:cbuoy-threading-utils}]{code/ktsk.cb}
 
-\subsection{Application Header}
+\section{CB/OS}
+\label{sec:cbos}
 
-Application binary files are written in a way that would allow external functions to be linked into the program. The basic format is specified below in Table \ref{table:cbuoy-exec-header}, providing a magic number to identify the application and offsets and sizes for both the link and application data regions.
+CB/OS provides a basic operating environment to run applications in. It is predominantly written in C/Buoy, but there are some elements in Jib assembly as well to provide additional speed. CB/OS uses C/Buoy's kernel mode, being loaded at address \texttt{0x2000}. When booting, it will attempt to mount any disk attached to device ID 0 and will bring up a serial console prompt with simple commands.
+
+\subsection{Shell}
+
+The shell provides basic utilities, such as navigation of the filesystem, querying, the date, running shell programs, and launching binary executables, among others. It is the interactive way to run commands and start applications
+
+A simple dynamic linker, allowing exports from the CB/OS image to be linked into matching-named imports within the calling application, is provided to ensure that built applications both don't need to include duplicates of all library code, can call into operating system functions, and can work across slightly different versions of the operating system that may place functions in different locations (provided that the function prototype remains the same).
+
+\subsection{CBOS Executable Format}
+\label{sec:cbos-application-header}
+
+Executable binary files are written in a way that would allow external functions to be linked into the program. The basic format is specified below in Table \ref{table:cbos-exec-header}, providing a magic number to identify the application and offsets and sizes for both the link and application data regions.
 
 \begin{table}[h!]
-    \centering
-    \begin{tabular}{c|cc|l}
-        \hline
-        Byte Offset & Type & Name & Description \\
-        \hline
-        0 & \texttt{u32} & \texttt{magic\_num} & Application magic number (\texttt{CPAP}, \texttt{0x43424150}) \\
-        4 & \texttt{u32} & \texttt{import\_offset} & Import region offset from base of binary file \\
-        8 & \texttt{u32} & \texttt{import\_size} & Import region size \\
-        12 & \texttt{u32} & \texttt{export\_offset} & Export region offset from base of binary file \\
-        16 & \texttt{u32} & \texttt{export\_size} & Export region size \\
-        20 & \texttt{u32} & \texttt{data\_offset} & Executable region offset from base of binary file \\
-	24 & \texttt{u32} & \texttt{data\_size} & Executable region size \\
-	28 & \texttt{u32} & \texttt{attribute} & Attribute \\
-        \hline
-    \end{tabular}
-    \caption{Application link header provides basic information regarding an application binary file to be able to load and link the application.}
-    \label{table:cbuoy-exec-header}
+	\centering
+	\begin{tabular}{c|cc|l}
+		\hline
+		Byte Offset & Type & Name & Description \\
+		\hline
+		0 & \texttt{u32} & \texttt{magic\_num} & Application magic number (\texttt{CPAP}, \texttt{0x43424150}) \\
+		4 & \texttt{u32} & \texttt{import\_offset} & Import region offset from base of binary file \\
+		8 & \texttt{u32} & \texttt{import\_size} & Import region size \\
+		12 & \texttt{u32} & \texttt{export\_offset} & Export region offset from base of binary file \\
+		16 & \texttt{u32} & \texttt{export\_size} & Export region size \\
+		20 & \texttt{u32} & \texttt{data\_offset} & Executable region offset from base of binary file \\
+		24 & \texttt{u32} & \texttt{data\_size} & Executable region size \\
+		28 & \texttt{u32} & \texttt{attribute} & Attribute \\
+		\hline
+	\end{tabular}
+	\caption{Application link header provides basic information regarding an application binary file to be able to load and link the application.}
+	\label{table:cbos-exec-header}
 \end{table}
 
 If there is a import and/or export region, this will consist of an array of link structures, found in Table \ref{table:cbuoy-exec-link}, to define how to link functions and variables into the application. This will provide the name of each symbol and the offset within the executable data region with which to write the corresponding address into. Import links can be linked as imports, with the originating symbol linked in from another library or application. Export links are provided so that they are available to other applications.
 
 \begin{table}[h!]
-    \centering
-    \begin{tabular}{c|cc|l}
-        \hline
-        Byte Offset & Type & Name & Description \\
-        \hline
-        0 & \texttt{u8} & \texttt{copy\_size} & Size of address/region to copy \\
-        1 & \texttt{u8} & \texttt{symbol\_size} & Symbol string size, including \\
-        & & & null-termination character \\
-        2 & \texttt{u32} & \texttt{offset} & Symbol offset from base of load \\
-        & & & location (for application, or global offset \\
-        & & & if in kernel mode) \\
-        6 & \texttt{[symbol\_size]u8} & \texttt{symbol\_name} & Symbol string, null-terminated \\
-        \hline
-    \end{tabular}
-    \caption{Link structure provides the name and resulting location to copy the address into the application data region to allow external functions to be dynamically linked into the program.}
-    \label{table:cbuoy-exec-link}
+	\centering
+	\begin{tabular}{c|cc|l}
+		\hline
+		Byte Offset & Type & Name & Description \\
+		\hline
+		0 & \texttt{u8} & \texttt{copy\_size} & Size of address/region to copy \\
+		1 & \texttt{u8} & \texttt{symbol\_size} & Symbol string size, including \\
+		& & & null-termination character \\
+		2 & \texttt{u32} & \texttt{offset} & Symbol offset from base of load \\
+		& & & location (for application, or global offset \\
+		& & & if in kernel mode) \\
+		6 & \texttt{[symbol\_size]u8} & \texttt{symbol\_name} & Symbol string, null-terminated \\
+		\hline
+	\end{tabular}
+	\caption{Link structure provides the name and resulting location to copy the address into the application data region to allow external functions to be dynamically linked into the program.}
+	\label{table:cbuoy-exec-link}
 \end{table}
 
 The data region consists of the actual application code that can be loaded into memory. Once the application data has been added, and then the appropriate symbols are found and linked into the program, the executable base location may be called as a function to begin execution of the loaded application.
 
+\subsection{Applications}
+
+Applications can be compiled and provided in position-independent form, leveraging the application mode of the C/Buoy compiler. Applications must be provided in a C/Buoy application header file, as described in Section \ref{sec:cbos-application-header}, so that they can properly linked with OS functions and other libraries that may be linked in to the operating system.
+
+\subsection{Bootloader}
+
+A simple bootloader can allow loading the kernel directly off of a disk. This uses components of CB/OS in a stripped-down format to mount any attached disks, search the root directory for a valid executable called \texttt{boot.bin}, and then load that into the appropriate requested location in memory.
+
+Once the application is loaded, any exported symbols and their locations are loaded into memory after the binary itself. Import symbols are then used (if provided) to define the export location, with \texttt{K\_LINK\_EXPORT\_DATA} as a \texttt{u32} set to provide the location in memory of the start of the export region, and \texttt{K\_LINK\_EXPORT\_SIZE} as a \texttt{u32} set to provide the size of the export region. This allows the dynamic linker to know where the CB/OS functions are located in memory.
+
+With this information loaded, the bootloader can then hand control over to the kernel itself, which will initialize any remaining devices necessary and start the interactive shell.
+
 \pagebreak
 
 \section{CBFS Filesystem}
+\label{sec:cbfs}
 
 The CBFS filesystem provides basic I/O capabilities for the Jib computer. It is based on a file allocation table and provides 16-bit integer identification for file sectors. A fuse driver exists for usage of the filesystem on POSIX systems.
 
