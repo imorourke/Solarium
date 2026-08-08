@@ -9,6 +9,12 @@ export struct k_exec_state_t {
     state: *u32;
 }
 
+global K_EXEC_SHOULD_APPLICATION_QUIT: u8 = 0;
+
+export fn k_exec_should_exit() u8 {
+    return K_EXEC_SHOULD_APPLICATION_QUIT;
+}
+
 fn k_link_start_executable(entry: k_fs_entry_id_t, state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
@@ -125,6 +131,7 @@ fn k_link_start_executable(entry: k_fs_entry_id_t, state: *k_exec_state_t, argv:
 
     // Only run the application on success
     if (link_success) {
+        K_EXEC_SHOULD_APPLICATION_QUIT = 0;
         def app_func: fn(*k_exec_state_t, **u8, u32) i32 = init_loc;
         app_func(state, argv, argc);
     }

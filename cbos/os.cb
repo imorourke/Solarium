@@ -52,10 +52,15 @@ fnint irq_reset() void {
     asm { "reset"; }
 }
 
+fnint irq_sigint() void {
+    K_EXEC_SHOULD_APPLICATION_QUIT = 1;
+}
+
 fn main() void {
     // Set CPU error handlers
     k_irq_set(0, irq_reset);
     k_irq_set(1, irq_reset);
+    k_irq_set(2, irq_sigint);
 
     k_device_init(0);
     k_io_init();

@@ -718,9 +718,11 @@ The original program in Listing \ref{listing:example-cbuoy} runs to a halt in 13
 
 Through direct modification of the stack, we can create a set of utilities to swap between different threads at runtime. Listing \ref{listing:cbuoy-threading-utils} provides several functions. \texttt{k\_tsk\_init} provides means to register a new thread. \texttt{k\_tsk\_main} is a function that is called to transition from the main thread into the inner executing threads. \texttt{k\_tsk\_yield} is both an interrupt handler (for a periodic device like a timer) and also a function that may be called by threaded functions to yield their execution to the next thread. This is simple round-robin threading, so there is no scheduler implemented in this example.
 
-\newpage
+\pagebreak
 
 \lstinputlisting[caption={Utilities that use a mix of Jib assembly and C/Buoy provide mechanisms to create threads at runtime and switch between threads, either through preemptive interrupts or task yielding.}, label={listing:cbuoy-threading-utils}]{code/ktsk.cb}
+
+\pagebreak
 
 \section{CB/OS}
 \label{sec:cbos}
@@ -758,7 +760,7 @@ Executable binary files are written in a way that would allow external functions
 	\label{table:cbos-exec-header}
 \end{table}
 
-If there is a import and/or export region, this will consist of an array of link structures, found in Table \ref{table:cbuoy-exec-link}, to define how to link functions and variables into the application. This will provide the name of each symbol and the offset within the executable data region with which to write the corresponding address into. Import links can be linked as imports, with the originating symbol linked in from another library or application. Export links are provided so that they are available to other applications.
+If there is a import and/or export region, this will consist of an array of link structures, found in Table \ref{table:cbfs-exec-link}, to define how to link functions and variables into the application. This will provide the name of each symbol and the offset within the executable data region with which to write the corresponding address into. Import links can be linked as imports, with the originating symbol linked in from another library or application. Export links are provided so that they are available to other applications.
 
 \begin{table}[h!]
 	\centering
@@ -776,7 +778,7 @@ If there is a import and/or export region, this will consist of an array of link
 		\hline
 	\end{tabular}
 	\caption{Link structure provides the name and resulting location to copy the address into the application data region to allow external functions to be dynamically linked into the program.}
-	\label{table:cbuoy-exec-link}
+	\label{table:cbfs-exec-link}
 \end{table}
 
 The data region consists of the actual application code that can be loaded into memory. Once the application data has been added, and then the appropriate symbols are found and linked into the program, the executable base location may be called as a function to begin execution of the loaded application.
@@ -792,6 +794,28 @@ A simple bootloader can allow loading the kernel directly off of a disk. This us
 Once the application is loaded, any exported symbols and their locations are loaded into memory after the binary itself. Import symbols are then used (if provided) to define the export location, with \texttt{K\_LINK\_EXPORT\_DATA} as a \texttt{u32} set to provide the location in memory of the start of the export region, and \texttt{K\_LINK\_EXPORT\_SIZE} as a \texttt{u32} set to provide the size of the export region. This allows the dynamic linker to know where the CB/OS functions are located in memory.
 
 With this information loaded, the bootloader can then hand control over to the kernel itself, which will initialize any remaining devices necessary and start the interactive shell.
+
+\subsection{Interrupts}
+
+Interrupts are used to interface with hardware-level events. A list of used interrupts and their functions is provided in Table \ref{table:cbos-interrupt-table}.
+
+\begin{table}[h!]
+	\centering
+	\begin{tabular}{c|ll}
+		\hline
+		Index & Device & Usage \\
+		\hline
+		0 & CPU Invalid Operation & Reset \\
+		1 & Memory Fault & Reset \\
+		2 & External Interrupt &  Request Cancellation \\
+		8 & System Tick Clock & Thread Yield \\
+		9 & Serial Data Available (Detects \texttt{`\textbackslash n'}) & \texttt{noop} (clears halt state) \\
+
+		\hline
+	\end{tabular}
+	\caption{Interrupts are used to connect hardware devices and internal functionality to OS functions.}
+	\label{table:cbos-interrupt-table}
+\end{table}
 
 \pagebreak
 
