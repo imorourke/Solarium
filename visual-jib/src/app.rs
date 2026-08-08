@@ -3,8 +3,8 @@ use crate::messages::{ThreadToUi, UiToThread};
 use cblang::{CompileResults, Compiler};
 use cblang::{CompilerError, TokenError};
 use eframe::egui::{
-    self, CentralPanel, Context, Grid, Id, Layout, MenuBar, ScrollArea, Slider, TextBuffer,
-    TextEdit,
+    self, CentralPanel, Context, Grid, Id, Key, Layout, MenuBar, Modifiers, ScrollArea, Slider,
+    TextBuffer, TextEdit,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::JibCode;
@@ -317,6 +317,15 @@ impl eframe::App for VisualJib {
                     self.open_code_window(CodeWindowType::Assembly, code, filename);
                 }
             }
+        }
+
+        if ui.input_mut(|i| {
+            i.consume_shortcut(&egui::KeyboardShortcut {
+                modifiers: Modifiers::CTRL,
+                logical_key: Key::S,
+            })
+        }) {
+            self.tx_ui.send(UiToThread::CpuIrq(2)).unwrap();
         }
 
         CentralPanel::default().show(ui, |ui| {
