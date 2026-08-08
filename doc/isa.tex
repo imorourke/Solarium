@@ -727,7 +727,7 @@ Through direct modification of the stack, we can create a set of utilities to sw
 \section{CB/OS}
 \label{sec:cbos}
 
-CB/OS provides a basic operating environment to run applications in. It is predominantly written in C/Buoy, but there are some elements in Jib assembly as well to provide additional speed. CB/OS uses C/Buoy's kernel mode, being loaded at address \texttt{0x2000}. When booting, it will attempt to mount any disk attached to device ID 0 and will bring up a serial console prompt with simple commands.
+CB/OS provides a basic operating environment to run applications in. It is predominantly written in C/Buoy, but there are some elements in Jib assembly as well to provide additional speed. CB/OS uses C/Buoy's kernel mode, being loaded at address \texttt{0x2000}. When booting, it will attempt to mount any disk attached to device ID 0, using the CBFS filesystem in Section \ref{sec:cbfs}, and will bring up a serial console prompt with typical POSIX-styled commands.
 
 \subsection{Shell}
 
