@@ -62,7 +62,7 @@ fn k_link_print_exports() u32 {
 
         def name: *u8 = current_loc;
         k_io_print(name);
-        k_io_print(": ");
+        k_io_print(": 0x");
         k_io_print_hex(rgn->offset);
         k_io_print("\n");
 
