@@ -376,7 +376,7 @@ impl PreprocessorState {
                 } else if verb == "ifexist" {
                     let (file_path, file_fs) = self.get_file_path(file, arg)?;
                     if_statements.push(IfState::new(
-                        file_fs.or(fs).map_or(false, |x| x.file_exists(&file_path)),
+                        file_fs.or(fs).is_some_and(|x| x.file_exists(&file_path)),
                     ));
                 } else if verb == "ifndef" {
                     if_statements.push(IfState::new(!definitions.contains_key(arg)));
