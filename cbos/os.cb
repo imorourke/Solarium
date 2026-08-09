@@ -32,11 +32,11 @@ fn os_main() void {
 
     while (run_shell) {
         k_io_print("~> ");
-        if (sh_state.auto_halt && SERIAL_DEV->input_size == 0) {
+        while (sh_state.auto_halt && SERIAL_DEV->input_size == 0) {
             asm { "halt"; }
         }
 
-        if (k_io_read_str_until(input_buffer, K_SHELL_DEFAULT_INPUT_BUFFER_SIZE, '\n') > 0) {
+        if ((SERIAL_DEV->input_size > 0) && (k_io_read_str_until(input_buffer, K_SHELL_DEFAULT_INPUT_BUFFER_SIZE, '\n') > 0)) {
             k_io_print(input_buffer);
             def count: i32 = k_shell_split_args(input_buffer, &arg_buffer);
             k_shell_run_cmd(&sh_state, &arg_buffer, count);
