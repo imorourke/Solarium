@@ -27,11 +27,11 @@ pub enum ApplicationCategory {
     Test,
 }
 
-struct JibApplication {
-    exec: &'static str,
-    filename: &'static str,
-    code: &'static str,
-    category: ApplicationCategory,
+pub struct JibApplication {
+    pub exec: &'static str,
+    pub filename: &'static str,
+    pub code: &'static str,
+    pub category: ApplicationCategory,
 }
 
 macro_rules! os_dir {
@@ -48,17 +48,17 @@ impl JibOsImage {
     const DEFS_FILENAME: &str = "cbos_defs.cb";
 
     /// Application Code
-    const CODE_APP_BIN: &[JibApplication] = &[
+    pub const CODE_APP_BIN: &[JibApplication] = &[
         JibApplication {
             exec: "hello",
             filename: "hello.cb",
-            code: include_str!(os_dir!("bin/hello.cb")),
+            code: include_str!(os_dir!("bin/sample/hello.cb")),
             category: ApplicationCategory::SampleApplication,
         },
         JibApplication {
             exec: "hello_mem",
             filename: "hello_mem.cb",
-            code: include_str!(os_dir!("bin/hello_mem.cb")),
+            code: include_str!(os_dir!("bin/sample/hello_mem.cb")),
             category: ApplicationCategory::SampleApplication,
         },
         JibApplication {
@@ -88,7 +88,7 @@ impl JibOsImage {
         JibApplication {
             exec: "math_test",
             filename: "math_test.cb",
-            code: include_str!(os_dir!("test/math_test.cb")),
+            code: include_str!(os_dir!("bin/test/math_test.cb")),
             category: ApplicationCategory::Test,
         },
     ];

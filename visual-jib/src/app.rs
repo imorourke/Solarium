@@ -7,7 +7,7 @@ use eframe::egui::{
     TextBuffer, TextEdit,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
-use jib_computer::JibCode;
+use jib_computer::{ApplicationCategory, JibCode, JibOsImage};
 use jib_cpu::cpu::RegisterManager;
 use std::collections::HashMap;
 use std::path::Path;
@@ -366,57 +366,34 @@ impl eframe::App for VisualJib {
                         );
                     }
 
-                    ui.menu_button("Applications", |ui| {
-                        if ui.button("hello").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/hello.cb").to_string(),
-                                Some("hello.cb"),
-                            );
-                        }
+                    const NAMED_VALS: &[(&'static str, fn(ApplicationCategory) -> bool)] = &[
+                        ("Applications", |x: ApplicationCategory| {
+                            matches!(
+                                x,
+                                ApplicationCategory::SampleApplication | ApplicationCategory::Test
+                            )
+                        }),
+                        ("Utilities", |x: ApplicationCategory| {
+                            matches!(x, ApplicationCategory::PathBinary)
+                        }),
+                    ];
 
-                        if ui.button("hello_mem").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/hello_mem.cb").to_string(),
-                                Some("hello_mem.cb"),
-                            );
-                        }
-                    });
-
-                    ui.menu_button("Utilities", |ui| {
-                        if ui.button("cat").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/cat.cb").to_string(),
-                                Some("cat.cb"),
-                            );
-                        }
-
-                        if ui.button("echo").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/echo.cb").to_string(),
-                                Some("echo.cb"),
-                            );
-                        }
-
-                        if ui.button("nm").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/nm.cb").to_string(),
-                                Some("nm.cb"),
-                            );
-                        }
-
-                        if ui.button("stat").clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                include_str!("../../cbos/bin/stat.cb").to_string(),
-                                Some("stat.cb"),
-                            );
-                        }
-                    });
+                    for (name, filter_val) in NAMED_VALS.iter() {
+                        ui.menu_button(*name, |ui| {
+                            for a in JibOsImage::CODE_APP_BIN
+                                .iter()
+                                .filter(|x| filter_val(x.category))
+                            {
+                                if ui.button(a.exec).clicked() {
+                                    self.open_code_window(
+                                        CodeWindowType::Cbuoy,
+                                        a.code.into(),
+                                        Some(a.filename),
+                                    );
+                                }
+                            }
+                        });
+                    }
 
                     ui.menu_button("Examples", |ui| {
                         static CB_CODES: &[(&str, &str, &str)] = &[

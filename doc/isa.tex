@@ -671,11 +671,11 @@ When in application mode, exported kernel functions may be used to link into sha
 
 A very simple ``hello world'' application is shown below in Listing \ref{listing:cbuoy-hello-world}.
 
-\lstinputlisting[label={listing:cbuoy-hello-world},caption={Example ``hello world'' application links into OS functionality to perform the printing}]{../cbos/bin/hello.cb}
+\lstinputlisting[label={listing:cbuoy-hello-world},caption={Example ``hello world'' application links into OS functionality to perform the printing}]{../cbos/bin/sample/hello.cb}
 
 A more complicated example is shown in Listing \ref{listing:cbuoy-hello-world-memory}, that will allocate and copy memory. Note that, due to the simplified memory model, unless the allocator is tracking the application or performing garbage collection, the running application is responsible for freeing or otherwise closing any resources that it has used during the runtime before returning functionality to the kernel.
 
-\lstinputlisting[label={listing:cbuoy-hello-world-memory},caption={Example ``hello world'' application links into OS functionality to perform the printing and allocate memory from the shared kernel allocator}]{../cbos/bin/hello_mem.cb}
+\lstinputlisting[label={listing:cbuoy-hello-world-memory},caption={Example ``hello world'' application links into OS functionality to perform the printing and allocate memory from the shared kernel allocator}]{../cbos/bin/sample/hello_mem.cb}
 
 \pagebreak
 

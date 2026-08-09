@@ -18,7 +18,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("\n");
 
         def i: u32 = 2;
-        while (i < argc) {
+        while ((i < argc) && !k_exec_should_exit()) {
             k_io_print("arg[");
             k_io_print_uint_width(i, 2);
             k_io_print("] = \"");
@@ -28,7 +28,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
         }
     } else {
         def i: u32 = 1;
-        while (i < argc) {
+        while ((i < argc) && !k_exec_should_exit()) {
             if (i > 1) {
                 k_io_print(" ");
             }

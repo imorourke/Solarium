@@ -93,6 +93,7 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
         // Read the link data and apply
         def current_loc: *u8 = data;
         def end_loc: *u8 = data + data_size;
+        def res: i32 = 0;
 
         while (current_loc < end_loc) {
             def rgn: *k_link_rgn_t = current_loc;
@@ -106,8 +107,16 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
             k_io_print(": 0x");
             k_io_print_hex(rgn->offset);
             k_io_print("\n");
+
+            if (k_exec_should_exit()) {
+                res = -1;
+                break;
+            }
         }
 
         k_free(data);
+        return res;
+    } else {
+        return -1;
     }
 }

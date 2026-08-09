@@ -18,7 +18,7 @@ use jib_cpu::{
 };
 use std::{rc::Rc, vec::Vec};
 
-pub use jibos::JibOsImage;
+pub use jibos::{ApplicationCategory, JibApplication, JibOsImage};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JibCode {
