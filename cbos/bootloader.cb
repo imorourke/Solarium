@@ -6,9 +6,8 @@
 #include <kernel/klink.cb>
 
 global BOOT_KERNEL_NAME: *u8 = "boot.bin";
-const LOAD_LOC: u32 = 0x2000u32;
 
-fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16) i32 {
+fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
     def read_state: k_fs_io_state_t;
     def exec_hdr: k_exec_hdr_t;
     def copy_loc: *u8;
@@ -32,12 +31,7 @@ fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16) i32 {
         return -1;
     }
 
-    if (exec_hdr.attribute != LOAD_LOC) {
-        k_io_print("unsupported load location\n");
-        return -1;
-    }
-
-    def app_data: *u8 = LOAD_LOC;
+    def app_data: *u8 = exec_hdr.attribute;
     copy_loc = app_data;
 
     if (k_disk_fs_io_state_init(disk, entry, exec_hdr.prog_offset, exec_hdr.prog_size, &read_state) >= 0) {
@@ -142,10 +136,11 @@ fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16) i32 {
         }
     }
 
-    if (!link_success) {
-        return -1;
-    } else {
+    if (link_success && load_loc) {
+        *load_loc = exec_hdr.attribute;
         return 0;
+    } else {
+        return -1;
     }
 }
 
@@ -170,9 +165,14 @@ fn main() void {
     if (k_disk_fs_get_dir_entry_by_name(disk, cwd, BOOT_KERNEL_NAME, &out_entry) == 0) {
         k_io_print("Found boot entry\n");
         if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
-            if (k_link_start_kernel(disk, out_entry.base_block) == 0) {
+            def load_loc: u32;
+            if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
                 asm {
-                    "ldi 8:u16 0x2000";
+                    "brk";
+                    "copy 8 6";
+                    "ldi 9:u16 @{load_loc}@";
+                    "add 8:u32 8 9";
+                    "ld 8:u32 8";
                     "jmp 8";
                 }
             } else {
