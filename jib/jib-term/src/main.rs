@@ -67,7 +67,13 @@ fn main() -> Result<(), ComputerError> {
 
         if computer.get_running() {
             for _ in 0..10000 {
-                if !computer.step_cpu(None, true)? {
+                if !computer.step_cpu(
+                    None,
+                    Some(jib_computer::StopMode {
+                        cancel_run: true,
+                        debug: false,
+                    }),
+                )? {
                     break;
                 }
             }

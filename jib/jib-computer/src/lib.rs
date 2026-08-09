@@ -8,7 +8,7 @@ use jib_asm::{AssemblerError, AssemblerErrorLoc, AssemblerOutput};
 #[cfg(not(target_arch = "wasm32"))]
 use jib_cpu::device::RtcTimerDevice;
 use jib_cpu::{
-    cpu::{Instruction, Processor, ProcessorError, RegisterManager, ResetType},
+    cpu::{Instruction, Opcode, Processor, ProcessorError, RegisterManager, ResetType},
     device::{
         BlankDevice, BlockDevice, DEVICE_MEM_SIZE, InterruptClockDevice, ProcessorDevice,
         RtcClockDevice, SerialInputOutputDevice,
@@ -49,6 +49,12 @@ pub struct JibComputer {
     #[cfg(test)]
     step_count: u128,
     pub step_callback: Option<Box<dyn Fn(RegisterManager, Instruction)>>,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StopMode {
+    pub debug: bool,
+    pub cancel_run: bool,
 }
 
 impl JibComputer {
@@ -103,31 +109,40 @@ impl JibComputer {
         Ok(self.cpu.memory_inspect_u32(addr)?)
     }
 
+    pub fn current_operation(&self) -> Result<Opcode, ComputerError> {
+        Ok(self.cpu.get_current_op()?)
+    }
+
     pub fn step_cpu(
         &mut self,
         breakpoint: Option<u32>,
-        auto_break: bool,
+        stop_mode: Option<StopMode>,
     ) -> Result<bool, ComputerError> {
         let pc = self.cpu.get_current_pc().unwrap_or(0);
         if let Ok(inst) = self.cpu.get_current_inst() {
             self.inst_history.push((pc, inst));
         }
 
-        let (debug_stop, cancel_run_request) = if auto_break
-            && let Ok(stop_normal) = self.cpu.should_stop()
-            && let Ok(stop_debug) = self.cpu.should_stop_debug()
-        {
-            (stop_normal || stop_debug, stop_debug)
-        } else if let Some(brk) = breakpoint {
-            (brk == pc, true)
-        } else {
-            (false, true)
-        };
+        if let Some(auto_stop) = stop_mode {
+            let (debug_stop, mut cancel_run_request) = if let Ok(stop_normal) =
+                self.cpu.should_stop()
+                && let Ok(stop_debug) = self.cpu.should_stop_debug()
+            {
+                let dbg = stop_debug && auto_stop.debug;
+                (stop_normal || dbg, dbg)
+            } else if let Some(brk) = breakpoint {
+                (brk == pc && auto_stop.debug, true)
+            } else {
+                (false, true)
+            };
 
-        if debug_stop {
-            self.running = false;
-            self.running_requested = self.running_requested && !cancel_run_request;
-            return Ok(false);
+            cancel_run_request &= auto_stop.cancel_run;
+
+            if debug_stop {
+                self.running = false;
+                self.running_requested = self.running_requested && !cancel_run_request;
+                return Ok(false);
+            }
         }
 
         self.cpu.step()?;
@@ -487,7 +502,7 @@ mod test {
         let mut iter_count = 0;
 
         while !cpu.cpu.should_stop().unwrap() {
-            cpu.step_cpu(None, false).unwrap();
+            cpu.step_cpu(None, None).unwrap();
             while let Some(c) = cpu.dev_serial_io.borrow_mut().pop_output() {
                 serial_output.push(c);
             }

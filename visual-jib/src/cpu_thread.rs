@@ -1,6 +1,6 @@
 use crate::messages::{ThreadToUi, UiToThread};
 use jib_asm::InstructionList;
-use jib_computer::{ComputerError, JibCode, JibComputer};
+use jib_computer::{ComputerError, JibCode, JibComputer, StopMode};
 use jib_cpu::cpu::Register;
 use std::sync::mpsc::{Receiver, RecvError, Sender, TryRecvError};
 
@@ -75,7 +75,7 @@ impl CpuState {
                     return Ok(Some(ThreadToUi::ProcessorReset));
                 }
                 UiToThread::CpuStep => {
-                    if let Err(e) = state.computer.step_cpu(None, false) {
+                    if let Err(e) = state.computer.step_cpu(None, None) {
                         let msg = format!("{}\n{}", state.get_inst_history().join("\n"), e);
                         return Ok(Some(ThreadToUi::LogMessage(msg)));
                     }
@@ -199,7 +199,13 @@ impl CpuState {
 
         if self.computer.get_running() {
             for _ in 0..self.step_repeat_count {
-                match self.computer.step_cpu(self.breakpoint, true) {
+                match self.computer.step_cpu(
+                    self.breakpoint,
+                    Some(StopMode {
+                        cancel_run: true,
+                        debug: true,
+                    }),
+                ) {
                     Ok(true) => (),
                     Ok(false) => break,
                     Err(err) => {
