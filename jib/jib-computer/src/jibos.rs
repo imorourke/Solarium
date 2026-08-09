@@ -22,7 +22,8 @@ pub struct JibOsImage {
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum ApplicationCategory {
     #[default]
-    Binary,
+    PathBinary,
+    SampleApplication,
     Test,
 }
 
@@ -52,37 +53,37 @@ impl JibOsImage {
             exec: "hello",
             filename: "hello.cb",
             code: include_str!(os_dir!("bin/hello.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::SampleApplication,
         },
         JibApplication {
             exec: "hello_mem",
             filename: "hello_mem.cb",
             code: include_str!(os_dir!("bin/hello_mem.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::SampleApplication,
         },
         JibApplication {
             exec: "cat",
             filename: "cat.cb",
             code: include_str!(os_dir!("bin/cat.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::PathBinary,
         },
         JibApplication {
             exec: "echo",
             filename: "echo.cb",
             code: include_str!(os_dir!("bin/echo.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::PathBinary,
         },
         JibApplication {
             exec: "nm",
             filename: "nm.cb",
             code: include_str!(os_dir!("bin/nm.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::PathBinary,
         },
         JibApplication {
             exec: "stat",
             filename: "stat.cb",
             code: include_str!(os_dir!("bin/stat.cb")),
-            category: ApplicationCategory::Binary,
+            category: ApplicationCategory::PathBinary,
         },
         JibApplication {
             exec: "math_test",
@@ -228,14 +229,16 @@ impl JibOsImage {
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;
         let test_dir = fs.create_directory(fs.root_sector(), "test")?;
+        let sample_dir = fs.create_directory(fs.root_sector(), "samples")?;
 
         fs.create_file(home_dir, "hello.txt", b"Welcome to CB/OS!\n")?;
 
         for (name, binary, category) in self.applications.iter() {
             let entry = fs.create_file(
                 match category {
-                    ApplicationCategory::Binary => bin_dir,
+                    ApplicationCategory::PathBinary => bin_dir,
                     ApplicationCategory::Test => test_dir,
+                    ApplicationCategory::SampleApplication => sample_dir,
                 },
                 name,
                 binary,
