@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SolariumProcessor VERSION 0.7.6)
+project(SolariumProcessor VERSION 0.7.7)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
