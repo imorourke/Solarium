@@ -7,7 +7,7 @@ use eframe::egui::{
     TextBuffer, TextEdit,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
-use jib_computer::{ApplicationCategory, JibCode, JibOsImage};
+use jib_computer::{ApplicationCategory, JibCode, JibComputer, JibOsImage};
 use jib_cpu::cpu::RegisterManager;
 use std::collections::HashMap;
 use std::path::Path;
@@ -345,7 +345,7 @@ impl eframe::App for VisualJib {
                     if ui.button("CB/OS").clicked() {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
-                            include_str!("../../cbos/os.cb").to_string(),
+                            JibOsImage::CODE_OS.into(),
                             Some("os.cb"),
                         );
                     }
@@ -361,7 +361,7 @@ impl eframe::App for VisualJib {
                     if ui.button("Bootloader").clicked() {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
-                            include_str!("../../cbos/bootloader.cb").into(),
+                            JibComputer::BOOTLOADER_CODE.into(),
                             Some("bootloader.cb"),
                         );
                     }

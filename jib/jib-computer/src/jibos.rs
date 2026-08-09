@@ -42,7 +42,7 @@ macro_rules! os_dir {
 
 impl JibOsImage {
     /// OS Code
-    const CODE_OS: &str = include_str!(os_dir!("os.cb"));
+    pub const CODE_OS: &str = include_str!(os_dir!("os.cb"));
 
     /// Definitions name
     const DEFS_FILENAME: &str = "cbos_defs.cb";

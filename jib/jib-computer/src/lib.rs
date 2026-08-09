@@ -65,6 +65,8 @@ impl JibComputer {
     const DEVICE_COUNT: usize =
         ((Self::DEVICE_HD_START_ADDR - Self::DEVICE_START_ADDR) / DEVICE_MEM_SIZE) as usize;
     pub const THREAD_LOOP_MS: u64 = 50;
+    
+    pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/bootloader.cb");
 
     pub fn new() -> Result<Self, ComputerError> {
         let os_image = JibOsImage::compile_os_image()?;
@@ -241,7 +243,7 @@ impl JibComputer {
 
         // Compile and setup bootloader
         for (i, x) in JibOsImage::compile_kernel_code(
-            include_str!("../../../cbos/bootloader.cb"),
+            Self::BOOTLOADER_CODE,
             "bootloader.cb",
             Some(Self::BOOTLOADER_START),
             true,
