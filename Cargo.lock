@@ -739,7 +739,7 @@ dependencies = [
 
 [[package]]
 name = "cbc"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cblang",
  "clap",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-compat"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "chrono",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-lib"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "flate2",
@@ -766,7 +766,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-util"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "cblang"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "jib-asm",
@@ -1974,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "jib-asm"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "clap",
  "jib-cpu",
@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "jib-computer"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "cblang",
@@ -1995,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "jib-cpu"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "circ-buff",
@@ -2003,7 +2003,7 @@ dependencies = [
 
 [[package]]
 name = "jib-term"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -3020,9 +3020,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.14.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d20d5497ef88037a52ff98267d066e7f11fcc5e99bbfbd58a42336193aacec3"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
 
 [[package]]
 name = "portable-atomic-util"
@@ -4068,7 +4068,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "visual-jib"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "cbfs-lib",
  "cblang",
@@ -4968,9 +4968,9 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "5.18.0"
+version = "5.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe18fb60dc696039e738717b76eaea21e7a4489bbb1885020b43c94236d7e98a"
+checksum = "5db4be7c075cb421e4b7ee645541604239bd243ba7c357511f4ff3a74b555907"
 dependencies = [
  "async-broadcast",
  "async-executor",
@@ -5027,14 +5027,14 @@ dependencies = [
 
 [[package]]
 name = "zbus_macros"
-version = "5.18.0"
+version = "5.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe96480bed92df2b442a1a30df364e12d08eed03aeb061f2b8dc6afb2be91119"
+checksum = "2990635d09ade6df1868f72f8cac69a876a90981e8bd3c40b1be413f8dc88f40"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
  "zbus_names",
  "zvariant",
  "zvariant_utils",
@@ -5061,6 +5061,15 @@ dependencies = [
  "winnow",
  "zbus_names",
  "zvariant",
+]
+
+[[package]]
+name = "zcheapstr"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1afec51604565183aeb5c54c20aeab286120d4e4460f7f76e3e8bb8c0d99473"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -5163,40 +5172,41 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.13.1"
+version = "5.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bee2a0bcd2a907786a456fff45aaaaf54c9ba5f50b71ae9ec1a4edd200c94911"
+checksum = "b5e28c25bd8bb8da5a1f3e7065d0c156b9ee9a7973adf78b0e35eaefdf3b1b5c"
 dependencies = [
  "endi",
  "enumflags2",
  "serde",
  "winnow",
+ "zcheapstr",
  "zvariant_derive",
  "zvariant_utils",
 ]
 
 [[package]]
 name = "zvariant_derive"
-version = "5.13.1"
+version = "5.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38a708216a18780796770bfe3f4739c7c83a3e8f789b755534bbbc06e4e23e12"
+checksum = "d496a145685283b67e232bd9e47377f6b60ad9d51e3601b23867f77c42477f96"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
  "zvariant_utils",
 ]
 
 [[package]]
 name = "zvariant_utils"
-version = "3.5.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90cb9383f9b45290407a1258b202d3f8f01db719eb60b4e4055c6375af4fc7c7"
+checksum = "629d80ece222cad20fe0e8741be493c4ab166acf3b85341bdc2cdbcfd8f3c2d6"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "syn 2.0.119",
+ "syn 3.0.3",
  "winnow",
 ]
