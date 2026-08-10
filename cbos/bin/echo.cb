@@ -3,7 +3,7 @@
 fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     if (strcmp(argv[1], "-h") == 0) {
         k_io_print(argv[0]);
-        k_io_print(" [..args]\n\n");
+        k_io_print(" [args ...]\n\n");
         k_io_print("  ");
         k_io_print(argv[0]);
         k_io_print(" echoes input entries\n\n");

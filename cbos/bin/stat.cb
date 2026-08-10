@@ -3,7 +3,7 @@
 fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     if ((argc != 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
         k_io_print(argv[0]);
-        k_io_print(" [file_entry]\n");
+        k_io_print(" [file/directory]\n");
         k_io_print("  reads the input file or folder and prints statistics\n");
         if (argc == 2) {
             return 0;
@@ -13,9 +13,9 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def loc: k_fs_entry_id_t;
-    def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
+    def res: i32 = k_fs_readlink(argv[1], 0, &state->cwd, &loc);
     if (res != 0) {
-        k_io_print("unable to find file for '");
+        k_io_print("unable to find entry for '");
         k_io_print(argv[1]);
         k_io_print("'\n");
         return -1;

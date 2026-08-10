@@ -3,7 +3,7 @@
 fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
         k_io_print(argv[0]);
-        k_io_print(" [file]\n\n");
+        k_io_print(" [files ...]\n\n");
         k_io_print("  ");
         k_io_print(argv[0]);
         k_io_print(" reads the input file and types the results into the terminal\n\n");
