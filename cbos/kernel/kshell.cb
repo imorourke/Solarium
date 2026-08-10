@@ -30,6 +30,8 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  dbg           -> prints current debug output status\n");
     k_io_print("  dbg [on/off]  -> enables/disables debug output\n");
     k_io_print("  mem           -> shows the current heap allocations\n");
+    k_io_print("  gc            -> frees non-kernel allocated memory\n");
+    k_io_print("  gc [on/off]   -> turns on/off application free\n");
     k_io_print("  mount         -> mounts the current disk\n");
     k_io_print("  umount        -> umounts the current disk\n");
     k_io_print("  reset         -> resets the processor\n");
@@ -343,6 +345,29 @@ fn k_shell_fn_date(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
 fn k_shell_fn_mem(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_heap_print();
+    return 0;
+}
+
+fn k_shell_fn_gc(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    if (argc == 1) {
+        k_free_non_kernel();
+    } else if (strcmp(argv[1], "on") == 0) {
+        K_EXEC_AUTO_FREE = 1;
+    } else if (strcmp(argv[1], "off") == 0) {
+        K_EXEC_AUTO_FREE = 0;
+    } else if (strcmp(argv[1], "state") == 0) {
+        if (K_EXEC_AUTO_FREE) {
+            k_io_print("auto-gc on\n");
+        } else {
+            k_io_print("auto-gc off\n");
+        }
+    } else {
+        k_io_print("Unknown gc command ");
+        k_io_print(argv[1]);
+        k_io_print("\n");
+        k_io_print("  supports on/off/state\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -663,6 +688,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_run;
         } else if (strcmp(cmd, "exports") == 0) {
             sh_fn = k_shell_fn_exports;
+        } else if (strcmp(cmd, "gc") == 0) {
+            sh_fn = k_shell_fn_gc;
         }
 
         if (sh_fn != 0) {

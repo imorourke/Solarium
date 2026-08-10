@@ -18,7 +18,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def hdr: k_exec_hdr_t;
-    k_memset(&hdr, 0, sizeof(hdr));
+    memset(&hdr, 0, sizeof(hdr));
     def hdr_size: u32 = sizeof(hdr);
 
     def path: *u8 = argv[1];
@@ -77,8 +77,8 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
 
 fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
     if (data_size > 0) {
-        def data: *u8 = k_malloc(data_size);
-        k_memset(data, 0, data_size);
+        def data: *u8 = malloc(data_size);
+        memset(data, 0, data_size);
         if (data == NULL) {
             k_io_print("unable to create link data table\n");
             return -1;
@@ -86,7 +86,7 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
 
         if (0 != k_fs_file_read(loc, offset, &data_size, data)) {
             k_io_print("unable to read link table\n");
-            k_free(data);
+            free(data);
             return -1;
         }
 
@@ -114,7 +114,7 @@ fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32 {
             }
         }
 
-        k_free(data);
+        free(data);
         return res;
     } else {
         return -1;

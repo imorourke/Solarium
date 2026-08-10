@@ -5,6 +5,7 @@
 
 struct mem_val_t {
     size: u32;
+    pid: u32;
     next: *mem_val_t;
     prev: *mem_val_t;
 }
@@ -12,7 +13,7 @@ struct mem_val_t {
 const K_MEM_TOP: *u8 = K_MEM_START + K_MEM_SIZE;
 global K_MEM_ROOT: *mem_val_t = 0;
 
-export asmfn k_memset(dst: *u8, val: u8, size: u32) void {
+asmfn k_memset(dst: *u8, val: u8, size: u32) void {
     // Load Arguments
     "copy 8 $arg";
     "ldi 9:u16 @{val}@";
@@ -40,7 +41,7 @@ export asmfn k_memset(dst: *u8, val: u8, size: u32) void {
     "ret";
 }
 
-export asmfn k_memcpy(dst: *u8, src: *u8, size: u32) void {
+asmfn k_memcpy(dst: *u8, src: *u8, size: u32) void {
     // Load Arguments
     "copy 8 $arg";
     "ldi 9:u16 @{src}@";
@@ -70,17 +71,21 @@ export asmfn k_memcpy(dst: *u8, src: *u8, size: u32) void {
     "ret";
 }
 
-export fn k_malloc(size: u32) *u8 {
+
+
+fn k_malloc_pid(size: u32, pid: u32) *u8 {
     def val: *mem_val_t = K_MEM_ROOT;
     if (val == 0) {
         val = K_MEM_START;
         val->size = size;
+        val->pid = pid;
         val->next = 0;
         val->prev = 0;
         K_MEM_ROOT = val;
     } else if ((K_MEM_START : u32) + size + sizeof(mem_val_t) < (K_MEM_ROOT : u32)) {
         val = K_MEM_START;
         val->prev = 0;
+        val->pid = pid;
         val->next = K_MEM_ROOT;
         K_MEM_ROOT->prev = val;
         K_MEM_ROOT = val;
@@ -93,6 +98,7 @@ export fn k_malloc(size: u32) *u8 {
                 def new_val: *mem_val_t = (val: u32) + val->size + sizeof(mem_val_t);
                 new_val->size = size;
                 new_val->next = val->next;
+                new_val->pid = pid;
                 val->next = new_val;
                 new_val->prev = val;
                 if (new_val->next != 0) {
@@ -109,6 +115,7 @@ export fn k_malloc(size: u32) *u8 {
             def new_val: *mem_val_t = (val : u32) + val->size + sizeof(mem_val_t);
             new_val->next = 0;
             new_val->prev = val;
+            new_val->pid = pid;
             new_val->size = size;
             val->next = new_val;
             val = new_val;
@@ -118,23 +125,65 @@ export fn k_malloc(size: u32) *u8 {
     return (val : *u8) + sizeof(mem_val_t);
 }
 
-export fn k_free(ptr: *u8) void {
+fn k_malloc(size: u32) *u8 {
+    return k_malloc_pid(size, 0);
+}
+
+fn k_free(ptr: *u8) void {
     def block: *mem_val_t = (ptr - sizeof(mem_val_t)) : *mem_val_t;
+
+    block->pid = 0;
     if (block->prev != 0) {
       if (block == K_MEM_ROOT) {
           K_MEM_ROOT = block->prev;
       }
       block->prev->next = block->next;
     }
+
     if (block->next != 0) {
         if (block == K_MEM_ROOT) {
             K_MEM_ROOT = block->next;
         }
         block->next->prev = block->prev;
     }
+
     if (block == K_MEM_ROOT) {
         K_MEM_ROOT = 0;
     }
 }
+
+fn k_free_pid(pid: u32) void {
+    // Don't free kernel resources
+    if (pid == 0) {
+        return;
+    }
+
+    def block: *mem_val_t = K_MEM_ROOT;
+
+    while (block != NULL) {
+        if (block->pid == pid) {
+            def next: *mem_val_t = block->next;
+            k_free((block : *u8) + sizeof(mem_val_t));
+            block = next;
+        } else {
+            block = block->next;
+        }
+    }
+}
+
+fn k_free_non_kernel() void {
+    def block: *mem_val_t = K_MEM_ROOT;
+
+    while (block != NULL) {
+        if (block->pid != 0) {
+            def next: *mem_val_t = block->next;
+            k_free((block : *u8) + sizeof(mem_val_t));
+            block = next;
+        } else {
+            block = block->next;
+        }
+    }
+}
+
 
 #endif // K_MALLOC

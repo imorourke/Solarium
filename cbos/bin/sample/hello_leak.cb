@@ -8,6 +8,5 @@ fn main() i32 {
     def len: u32 = 30;
     memcpy(data, HELLO_VAL, len + 1);
     k_io_print(data);
-    free(data);
     return 0;
 }

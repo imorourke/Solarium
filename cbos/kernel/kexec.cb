@@ -10,9 +10,16 @@ export struct k_exec_state_t {
 }
 
 global K_EXEC_SHOULD_APPLICATION_QUIT: u8 = 0;
+global K_EXEC_CURRENT_APPLICATION_ID: u32 = 0;
+
+global K_EXEC_AUTO_FREE: u8 = 1;
 
 export fn k_exec_should_exit() u8 {
     return K_EXEC_SHOULD_APPLICATION_QUIT;
+}
+
+export fn k_exec_current_pid() u32 {
+    return K_EXEC_CURRENT_APPLICATION_ID;
 }
 
 fn k_link_start_executable(entry: k_fs_entry_id_t, state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
@@ -132,8 +139,13 @@ fn k_link_start_executable(entry: k_fs_entry_id_t, state: *k_exec_state_t, argv:
     // Only run the application on success
     if (link_success) {
         K_EXEC_SHOULD_APPLICATION_QUIT = 0;
+        K_EXEC_CURRENT_APPLICATION_ID = 1;
         def app_func: fn(*k_exec_state_t, **u8, u32) i32 = init_loc;
         app_func(state, argv, argc);
+        if (K_EXEC_AUTO_FREE) {
+            k_free_pid(K_EXEC_CURRENT_APPLICATION_ID);
+        }
+        K_EXEC_CURRENT_APPLICATION_ID = 0;
     }
 
     // Free the application memory

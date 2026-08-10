@@ -17,80 +17,57 @@ use regex::Regex;
 
 use crate::{TokenError, tokenize, tokenizer::Token};
 
+macro_rules! os_dir {
+    ($p:expr) => {
+        concat!("../../../cbos/", $p)
+    };
+}
+
 /// Provides default files that should be included within the compiler standard library
 #[cfg(feature = "cbos")]
 pub static DEFAULT_FILES: &[(&str, &str)] = &[
     (
         "kernel/kconfig.cb",
-        include_str!("../../../cbos/kernel/kconfig.cb"),
+        include_str!(os_dir!("kernel/kconfig.cb")),
     ),
     (
         "kernel/kclock.cb",
-        include_str!("../../../cbos/kernel/kclock.cb"),
+        include_str!(os_dir!("kernel/kclock.cb")),
     ),
-    (
-        "kernel/kcpu.cb",
-        include_str!("../../../cbos/kernel/kcpu.cb"),
-    ),
-    (
-        "kernel/kdbg.cb",
-        include_str!("../../../cbos/kernel/kdbg.cb"),
-    ),
-    (
-        "kernel/kdef.cb",
-        include_str!("../../../cbos/kernel/kdef.cb"),
-    ),
+    ("kernel/kcpu.cb", include_str!(os_dir!("kernel/kcpu.cb"))),
+    ("kernel/kdbg.cb", include_str!(os_dir!("kernel/kdbg.cb"))),
+    ("kernel/kdef.cb", include_str!(os_dir!("kernel/kdef.cb"))),
     (
         "kernel/kdevice.cb",
-        include_str!("../../../cbos/kernel/kdevice.cb"),
+        include_str!(os_dir!("kernel/kdevice.cb")),
     ),
-    (
-        "kernel/kdisk.cb",
-        include_str!("../../../cbos/kernel/kdisk.cb"),
-    ),
-    (
-        "kernel/kexec.cb",
-        include_str!("../../../cbos/kernel/kexec.cb"),
-    ),
-    (
-        "kernel/kirq.cb",
-        include_str!("../../../cbos/kernel/kirq.cb"),
-    ),
-    ("kernel/kfs.cb", include_str!("../../../cbos/kernel/kfs.cb")),
+    ("kernel/kdisk.cb", include_str!(os_dir!("kernel/kdisk.cb"))),
+    ("kernel/kexec.cb", include_str!(os_dir!("kernel/kexec.cb"))),
+    ("kernel/kirq.cb", include_str!(os_dir!("kernel/kirq.cb"))),
+    ("kernel/kfs.cb", include_str!(os_dir!("kernel/kfs.cb"))),
     (
         "kernel/kmalloc.cb",
-        include_str!("../../../cbos/kernel/kmalloc.cb"),
+        include_str!(os_dir!("kernel/kmalloc.cb")),
     ),
-    (
-        "kernel/klink.cb",
-        include_str!("../../../cbos/kernel/klink.cb"),
-    ),
+    ("kernel/klink.cb", include_str!(os_dir!("kernel/klink.cb"))),
     (
         "kernel/kmalloc_dbg.cb",
-        include_str!("../../../cbos/kernel/kmalloc_dbg.cb"),
+        include_str!(os_dir!("kernel/kmalloc_dbg.cb")),
     ),
-    (
-        "kernel/krtc.cb",
-        include_str!("../../../cbos/kernel/krtc.cb"),
-    ),
+    ("kernel/krtc.cb", include_str!(os_dir!("kernel/krtc.cb"))),
     (
         ("kernel/kserialio.cb"),
-        include_str!("../../../cbos/kernel/kserialio.cb"),
+        include_str!(os_dir!("kernel/kserialio.cb")),
     ),
     (
         ("kernel/kshell.cb"),
-        include_str!("../../../cbos/kernel/kshell.cb"),
+        include_str!(os_dir!("kernel/kshell.cb")),
     ),
-    (
-        "kernel/ktsk.cb",
-        include_str!("../../../cbos/kernel/ktsk.cb"),
-    ),
-    ("std/list.cb", include_str!("../../../cbos/std/list.cb")),
-    ("std/math.cb", include_str!("../../../cbos/std/math.cb")),
-    (
-        ("std/string.cb"),
-        include_str!("../../../cbos/std/string.cb"),
-    ),
+    ("kernel/ktsk.cb", include_str!(os_dir!("kernel/ktsk.cb"))),
+    ("std/list.cb", include_str!(os_dir!("std/list.cb"))),
+    ("std/math.cb", include_str!(os_dir!("std/math.cb"))),
+    ("std/memory.cb", include_str!(os_dir!("std/memory.cb"))),
+    (("std/string.cb"), include_str!(os_dir!("std/string.cb"))),
 ];
 
 /// Provides the ouptut of the preprocessor

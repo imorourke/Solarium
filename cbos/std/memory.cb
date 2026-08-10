@@ -1,0 +1,29 @@
+#ifndef STD_MEMORY
+#define STD_MEMORY
+
+#include <kernel/kdef.cb>
+#include <kernel/kmalloc.cb>
+#include <kernel/kexec.cb>
+
+export fn malloc(size: u32) *u8 {
+    def pid: u32 = k_exec_current_pid();
+    if (pid != 0) {
+        return k_malloc_pid(size, pid);
+    } else {
+        return NULL;
+    }
+}
+
+export fn free(ptr: *u8) void {
+    k_free(ptr);
+}
+
+export fn memset(dst: *u8, val: u8, size: u32) void {
+    k_memset(dst, val, size);
+}
+
+export fn memcpy(dst: *u8, src: *u8, size: u32) void {
+    k_memcpy(dst, src, size);
+}
+
+#endif

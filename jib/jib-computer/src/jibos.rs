@@ -62,6 +62,12 @@ impl JibOsImage {
             category: ApplicationCategory::SampleApplication,
         },
         JibApplication {
+            exec: "hello_leak",
+            filename: "hello_leak.cb",
+            code: include_str!(os_dir!("bin/sample/hello_leak.cb")),
+            category: ApplicationCategory::SampleApplication,
+        },
+        JibApplication {
             exec: "cat",
             filename: "cat.cb",
             code: include_str!(os_dir!("bin/cat.cb")),
