@@ -31,7 +31,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  dbg [on/off]  -> enables/disables debug output\n");
     k_io_print("  mem           -> shows the current heap allocations\n");
     k_io_print("  gc            -> frees non-kernel allocated memory\n");
-    k_io_print("  gc [on/off]   -> turns on/off application free\n");
+    k_io_print("  gc [on/off]   -> turns on/off application memory freeing on close\n");
     k_io_print("  mount         -> mounts the current disk\n");
     k_io_print("  umount        -> umounts the current disk\n");
     k_io_print("  reset         -> resets the processor\n");
