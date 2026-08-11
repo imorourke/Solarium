@@ -1,6 +1,6 @@
-#include cbos_defs.cb
+#include <cbapp.cb>
 
-fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+fn main(argv: **u8, argc: u32) i32 {
     if ((argc != 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
         k_io_print(argv[0]);
         k_io_print(" [file/directory]\n");
@@ -13,7 +13,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     }
 
     def loc: k_fs_entry_id_t;
-    def res: i32 = k_fs_readlink(argv[1], 0, &state->cwd, &loc);
+    def res: i32 = readlink(argv[1], 0, &loc);
     if (res != 0) {
         k_io_print("unable to find entry for '");
         k_io_print(argv[1]);

@@ -1,8 +1,8 @@
-#include cbos_defs.cb
+#include <cbapp.cb>
 
 global HELLO_VAL: *u8 = "Hello, world!\n";
 
-fn main() i32 {
+fn main(argv: **u8, argc: u32) i32 {
     def data: *u8 = malloc(100);
     memset(data, 0, 100);
     def len: u32 = 30;

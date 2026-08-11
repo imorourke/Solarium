@@ -1,6 +1,6 @@
-#include cbos_defs.cb
+#include <cbapp.cb>
 
-fn main() i32 {
+fn main(argv: **u8, argc: u32) i32 {
     const VAL_COUNT: u32 = 6;
     def vals: [VAL_COUNT]f32;
     vals[0] = 2.0;

@@ -1,0 +1,19 @@
+#ifndef _CB_APP
+#define _CB_APP
+
+#include <cbos_defs.cb>
+
+fn main(argv: **u8, argc: u32) i32;
+
+global __APP_STATE__: *k_exec_state_t;
+
+fn __main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+    __APP_STATE__ = state;
+    return main(argv, argc);
+}
+
+fn readlink(pathname: *u8, pathtype: u8, output: *k_fs_entry_id_t) i32 {
+    return k_fs_readlink(pathname, pathtype, &__APP_STATE__->cwd, output);
+}
+
+#endif // _CB_APP

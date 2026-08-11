@@ -505,6 +505,7 @@ pub(crate) struct CompilingState {
 }
 
 impl CompilingState {
+    pub const MAIN_FUNC_APP_INNER_NAME: &'static str = "__main";
     pub const MAIN_FUNC_NAME: &'static str = "main";
 
     pub fn new(options: CodeGenerationOptions) -> Self {
@@ -533,7 +534,11 @@ impl CompilingState {
 
     pub fn is_used(&self, name: &str) -> bool {
         if self.options.trim_code {
-            let mut dfs: VecDeque<Rc<str>> = vec![Self::MAIN_FUNC_NAME.into()].into();
+            let mut dfs: VecDeque<Rc<str>> = vec![
+                Self::MAIN_FUNC_NAME.into(),
+                Self::MAIN_FUNC_APP_INNER_NAME.into(),
+            ]
+            .into();
             let mut visited: HashSet<Rc<str>> = HashSet::new();
 
             while let Some(r) = dfs.pop_front() {
@@ -673,24 +678,37 @@ impl CompilingState {
             }
         }
 
-        if let Some(GlobalType::Function(f)) = self.get_global(Self::MAIN_FUNC_NAME)? {
-            if matches!(self.options.prog_type, ProgramType::Kernel { .. }) {
+        let main_func_names: &[&'static str] = match self.options.prog_type {
+            ProgramType::Application => &[Self::MAIN_FUNC_APP_INNER_NAME, Self::MAIN_FUNC_NAME],
+            _ => &[Self::MAIN_FUNC_NAME],
+        };
+
+        for func_name in main_func_names {
+            if let Some(GlobalType::Function(f)) = self.get_global(func_name)? {
+                // Load the argument base as the stack pointer for a kernel program
+                if matches!(self.options.prog_type, ProgramType::Kernel { .. }) {
+                    asm.push(Self::blank_token_loc(AsmToken::OperationLiteral(Box::new(
+                        OpLd::new(
+                            ArgumentType::new(Register::ArgumentBase, DataType::U32),
+                            Register::StackPointer.into(),
+                        ),
+                    ))));
+                }
+
+                // Otherwise, jump to the entry label
+                asm.extend(
+                    self.options
+                        .load_label(RegisterDef::SPARE, f.get_entry_label().to_owned())
+                        .into_iter()
+                        .map(Self::blank_token_loc),
+                );
                 asm.push(Self::blank_token_loc(AsmToken::OperationLiteral(Box::new(
-                    OpLd::new(
-                        ArgumentType::new(Register::ArgumentBase, DataType::U32),
-                        Register::StackPointer.into(),
-                    ),
+                    OpCall::new(RegisterDef::SPARE.into()),
                 ))));
+
+                // Stop searching for input functions when found
+                break;
             }
-            asm.extend(
-                self.options
-                    .load_label(RegisterDef::SPARE, f.get_entry_label().to_owned())
-                    .into_iter()
-                    .map(Self::blank_token_loc),
-            );
-            asm.push(Self::blank_token_loc(AsmToken::OperationLiteral(Box::new(
-                OpCall::new(RegisterDef::SPARE.into()),
-            ))));
         }
 
         if matches!(self.options.prog_type, ProgramType::Application) {

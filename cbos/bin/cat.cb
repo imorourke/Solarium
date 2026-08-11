@@ -1,6 +1,6 @@
-#include cbos_defs.cb
+#include <cbapp.cb>
 
-fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
+fn main(argv: **u8, argc: u32) i32 {
     if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
         k_io_print(argv[0]);
         k_io_print(" [files ...]\n\n");
@@ -18,7 +18,7 @@ fn main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     def i: i32 = 1;
     while ((i < argc) && !k_exec_should_exit()) {
         def loc: k_fs_entry_id_t;
-        def res: i32 = k_fs_readlink(argv[i], K_FS_ENTRY_TYPE_FILE, &state->cwd, &loc);
+        def res: i32 = readlink(argv[i], K_FS_ENTRY_TYPE_FILE, &loc);
         if (res != 0) {
             k_io_print("unable to find file for '");
             k_io_print(argv[1]);

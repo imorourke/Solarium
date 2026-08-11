@@ -1,6 +1,11 @@
 /// cbc is the command-line interface for the C/Buoy compiler. This provides a way to
 /// interactively compile arbitary programs and use in various formats
-use std::{collections::HashMap, io::Write, path::PathBuf, rc::Rc};
+use std::{
+    collections::HashMap,
+    io::Write,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use cblang::{
     CodeGenerationOptions, Compiler, ProgramType,
@@ -156,10 +161,6 @@ fn main() -> std::process::ExitCode {
         sysfs.systems.push(Rc::new(RealFilesystem::new_relative(i)));
     }
 
-    if args.default_lib {
-        sysfs.systems.push(Rc::new(VirtualFilesystem::new_system()));
-    }
-
     // Construct the preprocessed argument list
     let mut definitions = HashMap::new();
     for d in args.definitions.iter() {
@@ -167,6 +168,44 @@ fn main() -> std::process::ExitCode {
             definitions.insert(k.trim().into(), v.trim().into());
         } else {
             definitions.insert(d.trim().into(), String::new());
+        }
+    }
+
+    if args.default_lib {
+        if args.kernel_program {
+            sysfs.systems.push(Rc::new(VirtualFilesystem::new_system()));
+        } else {
+            let kernel_compiler = Compiler {
+                definitions: definitions.clone(),
+                options: CodeGenerationOptions {
+                    prog_type: ProgramType::default(),
+                    debug_locations: false,
+                    trim_code: false,
+                },
+                system_root: Rc::new(VirtualFilesystem::new_system()),
+            };
+
+            let res = kernel_compiler
+                .compile_string(include_str!("../../../cbos/os.cb"), None)
+                .unwrap();
+            let mut intf = Vec::new();
+            res.export_interface.write_interface(&mut intf).unwrap();
+
+            const CBOS_INTF_GUARD: &str = "CBOS_DEFS";
+            let interface_str = format!(
+                "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n{}\n#endif // {CBOS_INTF_GUARD}\n",
+                String::from_utf8(intf).unwrap()
+            );
+
+            let mut vfs = VirtualFilesystem::default();
+            vfs.add_file(
+                &Path::new("cbapp.cb"),
+                include_str!("../../../cbos/cbapp.cb"),
+            )
+            .unwrap();
+            vfs.add_file(&Path::new("cbos_defs.cb"), &interface_str)
+                .unwrap();
+            sysfs.systems.push(Rc::new(vfs));
         }
     }
 

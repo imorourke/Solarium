@@ -17,6 +17,7 @@ pub struct JibOsImage {
     pub kernel: Vec<u8>,
     pub kernel_header: String,
     pub applications: Vec<(String, Vec<u8>, ApplicationCategory)>,
+    pub app_sys_root: Rc<VirtualFilesystem>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
@@ -46,6 +47,8 @@ impl JibOsImage {
 
     /// Definitions name
     const DEFS_FILENAME: &str = "cbos_defs.cb";
+    const CBAPP_FILENAME: &str = "cbapp.cb";
+    const CBAPP_DATA: &str = include_str!(os_dir!("cbapp.cb"));
 
     /// Application Code
     pub const CODE_APP_BIN: &[JibApplication] = &[
@@ -140,6 +143,7 @@ impl JibOsImage {
                 trim_code: true,
                 ..Default::default()
             },
+            system_root: self.app_sys_root.clone(),
             ..Default::default()
         };
 
@@ -148,7 +152,6 @@ impl JibOsImage {
 
         let mut fs = VirtualFilesystem::default();
         fs.add_file(path_val, code)?;
-        fs.add_file(Path::new(Self::DEFS_FILENAME), &self.kernel_header)?;
 
         Ok(compiler.compile_fs(path_val, Rc::new(fs))?)
     }
@@ -176,10 +179,15 @@ impl JibOsImage {
             Err(_) => return Err(ComputerError::Utf8Error),
         };
 
+        let mut app_sys_fs = VirtualFilesystem::default();
+        app_sys_fs.add_file(Path::new(Self::DEFS_FILENAME), &interface_str)?;
+        app_sys_fs.add_file(Path::new(Self::CBAPP_FILENAME), Self::CBAPP_DATA)?;
+
         let mut os_image = JibOsImage {
             kernel: kernel_data,
             kernel_header: interface_str,
             applications: Vec::new(),
+            app_sys_root: Rc::new(app_sys_fs),
         };
 
         for app in Self::CODE_APP_BIN {
@@ -263,6 +271,7 @@ impl JibOsImage {
 
         fs.create_file(src, "os.cb", Self::CODE_OS.as_bytes())?;
         fs.create_file(src, Self::DEFS_FILENAME, self.kernel_header.as_bytes())?;
+        fs.create_file(src, Self::CBAPP_FILENAME, Self::CBAPP_DATA.as_bytes())?;
 
         let src_bin = fs.create_directory(src, "bin")?;
         for app in Self::CODE_APP_BIN {
