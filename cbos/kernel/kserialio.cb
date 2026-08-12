@@ -27,6 +27,8 @@ fn k_io_init() void {
         SERIAL_DEV = dev->data;
         SERIAL_DEV->interrupt_num = 0;
         SERIAL_DEV->interrupt_char = 0;
+        SERIAL_DEV->reset_input = 1;
+        SERIAL_DEV->reset_output = 1;
     }
 }
 
@@ -104,11 +106,11 @@ asmfn k_io_digit_to_u8(v: u8) u8 {
 #endif
 
 export fn k_io_print(c: *u8) void {
-    k_io_print_intf(&(SERIAL_DEV->output_data), c);
+    k_io_print_intf(&SERIAL_DEV->output_data, c);
 }
 
 export fn k_io_print_digit(v: u8) void {
-    k_io_print_digit_intf((&SERIAL_DEV->output_data), v);
+    k_io_print_digit_intf(&SERIAL_DEV->output_data, v);
 }
 
 export fn k_io_print_uint(v: u32) void {
