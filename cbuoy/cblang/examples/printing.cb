@@ -4,7 +4,7 @@ global SERIAL_OUT_LOC: *u8 = 0xFFFFA000u32 + 5;
 fn print(c: *u8) void {
     while (*c != 0) {
         *SERIAL_OUT_LOC = *c;
-        c = c + 1;
+        c += 1;
     }
 }
 
@@ -25,10 +25,10 @@ fn print_uint(v: u32) void {
         while (v != 0) {
             *cp = v % 10;
             v = v / 10;
-            cp = cp + 1;
+            cp += 1;
         }
         while (cp != chars) {
-            cp = cp - 1;
+            cp -= 1;
             print_digit(*cp);
         }
     }

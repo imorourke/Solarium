@@ -97,7 +97,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 k_io_print(name_tmp);
                 k_io_print("\n");
             }
-            ii = ii + 1;
+            ii += 1;
         }
         return 0;
     } else {
@@ -217,7 +217,7 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 break;
             }
             entry_stack[entry_count] = entry_i.entry;
-            entry_count = entry_count + 1;
+            entry_count += 1;
             entry_i.entry = entry_hdr.parent;
         }
         entry_stack[entry_count] = disk->vol_hdr.root_sector;
@@ -232,7 +232,7 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             while (entry_count != 0) {
                 k_io_print("/");
                 def parent: u16 = entry_stack[entry_count];
-                entry_count = entry_count - 1;
+                entry_count -= 1;
                 def current: u16 = entry_stack[entry_count];
                 entry_i.entry = parent;
 
@@ -419,7 +419,7 @@ fn k_shell_split_args(input: *u8, args: **u8) i32 {
     while (*c != '\0') {
         // Skip any leading spaces
         while ((*c == ' ') || (*c == '\n')) {
-            c = c + 1;
+            c += 1;
         }
 
         // Add the argument if it is not the end
@@ -428,15 +428,15 @@ fn k_shell_split_args(input: *u8, args: **u8) i32 {
         }
 
         args[count] = c;
-        count = count + 1;
+        count += 1;
 
         while ((*c != '\0') && (*c != ' ') && (*c != '\n')) {
-            c = c + 1;
+            c += 1;
         }
 
         if (*c != '\0') {
             *c = '\0';
-            c = c + 1;
+            c += 1;
         }
     }
 
@@ -593,7 +593,7 @@ fn k_shell_find_in_path(state: *k_shell_state_t, file: *u8) k_fs_entry_id_t {
             return search_node;
         }
 
-        i = i + 1;
+        i += 1;
     }
 
     search_node.entry = 0;
@@ -645,7 +645,7 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             k_io_print("] = ");
             k_io_print(argv[i]);
             k_io_print("\n");
-            i = i + 1;
+            i += 1;
         }
     }
 

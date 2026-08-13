@@ -2,7 +2,7 @@
 fn print(out_dev: *u8, c: *u8) void {
     while (*c != 0) {
         *out_dev = *c;
-        c = c + 1;
+        c += 1;
     }
 }
 

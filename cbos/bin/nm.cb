@@ -46,7 +46,7 @@ fn main(argv: **u8, argc: u32) i32 {
     def base: *u8 = &hdr.magic_num;
     while (i < sizeof(u32)) {
         k_io_put(*(base + i));
-        i = i + 1;
+        i += 1;
     }
     k_io_print(")\n");
     k_io_print_stat("  import_offset", hdr.import_offset);

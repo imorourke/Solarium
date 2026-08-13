@@ -40,7 +40,7 @@ export fn k_io_put(c: u8) void {
 fn k_io_print_intf(out_dev: *u8, c: *u8) void {
     while (*c != 0) {
         *out_dev = *c;
-        c = c + 1;
+        c += 1;
     }
 }
 
@@ -123,10 +123,10 @@ export fn k_io_print_uint(v: u32) void {
         while (v != 0) {
             *cp = v % 10;
             v = v / 10;
-            cp = cp + 1;
+            cp += 1;
         }
         while (cp != chars) {
-            cp = cp - 1;
+            cp -= 1;
             k_io_print_digit(*cp);
         }
     }
@@ -142,7 +142,7 @@ export fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
     if (v == 0) {
         def i: u32 = 1;
         while (i < width) {
-            i = i + 1;
+            i += 1;
             k_io_put(default);
         }
         k_io_print_digit(0);
@@ -151,11 +151,11 @@ export fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
         while (v != 0) {
             *cp = k_io_digit_to_u8(v % 10);
             v = v / 10;
-            cp = cp + 1;
+            cp += 1;
         }
         cp = chars + width;
         while (cp != chars) {
-            cp = cp - 1;
+            cp -= 1;
             k_io_put(*cp);
         }
     }
@@ -182,10 +182,10 @@ export fn k_io_print_hex(v: u32) void {
         while (v != 0) {
             *cp = v % 16;
             v = v / 16;
-            cp = cp + 1;
+            cp += 1;
         }
         while (cp != chars) {
-            cp = cp - 1;
+            cp -= 1;
             if (*cp < 10) {
                 (SERIAL_DEV->output_data) = '0' + *cp;
             } else {
@@ -238,12 +238,12 @@ export fn k_io_read_str_until(buffer: *u8, len: u32, target: u8) u32 {
         while (i != end) {
             if (SERIAL_DEV->input_size > 0) {
                 *i = (SERIAL_DEV->input_data);
-                num_read = num_read + 1;
+                num_read += 1;
                 if (*i == target) {
                     *(i + 1) = 0;
                     break;
                 }
-                i = i + 1;
+                i += 1;
             }
         }
 

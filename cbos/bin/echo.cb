@@ -24,7 +24,7 @@ fn main(argv: **u8, argc: u32) i32 {
             k_io_print("] = \"");
             k_io_print(argv[i]);
             k_io_print("\"\n");
-            i = i + 1;
+            i += 1;
         }
     } else {
         def i: u32 = 1;
@@ -33,7 +33,7 @@ fn main(argv: **u8, argc: u32) i32 {
                 k_io_print(" ");
             }
             k_io_print(argv[i]);
-            i = i + 1;
+            i += 1;
         }
         k_io_print("\n");
     }

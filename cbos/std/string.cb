@@ -28,11 +28,11 @@ export fn strlen(c: *u8) u32 {
 
 export fn strtrim_word(s: *u8) *u8 {
     while ((*s == ' ') || (*s == '\n')) {
-        s = s + 1;
+        s += 1;
     }
     def end: *u8 = s;
     while ((*end != ' ') && (*end != '\n') && (*end != 0)) {
-        end = end + 1;
+        end += 1;
     }
     *end = 0;
     return s;
@@ -60,7 +60,7 @@ export fn str2unum(s: *u8) u32 {
             return 0;
         }
 
-        s = s + 1;
+        s += 1;
     }
 }
 

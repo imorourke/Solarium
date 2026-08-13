@@ -23,7 +23,7 @@ fn main() void {
         def v2: f32 = sqrt_f32(v);
         k_io_print_f32(v2);
         k_io_print("\n");
-        i = i + 1;
+        i += 1;
     }
 
     def a1: i32 = 0;

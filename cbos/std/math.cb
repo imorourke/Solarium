@@ -30,7 +30,7 @@ export fn sqrt_f32(x: f32) f32 {
         }
         y = (upper + lower) / 2.0;
         y2 = y * y;
-        i = i + 1;
+        i += 1;
         if (i > 1000) {
             break;
         }

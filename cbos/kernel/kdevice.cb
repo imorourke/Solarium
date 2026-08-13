@@ -32,12 +32,12 @@ fn k_device_init(all: u8) void {
             K_DEVICE_TABLE[K_DEVICE_NUM].slot = i;
             K_DEVICE_TABLE[K_DEVICE_NUM].id = id;
             K_DEVICE_TABLE[K_DEVICE_NUM].data = dev;
-            K_DEVICE_NUM = K_DEVICE_NUM + 1;
+            K_DEVICE_NUM += 1;
         } else {
             break;
         }
         dev = dev + K_DEVICE_SIZE;
-        i = i + 1;
+        i += 1;
     }
 }
 
@@ -51,7 +51,7 @@ fn k_device_first_of_type(type_id: u16) *k_device_t {
         if (K_DEVICE_TABLE[i].id == type_id) {
             return &(K_DEVICE_TABLE[i]);
         }
-        i = i + 1;
+        i += 1;
     }
 
     return 0;

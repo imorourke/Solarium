@@ -67,7 +67,7 @@ fn strlens(c: *u8) LenStruct {
     while (*c != 0) {
         s.len = s.len + 1;
         s.val = s.len;
-        c = c + 1;
+        c += 1;
     }
     return s;
 }
@@ -125,10 +125,10 @@ fn main() void {
     def ex_ptr2: **u32 = &ex_ptr;
     def ex_val: u32 = **ex_ptr2;
 
-    ex_ptr = ex_ptr + 1;
+    ex_ptr += 1;
 
     while (a != 0) {
-        a = a - 1;
+        a -= 1;
     }
 
     if (a == 0) {

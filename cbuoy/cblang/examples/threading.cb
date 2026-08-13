@@ -10,7 +10,7 @@ fn main_tsk_a() void {
         if (count % 10 == 0) {
             k_io_print("TSK_A\n");
         }
-        count = count + 1;
+        count += 1;
     }
 }
 
@@ -21,7 +21,7 @@ fn main_tsk_b() void {
             k_io_print("TSK_B\n");
             count = 0;
         }
-        count = count + 1;
+        count += 1;
     }
 }
 
