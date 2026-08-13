@@ -46,6 +46,18 @@ export fn strcmp(s1: *u8, s2: *u8) i32 {
     return ((*s1) : i32) - ((*s2) : i32);
 }
 
+export fn strcpy(dst: *u8, s: *u8) i32 {
+    def len: i32 = 0;
+    while (*s != 0) {
+        *dst = *s;
+        dst += 1;
+        s += 1;
+        len += 1;
+    }
+    *dst = 0;
+    return len;
+}
+
 export fn str2unum(s: *u8) u32 {
     if (s == 0) {
         return 0;
