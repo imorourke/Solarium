@@ -739,7 +739,7 @@ dependencies = [
 
 [[package]]
 name = "cbc"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cblang",
  "clap",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-compat"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "chrono",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-lib"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "flate2",
@@ -766,7 +766,7 @@ dependencies = [
 
 [[package]]
 name = "cbfs-util"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "cblang"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "jib-asm",
@@ -1441,9 +1441,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-types"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a7299a780854a6d391be2ae1c8521c9368471b559dbfd6a8dbd9f407eaff100"
+checksum = "75382bc7392ef10aad10935f92fc3db36d2d4dad0e5d96d8d65e04f89a07ec39"
 dependencies = [
  "bytemuck",
 ]
@@ -1486,15 +1486,15 @@ dependencies = [
 
 [[package]]
 name = "futures-core"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cd50c473c80f6d7c3670a752354b8e569b1a7cbfdc0419ec88e5edad85e0dc7"
+checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
 
 [[package]]
 name = "futures-io"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4577ecaa3c4f96589d473f679a71b596316f6641bc350038b962a5daf0085d7a"
+checksum = "53c0fa8157de1303bfffdaa1cc2a673bfffb60102f76b0ef4441659124373fed"
 
 [[package]]
 name = "futures-lite"
@@ -1511,26 +1511,26 @@ dependencies = [
 
 [[package]]
 name = "futures-macro"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d6d3cde68c518367be28956066ddfef33813991b77a55005a69dae04bf3b10b"
+checksum = "9fb9654ba8355388abeb8dcb4fc62f511300867002afc858860463bdd9fe0c44"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
 name = "futures-task"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b231ed28831efb4a61a08580c4bc233ec56bc009f4cd8f52da2c3cb97df0c109"
+checksum = "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd"
 
 [[package]]
 name = "futures-util"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a77a90a256fce34da66415271e30f94ee91c57b04b8a2c042d9cf3220179deaa"
+checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
  "futures-core",
  "futures-macro",
@@ -1987,7 +1987,7 @@ dependencies = [
 
 [[package]]
 name = "jib-asm"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "jib-cpu",
@@ -1996,7 +1996,7 @@ dependencies = [
 
 [[package]]
 name = "jib-computer"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "cblang",
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "jib-cpu"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "circ-buff",
@@ -2016,7 +2016,7 @@ dependencies = [
 
 [[package]]
 name = "jib-term"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "clap",
@@ -2180,7 +2180,7 @@ dependencies = [
  "bitflags 2.13.1",
  "libc",
  "plain",
- "redox_syscall 0.9.1",
+ "redox_syscall 0.9.2",
 ]
 
 [[package]]
@@ -2440,9 +2440,9 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.46"
+version = "0.1.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
+checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
 dependencies = [
  "num-traits",
 ]
@@ -3380,9 +3380,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07507be7b4a5f9f26eeb41eeaebb1f5a7ff29dfb29739facc21d35bf8b11c21e"
+checksum = "f1c93da5bb2c5d4e6c0ef7abeead62c89169a0a4882bfb83ac892f2423aea2fe"
 dependencies = [
  "bitflags 2.13.1",
 ]
@@ -4094,7 +4094,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "visual-jib"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cbfs-lib",
  "cblang",
