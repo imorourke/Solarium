@@ -34,6 +34,11 @@ cbfs-lib = { path = "cbfs/cbfs-lib", version = "*" }
 [profile.release]
 lto = true
 strip = true
+incremental = false
+
+[profile.dev]
+incremental = false
 
 [profile.dev.package."*"]
 debug = false
+incremental = false
