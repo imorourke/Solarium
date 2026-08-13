@@ -393,13 +393,11 @@ impl JibComputer {
 
     pub fn clear_disk(&mut self) -> Result<(), ComputerError> {
         self.hard_drive = None;
-        self.reset(None)?;
         Ok(())
     }
 
     pub fn set_disk_filesystem(&mut self, fs: FileSystem) -> Result<(), ComputerError> {
         self.hard_drive = Some(Self::create_block_device(&fs)?);
-        self.reset(None)?;
         Ok(())
     }
 

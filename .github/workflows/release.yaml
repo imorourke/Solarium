@@ -375,7 +375,7 @@ jobs:
           path: cbos/defs.tar.gz
 
       - name: Generate hard disk image
-        run: cargo run -p jib-term -- -e hd.cbfs
+        run: cargo run -p jib-term -- -n -e hd.cbfs
 
       - name: Upload hard disk image
         uses: actions/upload-artifact@v7
