@@ -76,7 +76,7 @@ fn main() -> Result<(), ComputerError> {
         let (tx, stdin_channel) = std::sync::mpsc::channel::<String>();
         let r2 = run_loop.clone();
         std::thread::spawn(move || {
-            while r2.load(std::sync::atomic::Ordering::SeqCst) {
+            while r2.load(std::sync::atomic::Ordering::Relaxed) {
                 let mut buffer = String::new();
                 std::io::stdin().read_line(&mut buffer).unwrap();
                 tx.send(buffer.trim_end_matches('\n').to_owned()).unwrap();
@@ -84,7 +84,7 @@ fn main() -> Result<(), ComputerError> {
         });
 
         // Run the main loop
-        while run_loop.load(std::sync::atomic::Ordering::SeqCst) {
+        while run_loop.load(std::sync::atomic::Ordering::Relaxed) {
             for _ in 0..1000 {
                 match stdin_channel.try_recv() {
                     Ok(input) => {
