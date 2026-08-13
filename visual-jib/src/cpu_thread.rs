@@ -21,7 +21,7 @@ impl CpuState {
     pub const THREAD_LOOP_MS: u64 = 25;
 
     pub fn new(rx: Receiver<UiToThread>, tx: Sender<ThreadToUi>) -> Result<Self, ComputerError> {
-        let s = Self {
+        let mut s = Self {
             running_prev: false,
             step_repeat_count: 1,
             #[cfg(not(target_arch = "wasm32"))]
@@ -33,6 +33,9 @@ impl CpuState {
             rx,
             tx,
         };
+
+        s.computer
+            .set_disk_filesystem(s.computer.get_os_image().create_hard_drive()?)?;
 
         Ok(s)
     }

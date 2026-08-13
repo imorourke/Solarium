@@ -11,3 +11,4 @@ jib-cpu = { workspace = true }
 jib-computer = { workspace = true }
 clap = { workspace = true }
 cbfs-lib = { workspace = true }
+ctrlc = "3.5"

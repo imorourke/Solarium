@@ -45,7 +45,7 @@ pub struct JibComputer {
     #[cfg(not(target_arch = "wasm32"))]
     dev_rtc_timer: Rc<RefCell<RtcTimerDevice>>,
     inst_history: CircularBuffer<(u32, Instruction), 10>,
-    hard_drive: Rc<RefCell<BlockDevice>>,
+    hard_drive: Option<Rc<RefCell<BlockDevice>>>,
     #[cfg(test)]
     step_count: u128,
     pub step_callback: Option<Box<dyn Fn(RegisterManager, Instruction)>>,
@@ -65,12 +65,11 @@ impl JibComputer {
     const DEVICE_COUNT: usize =
         ((Self::DEVICE_HD_START_ADDR - Self::DEVICE_START_ADDR) / DEVICE_MEM_SIZE) as usize;
     pub const THREAD_LOOP_MS: u64 = 50;
-    
+
     pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/bootloader.cb");
 
     pub fn new() -> Result<Self, ComputerError> {
         let os_image = JibOsImage::compile_os_image()?;
-        let hd = os_image.create_hard_drive()?;
         let mut s = Self {
             running: false,
             running_requested: false,
@@ -81,7 +80,7 @@ impl JibComputer {
             #[cfg(not(target_arch = "wasm32"))]
             dev_rtc_timer: Rc::new(RefCell::new(RtcTimerDevice::default())),
             inst_history: Default::default(),
-            hard_drive: Self::create_block_device(&hd)?,
+            hard_drive: None,
             #[cfg(test)]
             step_count: 0,
             step_callback: None,
@@ -89,6 +88,16 @@ impl JibComputer {
 
         s.reset(None)?;
         Ok(s)
+    }
+
+    pub fn new_default() -> Result<Self, ComputerError> {
+        let mut s = Self::new()?;
+        s.set_disk_filesystem(s.os_image.create_hard_drive()?)?;
+        Ok(s)
+    }
+
+    pub fn get_os_image(&self) -> &JibOsImage {
+        &self.os_image
     }
 
     fn create_block_device(fs: &FileSystem) -> Result<Rc<RefCell<BlockDevice>>, ComputerError> {
@@ -171,7 +180,6 @@ impl JibComputer {
 
         self.cpu = Processor::default();
         self.dev_serial_io.borrow_mut().reset();
-        self.hard_drive = Self::create_block_device(&self.os_image.create_hard_drive()?)?;
 
         self.inst_history.clear();
 
@@ -235,9 +243,11 @@ impl JibComputer {
             self.cpu.memory_add_segment(dev_loc, dev)?;
         }
 
-        self.cpu.device_add(self.hard_drive.clone())?;
-        self.cpu
-            .memory_add_segment(Self::DEVICE_HD_START_ADDR, self.hard_drive.clone())?;
+        if let Some(hd) = self.hard_drive.as_ref() {
+            self.cpu.device_add(hd.clone())?;
+            self.cpu
+                .memory_add_segment(Self::DEVICE_HD_START_ADDR, hd.clone())?;
+        }
 
         self.cpu.reset(ResetType::Hard)?;
 
@@ -381,8 +391,26 @@ impl JibComputer {
         char_vec
     }
 
+    pub fn clear_disk(&mut self) -> Result<(), ComputerError> {
+        self.hard_drive = None;
+        self.reset(None)?;
+        Ok(())
+    }
+
+    pub fn set_disk_filesystem(&mut self, fs: FileSystem) -> Result<(), ComputerError> {
+        self.hard_drive = Some(Self::create_block_device(&fs)?);
+        self.reset(None)?;
+        Ok(())
+    }
+
     pub fn get_disk_data(&self) -> Result<Vec<u8>, ComputerError> {
-        Ok(self.hard_drive.borrow().data.clone())
+        if let Some(hd) = self.hard_drive.as_ref() {
+            Ok(hd.borrow().data.clone())
+        } else {
+            Err(ComputerError::DiskError(FileSystemError::UnknownError(
+                "no disk attached".into(),
+            )))
+        }
     }
 }
 
