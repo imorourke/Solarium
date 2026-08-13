@@ -79,7 +79,7 @@ fn main() -> Result<(), ComputerError> {
             while r2.load(std::sync::atomic::Ordering::SeqCst) {
                 let mut buffer = String::new();
                 std::io::stdin().read_line(&mut buffer).unwrap();
-                tx.send(buffer.trim().to_owned()).unwrap();
+                tx.send(buffer.trim_end_matches('\n').to_owned()).unwrap();
             }
         });
 
