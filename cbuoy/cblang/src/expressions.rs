@@ -377,6 +377,11 @@ impl Display for AddressOfExpression {
 pub enum BinaryOperation {
     Arithmetic(BinaryArithmeticOperation),
     Assignment,
+    AssignPlus,
+    AssignMinus,
+    AssignProduct,
+    AssignDivide,
+    AssignModulus,
 }
 
 impl Display for BinaryOperation {
@@ -384,13 +389,25 @@ impl Display for BinaryOperation {
         match self {
             Self::Arithmetic(op) => write!(f, "{op}"),
             Self::Assignment => write!(f, "="),
+            Self::AssignPlus => write!(f, "+="),
+            Self::AssignMinus => write!(f, "-="),
+            Self::AssignProduct => write!(f, "*="),
+            Self::AssignDivide => write!(f, "/="),
+            Self::AssignModulus => write!(f, "%="),
         }
     }
 }
 
 impl BinaryOperation {
     pub const ALL: &[BinaryOperation] = &Self::get_all();
-    const DISTINCT_VALS: &[BinaryOperation] = &[BinaryOperation::Assignment];
+    const DISTINCT_VALS: &[BinaryOperation] = &[
+        BinaryOperation::Assignment,
+        BinaryOperation::AssignPlus,
+        BinaryOperation::AssignMinus,
+        BinaryOperation::AssignProduct,
+        BinaryOperation::AssignDivide,
+        BinaryOperation::AssignModulus,
+    ];
 
     const LEN_VAL: usize =
         BinaryArithmeticOperation::ALL.len() + BinaryOperation::DISTINCT_VALS.len();
@@ -416,7 +433,7 @@ impl BinaryOperation {
     pub const fn get_priority(&self) -> i32 {
         match self {
             Self::Arithmetic(op) => op.get_priority(),
-            Self::Assignment => 100,
+            _ => 100,
         }
     }
 }
@@ -427,7 +444,7 @@ pub enum BinaryArithmeticOperation {
     Minus,
     Product,
     Divide,
-    Mod,
+    Modulus,
     And,
     Or,
     Equals,
@@ -449,7 +466,7 @@ impl BinaryArithmeticOperation {
         Self::Minus,
         Self::Product,
         Self::Divide,
-        Self::Mod,
+        Self::Modulus,
         Self::And,
         Self::Or,
         Self::Equals,
@@ -485,7 +502,7 @@ impl BinaryArithmeticOperation {
             Self::Minus => -5,
             Self::Product => -10,
             Self::Divide => -10,
-            Self::Mod => -10,
+            Self::Modulus => -10,
             Self::And => 5,
             Self::Or => 10,
             Self::Equals => 0,
@@ -510,7 +527,7 @@ impl Display for BinaryArithmeticOperation {
             Self::Minus => "-",
             Self::Product => "*",
             Self::Divide => "/",
-            Self::Mod => "%",
+            Self::Modulus => "%",
             Self::And => "&&",
             Self::Or => "||",
             Self::Equals => "==",
@@ -792,7 +809,7 @@ impl Expression for BinaryArithmeticExpression {
                 BinaryArithmeticOperation::Divide => {
                     vec![Box::new(OpDiv::new(reg_type, reg_a.into(), reg_b.into()))]
                 }
-                BinaryArithmeticOperation::Mod => {
+                BinaryArithmeticOperation::Modulus => {
                     vec![Box::new(OpRem::new(reg_type, reg_a.into(), reg_b.into()))]
                 }
                 BinaryArithmeticOperation::And => {
@@ -1736,6 +1753,43 @@ fn process_binary_expressions(
                             token: token.clone(),
                             lh_addr_expr: a,
                             rh_val_expr: b,
+                        }))
+                    } else {
+                        Err(token
+                            .clone()
+                            .into_err("left-hand expression is a constant value"))
+                    }
+                }
+                _ => {
+                    if !a.get_type()?.is_const() {
+                        Ok(Rc::new(AssignmentExpression {
+                            token: token.clone(),
+                            lh_addr_expr: a.clone(),
+                            rh_val_expr: Rc::new(BinaryArithmeticExpression::new(
+                                token.clone(),
+                                match *op {
+                                    BinaryOperation::AssignPlus => BinaryArithmeticOperation::Plus,
+                                    BinaryOperation::AssignMinus => {
+                                        BinaryArithmeticOperation::Minus
+                                    }
+                                    BinaryOperation::AssignProduct => {
+                                        BinaryArithmeticOperation::Product
+                                    }
+                                    BinaryOperation::AssignDivide => {
+                                        BinaryArithmeticOperation::Divide
+                                    }
+                                    BinaryOperation::AssignModulus => {
+                                        BinaryArithmeticOperation::Modulus
+                                    }
+                                    _ => {
+                                        return Err(token
+                                            .clone()
+                                            .into_err("unsupported compound expression"));
+                                    }
+                                },
+                                a,
+                                b,
+                            )),
                         }))
                     } else {
                         Err(token

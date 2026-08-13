@@ -498,7 +498,8 @@ mod tests {
     #[test]
     fn operators() {
         let expected_operators = [
-            "=", "==", "!=", "+", "-", "/", "&", "&&", "|", "||", ">", "<", ">=", "<=", "->",
+            "=", "==", "+=", "-=", "*=", "/=", "%=", "!=", "+", "-", "/", "&", "&&", "|", "||",
+            ">", "<", ">=", "<=", "->",
         ];
         let tokens = tokenize_str(&expected_operators.join("\n"));
         assert!(tokens.is_ok());

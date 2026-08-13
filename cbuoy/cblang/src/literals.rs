@@ -140,7 +140,7 @@ impl LiteralValue {
             BinaryArithmeticOperation::Minus => OPERATIONS.get_arith(dt).sub(a, b)?.val,
             BinaryArithmeticOperation::Product => OPERATIONS.get_arith(dt).mul(a, b)?.val,
             BinaryArithmeticOperation::Divide => OPERATIONS.get_arith(dt).div(a, b)?.val,
-            BinaryArithmeticOperation::Mod => OPERATIONS.get_arith(dt).rem(a, b)?.val,
+            BinaryArithmeticOperation::Modulus => OPERATIONS.get_arith(dt).rem(a, b)?.val,
             BinaryArithmeticOperation::Greater => OPERATIONS.get_relative(dt).gt(a, b)? as u32,
             BinaryArithmeticOperation::GreaterEqual => {
                 OPERATIONS.get_relative(dt).geq(a, b)? as u32

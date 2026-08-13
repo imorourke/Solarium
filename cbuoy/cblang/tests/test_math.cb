@@ -25,4 +25,24 @@ fn main() void {
         k_io_print("\n");
         i = i + 1;
     }
+
+    def a1: i32 = 0;
+    a1 += 1;
+    k_io_print_int(a1);
+    k_io_print("\n");
+    a1 += 8;
+    k_io_print_int(a1);
+    k_io_print("\n");
+    a1 -= 9;
+    k_io_print_int(a1);
+    k_io_print("\n");
+    a1 -= 3;
+    k_io_print_int(a1);
+    k_io_print("\n");
+    a1 *= -2;
+    k_io_print_int(a1);
+    k_io_print("\n");
+    a1 /= 3;
+    k_io_print_int(a1);
+    k_io_print("\n");
 }
