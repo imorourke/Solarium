@@ -16,8 +16,17 @@ export fn sqrt_f32(x: f32) f32 {
         return 0.0;
     }
 
-    def upper: f32 = x;
-    def lower: f32 = 0.0;
+    def upper: f32;
+    def lower: f32;
+
+    if (x < 1.0) {
+        lower = x;
+        upper = 1.0;
+    } else {
+        lower = 1.0;
+        upper = x;
+    }
+
     def y: f32 = x / 2.0;
     def y2: f32 = y * y;
     def i: i32 = 0;

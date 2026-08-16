@@ -1,7 +1,7 @@
 #include <cbapp.cb>
 
 fn main(argv: **u8, argc: u32) i32 {
-    const VAL_COUNT: u32 = 6;
+    const VAL_COUNT: u32 = 7;
     def vals: [VAL_COUNT]f32;
     vals[0] = 2.0;
     vals[1] = 2.8;
@@ -9,6 +9,7 @@ fn main(argv: **u8, argc: u32) i32 {
     vals[3] = -1.23;
     vals[4] = -2.7;
     vals[5] = -4.3;
+    vals[6] = 0.1;
 
     def i: i32 = 0;
     while (i < VAL_COUNT) {
