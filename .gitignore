@@ -11,3 +11,5 @@ __cmake_systeminformation
 /history.*
 .[Dd][Ss]_[Ss]tore
 dist
+
+__pycache__
