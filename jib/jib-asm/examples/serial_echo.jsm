@@ -14,11 +14,11 @@ ldn 13:u32
 .u32 0xFFFFA000
 
 ; Mark the location to read input values from
-ldi 14:u16 3
+ldi 14:u16 6
 add 14:u32 14 13
 
 ; Mark the location to write serial values to
-ldi 15:u16 5
+ldi 15:u16 7
 add 15:u32 15 13
 
 ; Mark the location to check the queue size from
@@ -26,12 +26,12 @@ ldi 12:u16 2
 add 12:u32 12 13
 
 :main_loop
-ld 6:u8 12
-tz 6
+ld 8:u16 12
+tz 8
 jmpri main_loop_end
 
-ld 7:u8 14
-sav 15:u8 7
+ld 9:u8 14
+sav 15:u8 9
 
 jmpri main_loop
 

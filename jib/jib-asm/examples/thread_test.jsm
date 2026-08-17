@@ -159,7 +159,7 @@
     ld 13:u32 13
 
     ; Mark the location to write serial values to
-    ldi 15:u16 5
+    ldi 15:u16 7
     add 15:u32 15 13
 
     ; Load the argument value

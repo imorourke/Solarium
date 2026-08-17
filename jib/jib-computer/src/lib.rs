@@ -189,6 +189,7 @@ impl JibComputer {
         }
 
         let mut reset_vec_data: Vec<u8> = vec![0; INIT_RO_LEN as usize];
+
         let start_loc = if self.bootloader {
             Self::BOOTLOADER_START
         } else {
@@ -201,6 +202,14 @@ impl JibComputer {
         }
 
         assert!(reset_vec_data.len() == INIT_RO_LEN as usize);
+
+        if let Some(code) = input_code
+            && code.start_location < INIT_RO_LEN
+        {
+            let vals = &code.code[..(INIT_RO_LEN - code.start_location) as usize];
+            reset_vec_data[code.start_location as usize..code.start_location as usize + vals.len()]
+                .copy_from_slice(vals);
+        }
 
         self.cpu.memory_add_segment(
             0,
@@ -269,7 +278,14 @@ impl JibComputer {
         if !self.bootloader
             && let Some(code) = input_code
         {
-            self.cpu.memory_set_range(code.start_location, &code.code)?;
+            if code.start_location < INIT_RO_LEN {
+                self.cpu.memory_set_range(
+                    INIT_RO_LEN,
+                    &code.code[(INIT_RO_LEN - code.start_location) as usize..],
+                )?;
+            } else {
+                self.cpu.memory_set_range(code.start_location, &code.code)?;
+            }
         }
 
         if self.running_requested {
