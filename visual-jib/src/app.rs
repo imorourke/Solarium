@@ -1,5 +1,6 @@
 use crate::cpu_thread::CpuState;
 use crate::messages::{ThreadToUi, UiToThread};
+use cblang::preprocessor::{PreprocessorFilesystem, VirtualFilesystem};
 use cblang::{CompileResults, Compiler};
 use cblang::{CompilerError, TokenError};
 use eframe::egui::{
@@ -11,6 +12,7 @@ use jib_computer::{ApplicationCategory, JibCode, JibComputer, JibOsImage};
 use jib_cpu::cpu::RegisterManager;
 use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 use std::{sync::LazyLock, time::Duration};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -126,6 +128,7 @@ pub struct VisualJib {
     memory_window_id: usize,
     use_bootloader: bool,
     cbos_defs: String,
+    sys_root: Rc<dyn PreprocessorFilesystem>,
 }
 
 impl Default for VisualJib {
@@ -135,11 +138,29 @@ impl Default for VisualJib {
         let tx_thread_local = tx_thread.clone();
         let (tx_window, rx_window) = std::sync::mpsc::channel::<CodeWindowAction>();
 
+        let jibos_img =
+            jib_computer::JibOsImage::compile_os_image().expect("unable to compile jibos");
+        let cbos_defs = jibos_img.kernel_header;
+
+        let mut sys_root = VirtualFilesystem::new_system();
+        sys_root
+            .add_file(
+                Path::new(&JibOsImage::CBAPP_FILENAME),
+                JibOsImage::CBAPP_DATA,
+            )
+            .expect("unable to add cbapp data");
+        sys_root
+            .add_file(Path::new(&JibOsImage::DEFS_FILENAME), &cbos_defs)
+            .expect("unable to add cbos defs");
+
+        let root_rc = Rc::new(sys_root);
+
         CodeWindow::new(
             0,
             tx_ui.clone(),
             tx_thread.clone(),
             tx_window.clone(),
+            root_rc.clone(),
             include_str!("../../cbos/os.cb").to_string(),
             CodeWindowType::Cbuoy,
             None,
@@ -149,10 +170,6 @@ impl Default for VisualJib {
                 .into_iter()
                 .collect(),
         );
-
-        let cbos_defs = jib_computer::JibOsImage::compile_os_image()
-            .unwrap()
-            .kernel_header;
 
         let window = Self {
             cpu_run_requested: false,
@@ -179,6 +196,7 @@ impl Default for VisualJib {
             memory_window_id: 0,
             use_bootloader: false,
             cbos_defs,
+            sys_root: root_rc,
         };
 
         for m in [
@@ -274,6 +292,7 @@ impl VisualJib {
             self.tx_ui.clone(),
             self.tx_thread.clone(),
             self.tx_window.clone(),
+            self.sys_root.clone(),
             code,
             code_type,
             filepath,
@@ -686,6 +705,7 @@ struct CodeWindow {
     tx_ui: std::sync::mpsc::Sender<UiToThread>,
     tx_thread: std::sync::mpsc::Sender<ThreadToUi>,
     tx_window: std::sync::mpsc::Sender<CodeWindowAction>,
+    sys_root: Rc<dyn PreprocessorFilesystem>,
     code: String,
     shown: bool,
     id: String,
@@ -702,6 +722,7 @@ impl CodeWindow {
         tx_ui: std::sync::mpsc::Sender<UiToThread>,
         tx_thread: std::sync::mpsc::Sender<ThreadToUi>,
         tx_window: std::sync::mpsc::Sender<CodeWindowAction>,
+        sys_root: Rc<dyn PreprocessorFilesystem>,
         code: String,
         code_type: CodeWindowType,
         filename: Option<&'static str>,
@@ -711,6 +732,7 @@ impl CodeWindow {
             tx_thread,
             tx_window,
             code,
+            sys_root,
             shown: true,
             id: format!(
                 "{} {id}{}",
@@ -754,6 +776,7 @@ impl CodeWindow {
     fn compile_cbuoy_to_asm(&self, defs: HashMap<String, String>) -> Option<CompileResults> {
         let compiler = Compiler {
             definitions: defs,
+            system_root: self.sys_root.clone(),
             ..Default::default()
         };
 
