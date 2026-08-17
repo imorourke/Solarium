@@ -59,7 +59,7 @@ def main():
 
     if should_run_cargo:
         p = subprocess.Popen(
-            ["cargo", "update"],
+            ["cargo", "test", "--workspace"],
             stdin=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=base_path,
