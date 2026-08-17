@@ -11,9 +11,11 @@ fn main(argv: **u8, argc: u32) i32 {
     vals[5] = -4.3;
     vals[6] = 0.1;
 
+    k_io_print("sqrt(x) => y\n");
     def i: i32 = 0;
     while (i < VAL_COUNT) {
         def v: f32 = vals[i];
+        k_io_print("  ");
         k_io_print_f32(v);
         k_io_print(" => ");
         def v2: f32 = sqrt_f32(v);
@@ -22,23 +24,31 @@ fn main(argv: **u8, argc: u32) i32 {
         i += 1;
     }
 
+    k_io_print("Compound Assignment\n");
+    k_io_print("  a =   0; => 0\n");
     def a1: i32 = 0;
     a1 += 1;
+    k_io_print("  a +=  1; => ");
     k_io_print_int(a1);
     k_io_print("\n");
     a1 += 8;
+    k_io_print("  a +=  8; => ");
     k_io_print_int(a1);
     k_io_print("\n");
     a1 -= 9;
+    k_io_print("  a -=  9; => ");
     k_io_print_int(a1);
     k_io_print("\n");
     a1 -= 3;
+    k_io_print("  a -=  3; => ");
     k_io_print_int(a1);
     k_io_print("\n");
     a1 *= -2;
+    k_io_print("  a *= -2; => ");
     k_io_print_int(a1);
     k_io_print("\n");
     a1 /= 3;
+    k_io_print("  a /=  3; => ");
     k_io_print_int(a1);
     k_io_print("\n");
 
