@@ -865,7 +865,7 @@ mod test {
 
     #[test]
     fn test_counter() {
-        let txt = include_str!("../../jib-asm/examples/counter.jsm");
+        let txt = include_str!("../../jib-asm/examples/counter.jas");
         let res = assemble_text(txt);
         assert!(res.is_ok());
         assert!(!res.unwrap().bytes.is_empty());
@@ -873,7 +873,7 @@ mod test {
 
     #[test]
     fn test_hello_world() {
-        let txt = include_str!("../../jib-asm/examples/hello_world.jsm");
+        let txt = include_str!("../../jib-asm/examples/hello_world.jas");
         let res = assemble_text(txt);
         assert!(res.is_ok());
         assert!(!res.unwrap().bytes.is_empty());
@@ -881,7 +881,7 @@ mod test {
 
     #[test]
     fn test_infinite_counter() {
-        let txt = include_str!("../../jib-asm/examples/infinite_counter.jsm");
+        let txt = include_str!("../../jib-asm/examples/infinite_counter.jas");
         let res = assemble_text(txt);
         assert!(res.is_ok());
         assert!(!res.unwrap().bytes.is_empty());
@@ -889,7 +889,7 @@ mod test {
 
     #[test]
     fn test_serial_echo() {
-        let txt = include_str!("../../jib-asm/examples/serial_echo.jsm");
+        let txt = include_str!("../../jib-asm/examples/serial_echo.jas");
         let res = assemble_text(txt);
         assert!(res.is_ok());
         assert!(!res.unwrap().bytes.is_empty());
@@ -897,7 +897,7 @@ mod test {
 
     #[test]
     fn test_thread_test() {
-        let txt = include_str!("../../jib-asm/examples/thread_test.jsm");
+        let txt = include_str!("../../jib-asm/examples/thread_test.jas");
         let res = assemble_text(txt);
         assert!(res.is_ok());
         assert!(!res.unwrap().bytes.is_empty());

@@ -471,23 +471,23 @@ impl eframe::App for VisualJib {
                         static ASM_CODES: &[(&str, &str, &str)] = &[
                             (
                                 "Hello World",
-                                include_str!("../../jib/jib-asm/examples/hello_world.jsm"),
-                                "hello_world.jsm",
+                                include_str!("../../jib/jib-asm/examples/hello_world.jas"),
+                                "hello_world.jas",
                             ),
                             (
                                 "Thread Test",
-                                include_str!("../../jib/jib-asm/examples/thread_test.jsm"),
-                                "thread_test.jsm",
+                                include_str!("../../jib/jib-asm/examples/thread_test.jas"),
+                                "thread_test.jas",
                             ),
                             (
                                 "Serial Echo",
-                                include_str!("../../jib/jib-asm/examples/serial_echo.jsm"),
-                                "serial_echo.jsm",
+                                include_str!("../../jib/jib-asm/examples/serial_echo.jas"),
+                                "serial_echo.jas",
                             ),
                             (
                                 "Infinite Counter",
-                                include_str!("../../jib/jib-asm/examples/infinite_counter.jsm"),
-                                "infinite_counter.jsm",
+                                include_str!("../../jib/jib-asm/examples/infinite_counter.jas"),
+                                "infinite_counter.jas",
                             ),
                         ];
 

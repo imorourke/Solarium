@@ -1,0 +1,12 @@
+C/Buoy
+    filter rm_comments_in_strings " /* */
+    filter rm_comments_in_strings " //
+    filter call_regexp_common C++
+    extension cb
+    3rd_gen_scale 1.00
+
+J/ASM
+    filter remove_matches ^\s*;
+    filter remove_inline ;.*$
+    extension jas
+    3rd_gen_scale 0.25
