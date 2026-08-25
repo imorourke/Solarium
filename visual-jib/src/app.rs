@@ -369,14 +369,6 @@ impl eframe::App for VisualJib {
                         );
                     }
 
-                    if ui.button("CB/OS Definitions").clicked() {
-                        self.open_code_window(
-                            CodeWindowType::Cbuoy,
-                            self.cbos_defs.clone(),
-                            Some("cbos_defs.cb"),
-                        );
-                    }
-
                     if ui.button("Bootloader").clicked() {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
@@ -449,12 +441,28 @@ impl eframe::App for VisualJib {
                         }
                     });
                     ui.menu_button("Components", |ui| {
-                        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter().cloned() {
+                        if ui.button(JibOsImage::CBAPP_FILENAME).clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                JibOsImage::CBAPP_DATA.to_string(),
+                                Some(JibOsImage::CBAPP_FILENAME),
+                            );
+                        }
+
+                        if ui.button(JibOsImage::DEFS_FILENAME).clicked() {
+                            self.open_code_window(
+                                CodeWindowType::Cbuoy,
+                                self.cbos_defs.clone(),
+                                Some(JibOsImage::DEFS_FILENAME),
+                            );
+                        }
+
+                        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter() {
                             let name = path.split('/').next_back().unwrap_or(path);
                             if ui.button(name).clicked() {
                                 self.open_code_window(
                                     CodeWindowType::Cbuoy,
-                                    code.into(),
+                                    code.to_string(),
                                     Some(path),
                                 );
                             }

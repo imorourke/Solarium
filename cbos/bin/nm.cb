@@ -1,4 +1,4 @@
-#include <cbapp.cb>
+#include <cb_app.cb>
 
 fn print_results(loc: k_fs_entry_id_t, offset: u32, data_size: u32) i32;
 

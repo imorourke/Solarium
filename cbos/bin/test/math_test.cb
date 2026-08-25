@@ -1,4 +1,4 @@
-#include <cbapp.cb>
+#include <cb_app.cb>
 
 fn main(argv: **u8, argc: u32) i32 {
     const VAL_COUNT: u32 = 7;

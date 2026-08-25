@@ -1,4 +1,4 @@
-#include <cbapp.cb>
+#include <cb_app.cb>
 
 global HELLO_VAL: *u8 = "Hello, world!\n";
 

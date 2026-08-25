@@ -47,8 +47,8 @@ impl JibOsImage {
 
     /// Definitions name
     pub const DEFS_FILENAME: &str = "cbos_defs.cb";
-    pub const CBAPP_FILENAME: &str = "cbapp.cb";
-    pub const CBAPP_DATA: &str = include_str!(os_dir!("cbapp.cb"));
+    pub const CBAPP_FILENAME: &str = "cb_app.cb";
+    pub const CBAPP_DATA: &str = include_str!(os_dir!("cb_app.cb"));
 
     /// Application Code
     pub const CODE_APP_BIN: &[JibApplication] = &[
