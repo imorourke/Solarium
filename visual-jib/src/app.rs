@@ -11,7 +11,7 @@ use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::{ApplicationCategory, JibCode, JibComputer, JibOsImage};
 use jib_cpu::cpu::RegisterManager;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::{sync::LazyLock, time::Duration};
 
@@ -105,6 +105,12 @@ impl MemoryViewWindow {
     }
 }
 
+struct CodeComponent {
+    name: String,
+    path: String,
+    code: String,
+}
+
 pub struct VisualJib {
     log_serial: String,
     log_text: String,
@@ -127,8 +133,8 @@ pub struct VisualJib {
     memory_windows: Vec<MemoryViewWindow>,
     memory_window_id: usize,
     use_bootloader: bool,
-    cbos_defs: String,
     sys_root: Rc<dyn PreprocessorFilesystem>,
+    cbos_components: Vec<Rc<CodeComponent>>,
 }
 
 impl Default for VisualJib {
@@ -155,21 +161,27 @@ impl Default for VisualJib {
 
         let root_rc = Rc::new(sys_root);
 
-        CodeWindow::new(
-            0,
-            tx_ui.clone(),
-            tx_thread.clone(),
-            tx_window.clone(),
-            root_rc.clone(),
-            include_str!("../../cbos/os.cb").to_string(),
-            CodeWindowType::Cbuoy,
-            None,
-        )
-        .compile_cbuoy_defs(
-            [("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into())]
-                .into_iter()
-                .collect(),
-        );
+        let mut cbos_components = vec![
+            CodeComponent {
+                name: JibOsImage::CBAPP_FILENAME.into(),
+                path: JibOsImage::CBAPP_FILENAME.into(),
+                code: JibOsImage::CBAPP_DATA.into(),
+            },
+            CodeComponent {
+                name: JibOsImage::DEFS_FILENAME.into(),
+                path: JibOsImage::DEFS_FILENAME.into(),
+                code: cbos_defs,
+            },
+        ];
+
+        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter() {
+            let name = path.split('/').next_back().unwrap_or(path);
+            cbos_components.push(CodeComponent {
+                name: name.into(),
+                path: path.to_string(),
+                code: code.to_string(),
+            });
+        }
 
         let window = Self {
             cpu_run_requested: false,
@@ -195,9 +207,22 @@ impl Default for VisualJib {
             memory_windows: Vec::new(),
             memory_window_id: 0,
             use_bootloader: false,
-            cbos_defs,
             sys_root: root_rc,
+            cbos_components: cbos_components.into_iter().map(Rc::new).collect(),
         };
+
+        CodeWindow::new(
+            0,
+            &window,
+            include_str!("../../cbos/os.cb").to_string(),
+            CodeWindowType::Cbuoy,
+            None,
+        )
+        .compile_cbuoy_defs(
+            [("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into())]
+                .into_iter()
+                .collect(),
+        );
 
         for m in [
             UiToThread::SetMultiplier(window.current_cpu_speed),
@@ -285,14 +310,11 @@ impl VisualJib {
         &mut self,
         code_type: CodeWindowType,
         code: String,
-        filepath: Option<&'static str>,
+        filepath: Option<String>,
     ) {
         self.code_windows.push(CodeWindow::new(
             self.code_window_id,
-            self.tx_ui.clone(),
-            self.tx_thread.clone(),
-            self.tx_window.clone(),
-            self.sys_root.clone(),
+            self,
             code,
             code_type,
             filepath,
@@ -365,7 +387,7 @@ impl eframe::App for VisualJib {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
                             JibOsImage::CODE_OS.into(),
-                            Some("os.cb"),
+                            Some("os.cb".to_string()),
                         );
                     }
 
@@ -373,11 +395,13 @@ impl eframe::App for VisualJib {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
                             JibComputer::BOOTLOADER_CODE.into(),
-                            Some("bootloader.cb"),
+                            Some("bootloader.cb".to_string()),
                         );
                     }
 
-                    const NAMED_VALS: &[(&'static str, fn(ApplicationCategory) -> bool)] = &[
+                    type MatchesAppCategory = fn(ApplicationCategory) -> bool;
+
+                    const NAMED_VALS: &[(&str, MatchesAppCategory)] = &[
                         ("Applications", |x: ApplicationCategory| {
                             matches!(
                                 x,
@@ -399,7 +423,7 @@ impl eframe::App for VisualJib {
                                     self.open_code_window(
                                         CodeWindowType::Cbuoy,
                                         a.code.into(),
-                                        Some(a.filename),
+                                        Some(a.filename.to_string()),
                                     );
                                 }
                             }
@@ -435,36 +459,18 @@ impl eframe::App for VisualJib {
                                 self.open_code_window(
                                     CodeWindowType::Cbuoy,
                                     code.into(),
-                                    Some(path),
+                                    Some(path.to_string()),
                                 );
                             }
                         }
                     });
                     ui.menu_button("Components", |ui| {
-                        // TODO - reorganize this local to the app
-                        if ui.button(JibOsImage::CBAPP_FILENAME).clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                JibOsImage::CBAPP_DATA.to_string(),
-                                Some(JibOsImage::CBAPP_FILENAME),
-                            );
-                        }
-
-                        if ui.button(JibOsImage::DEFS_FILENAME).clicked() {
-                            self.open_code_window(
-                                CodeWindowType::Cbuoy,
-                                self.cbos_defs.clone(),
-                                Some(JibOsImage::DEFS_FILENAME),
-                            );
-                        }
-
-                        for (path, code) in cblang::preprocessor::DEFAULT_FILES.iter() {
-                            let name = path.split('/').next_back().unwrap_or(path);
-                            if ui.button(name).clicked() {
+                        for comp in self.cbos_components.clone().iter() {
+                            if ui.button(&comp.name).clicked() {
                                 self.open_code_window(
                                     CodeWindowType::Cbuoy,
-                                    code.to_string(),
-                                    Some(path),
+                                    comp.code.clone(),
+                                    Some(comp.path.clone()),
                                 );
                             }
                         }
@@ -505,7 +511,7 @@ impl eframe::App for VisualJib {
                                 self.open_code_window(
                                     CodeWindowType::Assembly,
                                     code.into(),
-                                    Some(filename),
+                                    Some(filename.to_string()),
                                 );
                             }
                         }
@@ -707,7 +713,7 @@ enum CodeWindowType {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum CodeWindowAction {
-    NewAssemblyWindow(String, Option<&'static str>),
+    NewAssemblyWindow(String, Option<String>),
 }
 
 struct CodeWindow {
@@ -719,7 +725,7 @@ struct CodeWindow {
     shown: bool,
     id: String,
     compiled: CodeWindowType,
-    filename: Option<&'static str>,
+    filename: Option<String>,
 }
 
 impl CodeWindow {
@@ -728,20 +734,17 @@ impl CodeWindow {
 
     fn new(
         id: usize,
-        tx_ui: std::sync::mpsc::Sender<UiToThread>,
-        tx_thread: std::sync::mpsc::Sender<ThreadToUi>,
-        tx_window: std::sync::mpsc::Sender<CodeWindowAction>,
-        sys_root: Rc<dyn PreprocessorFilesystem>,
+        parent: &VisualJib,
         code: String,
         code_type: CodeWindowType,
-        filename: Option<&'static str>,
+        filename: Option<String>,
     ) -> Self {
         Self {
-            tx_ui,
-            tx_thread,
-            tx_window,
+            tx_ui: parent.tx_ui.clone(),
+            tx_thread: parent.tx_thread.clone(),
+            tx_window: parent.tx_window.clone(),
             code,
-            sys_root,
+            sys_root: parent.sys_root.clone(),
             shown: true,
             id: format!(
                 "{} {id}{}",
@@ -789,7 +792,10 @@ impl CodeWindow {
             ..Default::default()
         };
 
-        match compiler.compile_string(&self.code, self.filename.map(Path::new)) {
+        match compiler.compile_string(
+            &self.code,
+            self.filename.clone().map(|x| PathBuf::from(&x)).as_deref(),
+        ) {
             Ok(val) => Some(val),
             Err(err) => {
                 self.tx_thread
@@ -896,7 +902,10 @@ impl CodeWindow {
                     );
 
                     self.tx_window
-                        .send(CodeWindowAction::NewAssemblyWindow(asm, self.filename))
+                        .send(CodeWindowAction::NewAssemblyWindow(
+                            asm,
+                            self.filename.clone(),
+                        ))
                         .unwrap();
                 }
 

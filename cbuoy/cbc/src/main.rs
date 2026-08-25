@@ -8,9 +8,9 @@ use std::{
 };
 
 use cblang::{
+    CodeGenerationOptions, Compiler, ProgramType,
     compiler::InterfaceDefinition,
     preprocessor::{OverlayFilesystem, RealFilesystem, VirtualFilesystem},
-    CodeGenerationOptions, Compiler, ProgramType,
 };
 use clap::Parser;
 
@@ -199,11 +199,11 @@ fn main() -> std::process::ExitCode {
 
             let mut vfs = VirtualFilesystem::default();
             vfs.add_file(
-                &Path::new("cb_app.cb"),
+                Path::new("cb_app.cb"),
                 include_str!("../../../cbos/cb_app.cb"),
             )
             .unwrap();
-            vfs.add_file(&Path::new("cbos_defs.cb"), &interface_str)
+            vfs.add_file(Path::new("cbos_defs.cb"), &interface_str)
                 .unwrap();
             sysfs.systems.push(Rc::new(vfs));
         }
