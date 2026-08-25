@@ -441,6 +441,7 @@ impl eframe::App for VisualJib {
                         }
                     });
                     ui.menu_button("Components", |ui| {
+                        // TODO - reorganize this local to the app
                         if ui.button(JibOsImage::CBAPP_FILENAME).clicked() {
                             self.open_code_window(
                                 CodeWindowType::Cbuoy,
