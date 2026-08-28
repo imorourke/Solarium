@@ -1,3 +1,4 @@
+#!/bin/python3
 """
 Updates common files to a consistent version number
 """
@@ -15,7 +16,7 @@ def main():
     _ = p.add_argument(
         "version_str",
         type=str,
-        help="The version string to update versions to. Must be of the form v0.0.0",
+        help="The version string to update versions to. Must be of the form 0.0.0",
     )
     _ = p.add_argument(
         "--no-cargo",
