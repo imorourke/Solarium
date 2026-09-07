@@ -585,7 +585,7 @@ fn k_disk_fs_add_entry(
     if (dev->entry_table_dirty) {
         return k_disk_fs_write_entry_table(dev);
     } else {
-        return 0;
+        return new_block;
     }
 }
 
