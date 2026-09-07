@@ -4,6 +4,7 @@
 #include kconfig.cb
 #include kdevice.cb
 #include kserialio.cb
+#include kmalloc.cb
 
 export struct k_datetime_t {
     year: i16;
@@ -51,6 +52,10 @@ fn k_rtc_init() void {
 export fn k_rtc_current() k_datetime_t {
     if (K_RTC_BASE != 0) {
         return K_RTC_BASE->datetime;
+    } else {
+        def temp: k_datetime_t;
+        k_memset(&temp, 0, sizeof(temp));
+        return temp;
     }
 }
 
