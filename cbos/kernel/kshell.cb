@@ -510,6 +510,26 @@ fn k_shell_run_script(state: *k_shell_state_t, script_file: k_fs_entry_id_t, arg
     return 0;
 }
 
+fn k_shell_fn_mkdir(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
+    def target_dir: k_fs_entry_id_t = state->fs;
+    def dev: *k_disk_fs_t = k_disk_get(target_dir.disk_index);
+    if (dev == NULL) {
+        k_io_print("no disk found matching target\n");
+    }
+
+    def i: i32 = 1;
+    while (i < argc) {
+        if (k_disk_fs_add_entry(dev, target_dir.entry, argv[i], K_FS_ENTRY_TYPE_DIR) < 0) {
+            k_io_print("unable to create directory with name '");
+            k_io_print(argv[i]);
+            k_io_print("'\n");
+            return -1;
+        }
+        i += 1;
+    }
+    return 0;
+}
+
 fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
     if (disk == 0) {
@@ -687,6 +707,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_exports;
         } else if (strcmp(cmd, "gc") == 0) {
             sh_fn = k_shell_fn_gc;
+        } else if (strcmp(cmd, "mkdir") == 0) {
+            sh_fn = k_shell_fn_mkdir;
         }
 
         if (sh_fn != 0) {

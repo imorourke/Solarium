@@ -491,7 +491,6 @@ fn k_disk_fs_add_entry(
     dev: *k_disk_fs_t,
     parent: u16,
     entry_name: *u8,
-    entry_size: u32,
     entry_type: u8) i32 {
     // Check for valid inputs
     if (!dev || !entry_name) {
