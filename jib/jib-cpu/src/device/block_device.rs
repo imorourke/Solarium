@@ -163,7 +163,7 @@ impl MemorySegment for BlockDevice {
                 self.set_offset(self.target_offset);
                 Ok(())
             }
-            9 => Err(MemorySegmentError::InvalidMemoryAccess(offset)),
+            9 => Ok(()),
             10..12 => {
                 let mut temp_array = self.memory_size.to_be_bytes();
                 temp_array[local_offset - 10] = val;
