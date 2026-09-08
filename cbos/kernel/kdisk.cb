@@ -507,6 +507,8 @@ fn k_disk_fs_add_entry(
         return -1;
     }
 
+    k_io_print("1\n");
+
     def target_offset: i32 = -1; // Set to -1 by default. Once found, will be positive or zero
 
     const DATA_SIZE: u32 = sizeof(k_fs_directory_entry_t);
@@ -517,6 +519,8 @@ fn k_disk_fs_add_entry(
     } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return -1;
     }
+
+    k_io_print("2\n");
 
     def current: k_fs_directory_entry_t;
 
@@ -541,12 +545,18 @@ fn k_disk_fs_add_entry(
         current_offset += 1;
     }
 
+    k_io_print("3\n");
+
     // Create the new entry value
 
     def new_block: u16 = k_disk_fs_next_free_entry(dev);
     if (!k_disk_fs_entry_valid(new_block)) {
         return -1; // Disk full
     }
+
+    k_io_print("New block is: ");
+    k_io_print_uint(new_block);
+    k_io_print("\n");
 
     dev->entry_table[new_block] = K_FS_ENTRY_END;
     dev->entry_table_dirty = 1;
@@ -558,9 +568,23 @@ fn k_disk_fs_add_entry(
     new_header.modification_time = k_rtc_current();
     new_header.payload_size = 0;
 
+    k_io_print("Attempting writing\n");
+    k_io_print("Disk: ");
+    k_io_print_hex(dev : u32);
+    k_io_print(", ");
+    def ctl: *k_disk_control_t = dev->ctl;
+    k_io_print_hex(ctl);
+    k_io_print("\n");
+    k_io_print_stat("Sector Size", dev->vol_hdr.sector_size);
+    k_io_print_stat("Offset", new_block * dev->vol_hdr.sector_size);
+    k_io_print_stat("Data", &new_header);
+    k_io_print_stat("Size", sizeof(new_header));
+
     if (0 != k_disk_data_write(dev->ctl, new_block * dev->vol_hdr.sector_size, &new_header, sizeof(new_header))) {
         return -1;
     }
+
+    k_io_print("Write complete\n");
 
     def new_dir_entry: k_fs_directory_entry_t;
     k_memset(&new_dir_entry, 0, sizeof(new_dir_entry));
@@ -629,6 +653,15 @@ fn _k_disk_fs_open_direct(device_num: u32) *k_disk_fs_t {
 
     // Setup the disk control block
     dev->ctl = DISK_LOC;
+    if (K_DBG_ENABLED) {
+        k_io_print("Setting disk location to 0x");
+        k_io_print_hex(dev->ctl);
+        k_io_print(", 0x");
+        k_io_print_hex(DISK_LOC);
+        k_io_print(", 0x");
+        k_io_print_hex(K_LOC_DEVICE_HD_START);
+        k_io_print("\n");
+    }
     dev->ctl->parked = 0;
     dev->ctl->memory_size = 0;
 
