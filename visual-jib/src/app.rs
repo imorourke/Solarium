@@ -5,7 +5,7 @@ use cblang::{CompileResults, Compiler};
 use cblang::{CompilerError, TokenError};
 use eframe::egui::{
     self, CentralPanel, Context, Grid, Id, Key, Layout, MenuBar, Modifiers, ScrollArea, Slider,
-    TextBuffer, TextEdit,
+    TextBuffer, TextEdit, ThemePreference,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::{ApplicationCategory, JibCode, JibComputer, JibOsImage};
@@ -376,6 +376,24 @@ impl eframe::App for VisualJib {
                     if ui.button("Quit").clicked() {
                         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                     }
+                });
+
+                ui.menu_button("View", |ui| {
+                    ui.menu_button("Theme", |ui| {
+                        if ui.button("System").clicked() {
+                            ui.ctx().set_theme(ThemePreference::System);
+                        }
+
+                        ui.separator();
+
+                        if ui.button("Light").clicked() {
+                            ui.ctx().set_theme(ThemePreference::Light);
+                        }
+
+                        if ui.button("Dark").clicked() {
+                            ui.ctx().set_theme(ThemePreference::Dark);
+                        }
+                    });
                 });
 
                 ui.menu_button("C/Buoy", |ui| {

@@ -5,6 +5,7 @@ mod cpu_thread;
 mod messages;
 
 use app::VisualJib;
+use eframe::egui::ThemePreference;
 
 cfg_select! {
     not(target_arch = "wasm32") => {
@@ -41,7 +42,7 @@ cfg_select! {
                 native_options,
                 Box::new(|ctx| {
                     #[cfg(target_os = "linux")]
-                    ctx.egui_ctx.set_theme(eframe::egui::Theme::Light);
+                    ctx.egui_ctx.set_theme(ThemePreference::Light);
                     ctx.egui_ctx.global_style_mut(|s| s.interaction.selectable_labels = false);
                     Ok(Box::<VisualJib>::default())
                 }),
