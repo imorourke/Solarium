@@ -547,7 +547,6 @@ The program listed in Listing \ref{listing:example-counter} provides a basic cou
 
 \lstinputlisting[caption={Limited counter program}, label={listing:example-counter}]{../jib/jib-asm/examples/counter.jas}
 
-\pagebreak
 \subsection{Infinite Counter}
 
 Listing \ref{listing:example-infinite-counter} makes use of some additional functionality, including the use of the register reference names, to test register reset functionality. It also modifies the program counter outside of the standard jump command.
@@ -559,8 +558,6 @@ Listing \ref{listing:example-infinite-counter} makes use of some additional func
 Listing  \ref{listing:hello-world} provides a program that will infinitely write "hello, world" to the serial device, expected to be memory-mapped into the Jib at \texttt{0xFFFFA000}. This makes use of the \texttt{.loadtext} command, which loads the text, and an additional null-terminator at the end, directly into memory. It also makes use of a print-string function call to handle printing string values to the serial output devices.
 
 \lstinputlisting[caption={Infinite "hello, world!" program}, label={listing:hello-world}]{../jib/jib-asm/examples/hello_world.jas}
-
-\pagebreak
 
 \subsection{Serial Echo}
 
