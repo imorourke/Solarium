@@ -51,10 +51,6 @@ fn k_io_print_digit_intf(out_dev: *u8, v: u8) void {
         *out_dev = '?';
     }
 }
-
-fn k_io_digit_to_u8(v: u8) u8 {
-    return '0' + v;
-}
 #else
 asmfn k_io_print_intf(out_dev: *u8, c: *u8) void {
     "push $stat";
@@ -94,16 +90,11 @@ asmfn k_io_print_digit_intf(out_dev: *u8, v: u8) void {
     "sav 11:u8 10";
     "ret";
 }
-
-asmfn k_io_digit_to_u8(v: u8) u8 {
-    "ldi 8:u16 @{v}@";
-    "add 8:u32 $arg 8";
-    "ld 8:u8 8";
-    "ldi 9:u16 '0'";
-    "add $ret:u8 8 9";
-    "ret";
-}
 #endif
+
+fn k_io_digit_to_u8(v: u8) u8 {
+    return '0' + v;
+}
 
 export fn k_io_print(c: *u8) void {
     k_io_print_intf(&SERIAL_DEV->output_data, c);
@@ -114,20 +105,23 @@ export fn k_io_print_digit(v: u8) void {
 }
 
 export fn k_io_print_uint(v: u32) void {
-    const CHAR_SIZE: u32 = 12;
-    def chars: [CHAR_SIZE]u8;
+    const CHAR_SIZE: u32 = 20;
+    const DIVISOR: u32 = 10;
+    def nums: [CHAR_SIZE]u8;
+    k_memset(nums, 0, sizeof(CHAR_SIZE));
     if (v == 0) {
-        k_io_print_digit(0);
+        k_io_put('0');
     } else {
-        def cp: *u8 = chars;
+        def cp: *u8 = nums;
         while (v != 0) {
-            *cp = v % 10;
-            v = v / 10;
+            *cp = v % DIVISOR;
+            v /= DIVISOR;
             cp += 1;
         }
-        while (cp != chars) {
+        while (cp != nums) {
             cp -= 1;
-            k_io_print_digit(*cp);
+            def num: u8 = *cp;
+            k_io_put('0' + num);
         }
     }
 }
@@ -135,6 +129,7 @@ export fn k_io_print_uint(v: u32) void {
 export fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
     const CHAR_SIZE: u32 = 12;
     def chars: [CHAR_SIZE]u8;
+    const DIVISOR: u32 = 10;
     k_memset(&chars, default, CHAR_SIZE);
     if (width > CHAR_SIZE) {
         width = CHAR_SIZE;
@@ -149,8 +144,8 @@ export fn k_io_print_uint_width_default(v: u32, width: u32, default: u8) void {
     } else {
         def cp: *u8 = chars;
         while (v != 0) {
-            *cp = k_io_digit_to_u8(v % 10);
-            v = v / 10;
+            *cp = k_io_digit_to_u8(v % DIVISOR);
+            v /= DIVISOR;
             cp += 1;
         }
         cp = chars + width;
@@ -174,22 +169,25 @@ export fn k_io_print_int(v: i32) void {
 }
 
 export fn k_io_print_hex(v: u32) void {
-    def chars: [12]u8;
-    def cp: *u8 = chars;
+    const DIVISOR: u32 = 16;
+    def nums: [20]u8;
+    k_memset(nums, 0, 20);
+    def cp: *u8 = nums;
     if (v == 0) {
-        k_io_print_digit(0);
+        k_io_put('0');
     } else {
         while (v != 0) {
-            *cp = v % 16;
-            v = v / 16;
+            *cp = v % DIVISOR;
+            v /= DIVISOR;
             cp += 1;
         }
-        while (cp != chars) {
+        while (cp != nums) {
             cp -= 1;
-            if (*cp < 10) {
-                (SERIAL_DEV->output_data) = '0' + *cp;
+            def c: u8 = *cp;
+            if (c < 10) {
+                k_io_put('0' + c);
             } else {
-                (SERIAL_DEV->output_data) = 'A' + (*cp - 10);
+                k_io_put('A' + (c - 10));
             }
         }
     }

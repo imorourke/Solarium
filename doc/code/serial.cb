@@ -7,7 +7,7 @@ fn print(out_dev: *u8, c: *u8) void {
 }
 
 // ASM version of print
-asmfn k_io_print_intf(out_dev: *u8, c: *u8) void {
+asmfn print(out_dev: *u8, c: *u8) void {
     "push $stat";
     "intoff";
     "ldi 8:u16 @{out_dev}@";
