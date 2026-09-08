@@ -127,11 +127,6 @@ fn k_disk_fs_next_sector(dev: *k_disk_fs_t, entry: u16) u16 {
 fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: u32) i32 {
     def current_size: u32 = 0;
     def mem_size: u32 = ctl->memory_size;
-    k_io_print("ctl block: 0x");
-    k_io_print_hex(ctl);
-    k_io_print("\n");
-    k_io_print_stat("mem_size", mem_size);
-    k_io_print("\n");
 
     while (current_size < size) {
         def size_to_write: u32 = size - current_size;
@@ -145,15 +140,6 @@ fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: 
         }
 
         def data_write: *u8 = &ctl->data[0];
-
-        k_io_print("Setting memory size to write as ");
-        k_io_print_uint(current_size);
-        k_io_print("\n");
-        k_io_print("  Copying from 0x");
-        k_io_print_hex(data + current_size);
-        k_io_print(" to 0x");
-        k_io_print_hex(data_write);
-        k_io_print("\n");
 
         ctl->memory_size = size_to_write;
         k_disk_move(ctl, disk_offset + current_size);
@@ -384,12 +370,15 @@ fn k_disk_fs_flush(dev: *k_disk_fs_t) i32 {
 }
 
 fn k_disk_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, entry_size: u32) i32 {
-    def required_sectors: u32 = (entry_size / dev->vol_hdr.sector_size) + 1;
+    def sect_size: u32 = dev->vol_hdr.sector_size;
+    def total_bytes: u32 = entry_size + sizeof(k_fs_entry_header_t);
+    def required_sectors: u32 = total_bytes / sect_size;
+    if ((total_bytes % sect_size) != 0) {
+        required_sectors += 1;
+    }
 
     def i: u32 = 0;
     def sector: u16 = entry;
-
-    // TODO - REDO THIS LOGIC!!!
 
     while (sector != K_FS_ENTRY_END) {
         i += 1;
@@ -436,7 +425,7 @@ fn k_disk_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, entry_size: u32) i32 
 
     if (0 != k_disk_data_write(
         dev->ctl,
-        entry * dev->vol_hdr.sector_size,
+        entry * sect_size,
         &entry_hdr,
         sizeof(entry_hdr))) {
         k_io_print("unable to write data\n");
@@ -465,6 +454,15 @@ fn k_disk_fs_write_data(
 
     if ((entry_offset + entry_size) > entry_header.payload_size) {
         k_io_print("not enough size available to write data...\n");
+        k_io_print_uint(entry_offset);
+        k_io_print(" = ");
+        k_io_print_uint(entry_size);
+        k_io_print(" -> ");
+        k_io_print_uint(entry_offset + entry_size);
+        k_io_print("\n");
+        k_io_print("payload size: ");
+        k_io_print_uint(entry_header.payload_size);
+        k_io_print("\n");
         return -1;
     }
 
@@ -583,8 +581,6 @@ fn k_disk_fs_add_entry(
         return -1;
     }
 
-    k_io_print("1\n");
-
     def target_offset: i32 = -1; // Set to -1 by default. Once found, will be positive or zero
 
     const DATA_SIZE: u32 = sizeof(k_fs_directory_entry_t);
@@ -595,8 +591,6 @@ fn k_disk_fs_add_entry(
     } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return -1;
     }
-
-    k_io_print("2\n");
 
     def current: k_fs_directory_entry_t;
 
@@ -621,18 +615,12 @@ fn k_disk_fs_add_entry(
         current_offset += 1;
     }
 
-    k_io_print("3\n");
-
     // Create the new entry value
 
     def new_block: u16 = k_disk_fs_next_free_entry(dev);
     if (!k_disk_fs_entry_valid(new_block)) {
         return -1; // Disk full
     }
-
-    k_io_print("New block is: ");
-    k_io_print_uint(new_block);
-    k_io_print("\n");
 
     dev->entry_table[new_block] = K_FS_ENTRY_END;
     dev->entry_table_dirty = 1;
@@ -644,23 +632,12 @@ fn k_disk_fs_add_entry(
     new_header.modification_time = k_rtc_current();
     new_header.payload_size = 0;
 
-    k_io_print("Attempting writing\n");
-    k_io_print("Disk: ");
-    k_io_print_hex(dev : u32);
-    k_io_print(", ");
-    def ctl: *k_disk_control_t = dev->ctl;
-    k_io_print_hex(ctl);
-    k_io_print("\n");
-    k_io_print_stat("Sector Size", dev->vol_hdr.sector_size);
-    k_io_print_stat("Offset", new_block * dev->vol_hdr.sector_size);
-    k_io_print_stat("Data", &new_header);
-    k_io_print_stat("Size", sizeof(new_header));
+    def sect_size: u32 = dev->vol_hdr.sector_size;
 
-    if (0 != k_disk_data_write(dev->ctl, new_block * dev->vol_hdr.sector_size, &new_header, sizeof(new_header))) {
+    if (0 != k_disk_data_write(dev->ctl, new_block * sect_size, &new_header, sizeof(new_header))) {
+        dev->entry_table[new_block] = 0;
         return -1;
     }
-
-    k_io_print("Write complete\n");
 
     def new_dir_entry: k_fs_directory_entry_t;
     k_memset(&new_dir_entry, 0, sizeof(new_dir_entry));
@@ -669,25 +646,24 @@ fn k_disk_fs_add_entry(
     new_dir_entry.entry_type = entry_type;
     strcpy(&new_dir_entry.name, entry_name);
 
-    k_io_print("Starting new block device\n");
-
-    if (target_offset <= 0) {
+    if (target_offset < 0) {
         target_offset = dir_hdr.payload_size / sizeof(k_fs_directory_entry_t);
 
         if (0 != k_disk_fs_set_entry_size(dev, parent, dir_hdr.payload_size + sizeof(k_fs_directory_entry_t))) {
             k_io_print("Unable to set directory entry size\n");
+            dev->entry_table[new_block] = 0;
             return -1;
         }
     }
 
     if (0 != k_disk_fs_write_data(dev, parent, target_offset * sizeof(k_fs_directory_entry_t), &new_dir_entry, sizeof(k_fs_directory_entry_t))) {
         k_io_print("Unable to write directory entry data\n");
+        dev->entry_table[new_block] = 0;
         return -1;
     }
 
     def res: i32 = k_disk_fs_flush(dev);
     if (res < 0) {
-        k_io_print("unable to write entry table\n");
         return res;
     }
 
