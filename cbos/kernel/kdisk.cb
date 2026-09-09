@@ -679,6 +679,89 @@ fn k_disk_fs_add_entry(
     return new_block;
 }
 
+fn k_disk_fs_rm_entry(
+    dev: *k_disk_fs_t,
+    entry: u16) i32 {
+    def entry_hdr: k_fs_entry_header_t;
+    if (0 != k_disk_fs_read_entry_header(dev, entry, &entry_hdr)) {
+        return -1;
+    }
+
+    if ((entry_hdr.parent == 0) || (entry_hdr.parent = dev->vol_hdr.root_sector)) {
+        return -2;
+    }
+
+    def dir_hdr: k_fs_entry_header_t;
+    def state: k_fs_io_state_t;
+    def dir_entry: k_fs_directory_entry_t;
+    const DATA_SIZE: u32 = sizeof(dir_entry);
+    def read_size: u32 = DATA_SIZE;
+
+    if (entry_hdr.entry_type == K_FS_ENTRY_TYPE_DIR) {
+        if (k_disk_fs_io_state_init_hdr(dev, entry, 0, 0, &state, &dir_hdr) < 0) {
+            return -1;
+        } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
+            return -1;
+        }
+
+        // Remove any directory entry for the block
+        def current_offset: u32 = 0;
+        while (k_fs_io_state_read_next_section(&state, &dir_entry, &read_size) > 0) {
+            if (read_size != DATA_SIZE) {
+                return -1;
+            }
+
+            if (dir_entry.base_block != NULL) {
+                if (0 != k_disk_fs_rm_entry(dev, dir_entry.base_block)) {
+                    return -4;
+                }
+            }
+        }
+    }
+
+    def parent: u16 = entry_hdr.parent;
+
+    if (k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr) < 0) {
+        return -1;
+    } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
+        return -1;
+    }
+
+    // Remove any directory entry for the block
+    read_size = DATA_SIZE;
+    def current_offset: u32 = 0;
+    while (k_fs_io_state_read_next_section(&state, &dir_entry, &read_size) > 0) {
+        if (read_size != DATA_SIZE) {
+            return -1;
+        }
+
+        if (dir_entry.base_block == entry) {
+            k_memset(&dir_entry, 0, DATA_SIZE);
+            if (0 != k_disk_fs_write_data(dev, parent, current_offset * DATA_SIZE, &dir_entry, DATA_SIZE)) {
+                return -1;
+            }
+        }
+
+        current_offset += 1;
+    }
+
+    // Clear all used sectors
+    def sector: u16 = entry;
+    dev->entry_table_dirty = 1;
+    while (sector != K_FS_ENTRY_END) {
+        def next: u16 = dev->entry_table[sector];
+        dev->entry_table[sector] = 0;
+        sector = next;
+    }
+
+    def res: i32 = k_disk_fs_flush(dev);
+    if (res < 0) {
+        return res;
+    }
+
+    return 0;
+}
+
 fn k_disk_fs_get_dir_entry_by_name(
     disk: *k_disk_fs_t,
     parent: u16,
