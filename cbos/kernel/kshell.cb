@@ -61,7 +61,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     } else if (argc == 2) {
         def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_DIR, &state->fs, &target_dir);
         if (0 != res) {
-            k_io_print("unable to find path for '");
+            k_io_print("unable to find path to ls for '");
             k_io_print(argv[1]);
             k_io_print("'\n");
             return res;
@@ -129,7 +129,7 @@ fn k_shell_fn_cd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         def loc: k_fs_entry_id_t;
         def target: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_DIR, &state->fs, &loc);
         if (target != 0) {
-            k_io_print("unable to find path for '");
+            k_io_print("unable to find path to cd for '");
             k_io_print(argv[1]);
             k_io_print("'\n");
             return -1;

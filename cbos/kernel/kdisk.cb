@@ -200,9 +200,15 @@ fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entr
     if (!dev || !k_disk_fs_entry_valid(entry)) {
         return -1;
     }
-    k_disk_move(dev->ctl, (dev->vol_hdr.sector_size : u32) * (entry : u32));
+
+    def sect_size: u32 = dev->vol_hdr.sector_size : u32;
+    def entry_val: u32 = entry : u32;
+    def offset: u32 = sect_size * entry_val;
+
+    k_disk_move(dev->ctl, offset);
     dev->ctl->memory_size = 0;
-    k_memcpy(header, &dev->ctl->data, sizeof(k_fs_entry_header_t));
+    k_memcpy(header, &dev->ctl->data[0], sizeof(k_fs_entry_header_t));
+
     return 0;
 }
 
@@ -544,7 +550,7 @@ fn k_disk_fs_read_directory_entries(
 
     def header: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    if (k_disk_fs_io_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, *entry_size * DATA_SIZE, &state, &header) < 0) {
+    if (k_disk_fs_io_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, 0, &state, &header) < 0) {
         return -1;
     } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return -1;
@@ -555,7 +561,9 @@ fn k_disk_fs_read_directory_entries(
     def current: *k_fs_directory_entry_t = entries;
     def include_null: u8 = (flags & K_DISK_FS_READ_ALL_ENTRIES);
 
-    while (k_fs_io_state_read_next_section(&state, current, &read_size) > 0) {
+    def max_size: u32 = *entry_size;
+
+    while ((current_ind < max_size) && (k_fs_io_state_read_next_section(&state, current, &read_size) > 0)) {
         if (read_size != DATA_SIZE) {
             return -1;
         }
@@ -688,17 +696,17 @@ fn k_disk_fs_rm_entry(
         return -1;
     }
 
-    if ((entry_hdr.parent == 0) || (entry_hdr.parent = dev->vol_hdr.root_sector)) {
+    if ((entry_hdr.parent == 0) || (entry == dev->vol_hdr.root_sector)) {
         return -2;
     }
 
-    def dir_hdr: k_fs_entry_header_t;
-    def state: k_fs_io_state_t;
-    def dir_entry: k_fs_directory_entry_t;
-    const DATA_SIZE: u32 = sizeof(dir_entry);
-    def read_size: u32 = DATA_SIZE;
-
     if (entry_hdr.entry_type == K_FS_ENTRY_TYPE_DIR) {
+        def dir_hdr: k_fs_entry_header_t;
+        def state: k_fs_io_state_t;
+        def dir_entry: k_fs_directory_entry_t;
+        const DATA_SIZE: u32 = sizeof(dir_entry);
+        def read_size: u32 = DATA_SIZE;
+
         if (k_disk_fs_io_state_init_hdr(dev, entry, 0, 0, &state, &dir_hdr) < 0) {
             return -1;
         } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
@@ -709,41 +717,55 @@ fn k_disk_fs_rm_entry(
         def current_offset: u32 = 0;
         while (k_fs_io_state_read_next_section(&state, &dir_entry, &read_size) > 0) {
             if (read_size != DATA_SIZE) {
+                k_io_print("mismatching data size\n");
                 return -1;
             }
 
             if (dir_entry.base_block != NULL) {
                 if (0 != k_disk_fs_rm_entry(dev, dir_entry.base_block)) {
+                    k_io_print("unable to remove sub-entry\n");
                     return -4;
                 }
             }
         }
     }
 
-    def parent: u16 = entry_hdr.parent;
+    // Clear results from the parent value
+    {
+        def dir_hdr: k_fs_entry_header_t;
+        def state: k_fs_io_state_t;
+        def dir_entry: k_fs_directory_entry_t;
+        const DATA_SIZE: u32 = sizeof(dir_entry);
+        def read_size: u32 = DATA_SIZE;
+        def parent: u16 = entry_hdr.parent;
 
-    if (k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr) < 0) {
-        return -1;
-    } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
-        return -1;
-    }
-
-    // Remove any directory entry for the block
-    read_size = DATA_SIZE;
-    def current_offset: u32 = 0;
-    while (k_fs_io_state_read_next_section(&state, &dir_entry, &read_size) > 0) {
-        if (read_size != DATA_SIZE) {
+        if (k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr) < 0) {
+            k_io_print("unable to init parent reader\n");
+            return -1;
+        } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
+            k_io_print("parent entry is not a directory\n");
             return -1;
         }
 
-        if (dir_entry.base_block == entry) {
-            k_memset(&dir_entry, 0, DATA_SIZE);
-            if (0 != k_disk_fs_write_data(dev, parent, current_offset * DATA_SIZE, &dir_entry, DATA_SIZE)) {
+        // Remove any directory entry for the block
+        read_size = DATA_SIZE;
+        def current_offset: u32 = 0;
+        while (k_fs_io_state_read_next_section(&state, &dir_entry, &read_size) > 0) {
+            if (read_size != DATA_SIZE) {
+                k_io_print("mismatching parent data size\n");
                 return -1;
             }
-        }
 
-        current_offset += 1;
+            if (dir_entry.base_block == entry) {
+                k_memset(&dir_entry, 0, DATA_SIZE);
+                if (0 != k_disk_fs_write_data(dev, parent, current_offset, &dir_entry, DATA_SIZE)) {
+                    k_io_print("unable to write resulting data value\n");
+                    return -1;
+                }
+            }
+
+            current_offset += DATA_SIZE;
+        }
     }
 
     // Clear all used sectors
@@ -757,6 +779,7 @@ fn k_disk_fs_rm_entry(
 
     def res: i32 = k_disk_fs_flush(dev);
     if (res < 0) {
+        k_io_print("unable to flush disk value\n");
         return res;
     }
 
