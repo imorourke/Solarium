@@ -151,7 +151,6 @@ mod test {
     use std::path::Path;
 
     static EXAMPLE_FILES: &[&str] = &[
-        "../../cbos/os.cb",
         "examples/array_test.cb",
         "examples/default.cb",
         "examples/printing.cb",
@@ -160,6 +159,8 @@ mod test {
         "tests/test_kmalloc.cb",
         "tests/test_math.cb",
         "tests/test_struct_ptr.cb",
+        "../../cbos/bootloader.cb",
+        "../../cbos/os.cb",
     ];
 
     #[test]
@@ -167,7 +168,6 @@ mod test {
         for s in EXAMPLE_FILES {
             let input_file = Path::join(&Path::new(env!("CARGO_MANIFEST_DIR")), &Path::new(s));
             let compiler = Compiler::default();
-
             let res = compiler.compile_file(&input_file).unwrap();
 
             let asm_out_duplicate =

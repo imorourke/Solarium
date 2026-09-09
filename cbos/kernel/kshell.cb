@@ -527,7 +527,7 @@ fn k_shell_split_name_path(path: *u8, directory: *u8, name: *u8) i32 {
 
     if (last_separator < 0) {
         strcpy(name, path);
-        strcpy(directory, "");
+        *directory = 0;
     } else {
         path[last_separator] = '\0';
         strcpy(directory, path);
