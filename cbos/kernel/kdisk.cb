@@ -205,6 +205,15 @@ fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entr
     return 0;
 }
 
+fn k_disk_fs_write_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entry_header_t) i32 {
+    if (!dev || !k_disk_fs_entry_valid(entry)) {
+        return -1;
+    }
+
+    def sect_size: u32 = dev->vol_hdr.sector_size;
+    return k_disk_data_write(dev->ctl, entry * sect_size, header, sizeof(k_fs_entry_header_t));
+}
+
 fn k_disk_fs_io_state_init_hdr(dev: *k_disk_fs_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
     if (!k_disk_fs_entry_valid(entry)) {
         k_io_print("\nInvalid Entry: ");
