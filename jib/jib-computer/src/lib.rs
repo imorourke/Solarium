@@ -206,7 +206,8 @@ impl JibComputer {
         if let Some(code) = input_code
             && code.start_location < INIT_RO_LEN
         {
-            let vals = &code.code[..(INIT_RO_LEN - code.start_location) as usize];
+            let vals =
+                &code.code[..((INIT_RO_LEN - code.start_location) as usize).min(code.code.len())];
             reset_vec_data[code.start_location as usize..code.start_location as usize + vals.len()]
                 .copy_from_slice(vals);
         }
@@ -279,10 +280,12 @@ impl JibComputer {
             && let Some(code) = input_code
         {
             if code.start_location < INIT_RO_LEN {
-                self.cpu.memory_set_range(
-                    INIT_RO_LEN,
-                    &code.code[(INIT_RO_LEN - code.start_location) as usize..],
-                )?;
+                if code.start_location as usize + code.code.len() > INIT_RO_LEN as usize {
+                    self.cpu.memory_set_range(
+                        INIT_RO_LEN,
+                        &code.code[(INIT_RO_LEN - code.start_location) as usize..],
+                    )?;
+                }
             } else {
                 self.cpu.memory_set_range(code.start_location, &code.code)?;
             }

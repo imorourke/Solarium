@@ -294,6 +294,7 @@ impl TryFrom<&str> for AsmToken {
             if args.is_empty() {
                 match op {
                     "align" => Self::AlignInstruction,
+                    "text" => Self::LiteralText(String::new()),
                     _ => {
                         return Err(Self::Error::UnknownInstruction(
                             op.to_string(),
