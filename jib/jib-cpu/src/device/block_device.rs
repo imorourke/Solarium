@@ -15,6 +15,8 @@ pub struct BlockDevice {
     target_offset: u32,
     parked: bool,
     memory_size: u16,
+    write_enabled: bool,
+    read_only_set: bool,
     on_sync: Option<Box<BlockSyncFunc>>,
 }
 
@@ -30,6 +32,8 @@ impl BlockDevice {
             target_offset: 0,
             parked: true,
             memory_size: 0,
+            write_enabled: false,
+            read_only_set: false,
             on_sync: None,
         }
     }
@@ -49,6 +53,8 @@ impl BlockDevice {
             target_offset: 0,
             parked: true,
             memory_size: 0,
+            write_enabled: false,
+            read_only_set: false,
             on_sync: Some(Box::new(move |data| std::fs::write(&pb, data).is_ok())),
         })
     }
@@ -94,6 +100,10 @@ impl BlockDevice {
             window_size
         }
     }
+
+    fn can_write(&self) -> bool {
+        self.write_enabled && !self.read_only_set
+    }
 }
 
 impl Drop for BlockDevice {
@@ -127,7 +137,7 @@ impl MemorySegment for BlockDevice {
             3 => Ok((self.current_offset == self.target_offset) as u8),
             4..8 => Ok(self.target_offset.to_be_bytes()[local_offset - 4]),
             8 => Ok(0),
-            9 => Ok(0),
+            9 => Ok(if self.can_write() { 1 } else { 0 }),
             10..12 => Ok(self.reported_size().to_be_bytes()[local_offset - 10]),
             Self::CONTROL_SIZE..Self::DATA_TOP => {
                 if let Some(v) = self
@@ -163,7 +173,10 @@ impl MemorySegment for BlockDevice {
                 self.set_offset(self.target_offset);
                 Ok(())
             }
-            9 => Ok(()),
+            9 => {
+                self.write_enabled = val != 0;
+                Ok(())
+            }
             10..12 => {
                 let mut temp_array = self.memory_size.to_be_bytes();
                 temp_array[local_offset - 10] = val;
@@ -171,9 +184,10 @@ impl MemorySegment for BlockDevice {
                 Ok(())
             }
             Self::CONTROL_SIZE..Self::DATA_TOP => {
-                if let Some(v) = self
-                    .get_data_window_mut()
-                    .get_mut(local_offset - Self::CONTROL_SIZE)
+                if self.can_write()
+                    && let Some(v) = self
+                        .get_data_window_mut()
+                        .get_mut(local_offset - Self::CONTROL_SIZE)
                 {
                     *v = val;
                 }

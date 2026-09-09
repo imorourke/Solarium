@@ -127,6 +127,7 @@ fn k_disk_fs_next_sector(dev: *k_disk_fs_t, entry: u16) u16 {
 fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: u32) i32 {
     def current_size: u32 = 0;
     def mem_size: u32 = ctl->memory_size;
+    ctl->write_segment = 1;
 
     while (current_size < size) {
         def size_to_write: u32 = size - current_size;
@@ -144,10 +145,10 @@ fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: 
         ctl->memory_size = size_to_write;
         k_disk_move(ctl, disk_offset + current_size);
         k_memcpy(data_write, data + current_size, size_to_write);
-        ctl->write_segment = 1;
         current_size = current_size + size_to_write;
     }
 
+    ctl->write_segment = 0;
     ctl->memory_size = 0;
     return 0;
 }
