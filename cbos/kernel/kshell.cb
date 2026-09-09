@@ -47,6 +47,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  mkdir <dir>   -> creates the specified directory/directories\n");
     k_io_print("  touch <path>  -> creates the specified file, or updates the modification\n");
     k_io_print("                   time for the provided file or folder\n");
+    k_io_print("  rm <path>     -> removes the file or folder (and subitems)\n");
     k_io_print("  reset         -> resets the processor\n");
     k_io_print("  halt          -> halts the CPU\n");
     k_io_print("  halt [on/off] -> turns on/off auto-halt\n");
