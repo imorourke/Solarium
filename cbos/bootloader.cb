@@ -168,7 +168,6 @@ fn main() void {
             def load_loc: u32;
             if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
                 asm {
-                    "brk";
                     "copy 8 6";
                     "ldi 9:u16 @{load_loc}@";
                     "add 8:u32 8 9";
