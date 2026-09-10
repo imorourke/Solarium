@@ -606,7 +606,7 @@ fn k_fs_name_valid(name: *u8) u8 {
         c += 1;
     }
 
-    return i > 0;
+    return (i > 0) && (i < K_FS_ENTRY_NAME_LEN);
 }
 
 fn k_disk_fs_add_entry(
