@@ -579,6 +579,36 @@ fn k_disk_fs_read_directory_entries(
     return 0;
 }
 
+fn k_fs_name_valid(name: *u8) u8 {
+    if (name == 0) {
+        return 0;
+    }
+
+    def c: *u8 = name;
+    def i: u32 = 0;
+
+    while (*c != 0) {
+        def v: u8 = *c;
+        def is_num: u8 = (v >= '0') && (v <= '9');
+        def is_alpha: u8 = ((v >= 'a') && (v <= 'z')) || ((v >= 'A') && (v <= 'Z'));
+        def is_symbol: u8 = (v == '_');
+        if (i == 0) {
+            if (!is_alpha) {
+                return 0;
+            }
+        } else {
+            if (!is_alpha && !is_num && !is_symbol) {
+                return 0;
+            }
+        }
+
+        i += 1;
+        c += 1;
+    }
+
+    return i > 0;
+}
+
 fn k_disk_fs_add_entry(
     dev: *k_disk_fs_t,
     parent: u16,
@@ -589,6 +619,10 @@ fn k_disk_fs_add_entry(
         return -1;
     } else if ((entry_type != K_FS_ENTRY_TYPE_DIR) && (entry_type != K_FS_ENTRY_TYPE_FILE)) {
         return -1;
+    }
+
+    if (!k_fs_name_valid(entry_name)) {
+        return -3;
     }
 
     // Check for (1) a duplicate name, and (2) an empty slot in the directory list
