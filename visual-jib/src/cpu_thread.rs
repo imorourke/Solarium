@@ -133,6 +133,8 @@ impl CpuState {
                         .unwrap();
                 }
                 UiToThread::DiskReset => {
+                    let new_hd = state.computer.get_os_image().create_hard_drive()?;
+                    state.computer.set_disk_filesystem(new_hd)?;
                     state.reset()?;
                 }
                 #[cfg(not(target_arch = "wasm32"))]
