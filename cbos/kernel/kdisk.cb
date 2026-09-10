@@ -591,9 +591,9 @@ fn k_fs_name_valid(name: *u8) u8 {
         def v: u8 = *c;
         def is_num: u8 = (v >= '0') && (v <= '9');
         def is_alpha: u8 = ((v >= 'a') && (v <= 'z')) || ((v >= 'A') && (v <= 'Z'));
-        def is_symbol: u8 = (v == '_');
+        def is_symbol: u8 = (v == '_') || (v == '.');
         if (i == 0) {
-            if (!is_alpha) {
+            if (!is_alpha && !is_symbol) {
                 return 0;
             }
         } else {
