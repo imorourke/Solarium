@@ -12,16 +12,16 @@ fn main(argv: **u8, argc: u32) i32 {
         }
     }
 
+    def filename: *u8 = argv[1];
+
     def loc: k_fs_entry_id_t;
-    def res: i32 = readlink(argv[1], 0, &loc);
+    def res: i32 = readlink(filename, 0, &loc);
     if (res != 0) {
         k_io_print("unable to find entry for '");
-        k_io_print(argv[1]);
+        k_io_print(filename);
         k_io_print("'\n");
         return -1;
     }
-
-    def filename: *u8 = argv[1];
 
     def out_header: k_fs_entry_header_t;
     if (k_fs_read_entry_header(loc, &out_header) == 0) {

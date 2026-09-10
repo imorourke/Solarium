@@ -76,7 +76,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def test_entries: [ENTRY_SIZE_LIM]k_fs_directory_entry_t;
     def test_entry_size: u32 = ENTRY_SIZE_LIM;
 
-    def res: i32 = k_fs_read_directory_entries(target_dir, &test_entries, &test_entry_size, 0);
+    def res: i32 = k_fs_read_directory_entries(target_dir, &test_entries, &test_entry_size, 0, 0);
     if (res == 0) {
         def ii: u32 = 0;
         def name_tmp: [K_FS_ENTRY_NAME_LEN+1]u8;
