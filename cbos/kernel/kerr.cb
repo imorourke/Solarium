@@ -1,0 +1,19 @@
+#ifndef K_ERR
+#define K_ERR
+
+const K_SUCCESS: i32 = 0;
+
+const K_ERR_UNKNOWN: i32 = -1;
+const K_ERR_INVALID_ARG: i32 = -2;
+
+const K_ERR_DEV_UNKNOWN: i32 = -100; // Unknown device
+
+const K_ERR_FS_NO_ENT: i32 = -200; // No entry found
+const K_ERR_FS_NOT_DIR: i32 = -201; // Not a directory
+const K_ERR_FS_NOT_FILE: i32 = -202; // Not a file
+const K_ERR_FS_ENTRY_INVALID: i32 = -203; // FS entry is invalid
+const K_ERR_FS_ENT_INVALID: i32 = -204; // Invalid entry
+const K_ERR_FS_NO_SECTOR: i32 = -210; // No available sector
+const K_ERR_FS_ENT_TOO_SMALL: i32 = -211; // Not enough space allocated for entry
+
+#endif // K_ERR

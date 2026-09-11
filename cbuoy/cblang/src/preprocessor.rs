@@ -42,6 +42,7 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
         include_str!(os_dir!("kernel/kdevice.cb")),
     ),
     ("kernel/kdisk.cb", include_str!(os_dir!("kernel/kdisk.cb"))),
+    ("kernel/kerr.cb", include_str!(os_dir!("kernel/kerr.cb"))),
     ("kernel/kexec.cb", include_str!(os_dir!("kernel/kexec.cb"))),
     ("kernel/kirq.cb", include_str!(os_dir!("kernel/kirq.cb"))),
     ("kernel/kfs.cb", include_str!(os_dir!("kernel/kfs.cb"))),

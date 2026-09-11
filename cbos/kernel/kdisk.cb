@@ -3,6 +3,7 @@
 
 #include kconfig.cb
 #include kdbg.cb
+#include kerr.cb
 #include kmalloc.cb
 #include krtc.cb
 #include kserialio.cb
@@ -150,7 +151,8 @@ fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: 
 
     ctl->write_segment = 0;
     ctl->memory_size = 0;
-    return 0;
+
+    return K_SUCCESS;
 }
 
 fn k_disk_data_read(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: u32) i32 {
@@ -174,12 +176,12 @@ fn k_disk_data_read(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: u
         current_size = current_size + size_to_read;
     }
 
-    return 0;
+    return K_SUCCESS;
 }
 
 fn k_disk_fs_write_entry_table(dev: *k_disk_fs_t) i32 {
     if (!dev) {
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 
     def res: i32 = k_disk_data_write(
@@ -193,12 +195,15 @@ fn k_disk_fs_write_entry_table(dev: *k_disk_fs_t) i32 {
     }
 
     dev->entry_table_dirty = 0;
-    return 0;
+
+    return K_SUCCESS;
 }
 
 fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entry_header_t) i32 {
-    if (!dev || !k_disk_fs_entry_valid(entry)) {
-        return -1;
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!k_disk_fs_entry_valid(entry)) {
+        return K_ERR_FS_ENT_INVALID;
     }
 
     def sect_size: u32 = dev->vol_hdr.sector_size : u32;
@@ -209,12 +214,14 @@ fn k_disk_fs_read_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entr
     dev->ctl->memory_size = 0;
     k_memcpy(header, &dev->ctl->data[0], sizeof(k_fs_entry_header_t));
 
-    return 0;
+    return K_SUCCESS;
 }
 
 fn k_disk_fs_write_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_entry_header_t) i32 {
-    if (!dev || !k_disk_fs_entry_valid(entry)) {
-        return -1;
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!k_disk_fs_entry_valid(entry)) {
+        return K_ERR_FS_ENT_INVALID;
     }
 
     def sect_size: u32 = dev->vol_hdr.sector_size;
@@ -223,20 +230,20 @@ fn k_disk_fs_write_entry_header(dev: *k_disk_fs_t, entry: u16, header: *k_fs_ent
 
 fn k_disk_fs_io_state_init_hdr(dev: *k_disk_fs_t, entry: u16, offset: u32, size: u32, state: *k_fs_io_state_t, entry_hdr: *k_fs_entry_header_t) i32 {
     if (!k_disk_fs_entry_valid(entry)) {
-        k_io_print("\nInvalid Entry: ");
-        k_io_print_uint(entry);
-        k_io_print("\n");
-        return -1;
+        return K_ERR_FS_ENT_INVALID;
     }
 
-    if (!state || !dev) {
-        return -2;
+    if (!state) {
+        return K_ERR_INVALID_ARG;
+    } else if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
     }
 
     dev->ctl->memory_size = 0;
 
-    if (k_disk_fs_read_entry_header(dev, entry, entry_hdr) != 0) {
-        return -1;
+    def res: i32 = k_disk_fs_read_entry_header(dev, entry, entry_hdr);
+    if (res != 0) {
+        return res;
     }
     def sz: u32 = entry_hdr->payload_size;
 
@@ -249,7 +256,7 @@ fn k_disk_fs_io_state_init_hdr(dev: *k_disk_fs_t, entry: u16, offset: u32, size:
     while (total_offset >= sector_size) {
         entry = k_disk_fs_next_sector(dev, entry);
         if (entry == 0) {
-            return -1;
+            return K_ERR_FS_ENTRY_INVALID;
         }
         total_offset = total_offset - sector_size;
     }
@@ -275,7 +282,7 @@ fn k_disk_fs_io_state_init(dev: *k_disk_fs_t, entry: u16, offset: u32, size: u32
 
 export fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, data: *u8, size: *u32, until: *u8) i32 {
     if (state == 0) {
-        return -1;
+        return K_ERR_INVALID_ARG;
     }
 
     def dev: *k_disk_fs_t = state->dev;
@@ -343,7 +350,7 @@ export fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, dat
             state->sector_offset = state->sector_offset - sector_size;
             state->entry = k_disk_fs_next_sector(dev, state->entry);
             if (state->entry == 0) {
-                return -1;
+                return K_ERR_FS_ENTRY_INVALID;
             }
             sector_base = sector_size * state->entry;
         }
@@ -378,10 +385,9 @@ fn k_disk_fs_next_free_entry(dev: *k_disk_fs_t) u16 {
 
 fn k_disk_fs_flush(dev: *k_disk_fs_t) i32 {
     if (dev->entry_table_dirty) {
-        k_disk_fs_write_entry_table(dev);
-        return 1;
+        return k_disk_fs_write_entry_table(dev);
     } else {
-        return 0;
+        return K_SUCCESS;
     }
 }
 
@@ -404,8 +410,7 @@ fn k_disk_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, entry_size: u32) i32 
             if ((next == 0) || (next == K_FS_ENTRY_END)) {
                 next = k_disk_fs_next_free_entry(dev);
                 if (next == 0) {
-                    k_io_print("disk full!\n");
-                    return -1;
+                    return K_ERR_FS_NO_SECTOR;
                 }
                 dev->entry_table[sector] = next;
                 dev->entry_table[next] = K_FS_ENTRY_END;
@@ -425,30 +430,22 @@ fn k_disk_fs_set_entry_size(dev: *k_disk_fs_t, entry: u16, entry_size: u32) i32 
 
     def res: i32 = k_disk_fs_flush(dev);
     if (res < 0) {
-        k_io_print("unable to write entry table\n");
         return res;
     }
 
-    // TODO - Write the new payload size
-
     def entry_hdr: k_fs_entry_header_t;
-    if (0 != k_disk_fs_read_entry_header(dev, entry, &entry_hdr)) {
-        k_io_print("unable to get entry header!\n");
-        return -1;
+    res = k_disk_fs_read_entry_header(dev, entry, &entry_hdr);
+    if (0 != res) {
+        return res;
     }
 
     entry_hdr.payload_size = entry_size;
 
-    if (0 != k_disk_data_write(
+    return k_disk_data_write(
         dev->ctl,
         entry * sect_size,
         &entry_hdr,
-        sizeof(entry_hdr))) {
-        k_io_print("unable to write data\n");
-        return -1;
-    } else {
-        return 0;
-    }
+        sizeof(entry_hdr));
 }
 
 fn k_disk_fs_write_data(
@@ -463,23 +460,25 @@ fn k_disk_fs_write_data(
 
     // Determine if the write is possible
     def entry_header: k_fs_entry_header_t;
-    if (0 != k_disk_fs_read_entry_header(dev, entry, &entry_header)) {
-        k_io_print("unable to get entry header\n");
-        return -1;
+    def res: i32 = k_disk_fs_read_entry_header(dev, entry, &entry_header);
+    if (0 != res) {
+        return res;
     }
 
     if ((entry_offset + entry_size) > entry_header.payload_size) {
-        k_io_print("not enough size available to write data...\n");
-        k_io_print_uint(entry_offset);
-        k_io_print(" = ");
-        k_io_print_uint(entry_size);
-        k_io_print(" -> ");
-        k_io_print_uint(entry_offset + entry_size);
-        k_io_print("\n");
-        k_io_print("payload size: ");
-        k_io_print_uint(entry_header.payload_size);
-        k_io_print("\n");
-        return -1;
+        if (K_DBG_ENABLED) {
+            k_io_print("not enough size available to write data...\n");
+            k_io_print_uint(entry_offset);
+            k_io_print(" = ");
+            k_io_print_uint(entry_size);
+            k_io_print(" -> ");
+            k_io_print_uint(entry_offset + entry_size);
+            k_io_print("\n");
+            k_io_print("payload size: ");
+            k_io_print_uint(entry_header.payload_size);
+            k_io_print("\n");
+        }
+        return K_ERR_FS_ENT_TOO_SMALL;
     }
 
     // Extract values
@@ -496,8 +495,7 @@ fn k_disk_fs_write_data(
             sector_offset = 0;
             current_sector = dev->entry_table[current_sector];
             if ((current_sector == 0) || (current_sector == K_FS_ENTRY_END)) {
-                k_io_print("hit the end of the sector\n");
-                return -1;
+                return K_ERR_FS_ENTRY_INVALID;
             }
         } else {
             current_offset += diff_val;
@@ -516,9 +514,9 @@ fn k_disk_fs_write_data(
             amount_to_write = remaining_in_sector;
         }
 
-        if (0 != k_disk_data_write(dev->ctl, current_sector * sect_size + sector_offset, entry_data + write_position, amount_to_write)) {
-            k_io_print("error writing data...\n");
-            return -1;
+        res = k_disk_data_write(dev->ctl, current_sector * sect_size + sector_offset, entry_data + write_position, amount_to_write);
+        if (0 != res) {
+            return res;
         }
 
         write_position += amount_to_write;
@@ -527,8 +525,10 @@ fn k_disk_fs_write_data(
         sector_offset = 0;
     }
 
-    return 0;
+    return K_SUCCESS;
 }
+
+// TODO - Continue error types from here!
 
 fn k_disk_fs_read_directory_entries(
     dev: *k_disk_fs_t,
