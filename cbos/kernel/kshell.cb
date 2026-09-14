@@ -138,9 +138,9 @@ fn k_shell_fn_cd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             k_io_print("unable to find path to cd for '");
             k_io_print(argv[1]);
             k_io_print("' - ");
-            k_io_print(k_err_to_string(res));
+            k_io_print(k_err_to_string(target));
             k_io_print("\n");
-            return res;
+            return target;
         } else {
             state->fs = loc;
             return 0;
