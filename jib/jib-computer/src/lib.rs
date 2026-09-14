@@ -267,6 +267,7 @@ impl JibComputer {
             "bootloader.cb",
             Some(Self::BOOTLOADER_START),
             true,
+            false,
         )?
         .asm
         .bytes

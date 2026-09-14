@@ -15,6 +15,7 @@ use crate::ComputerError;
 #[derive(Debug, Clone)]
 pub struct JibOsImage {
     pub kernel: Vec<u8>,
+    pub kernel_dbg: Vec<u8>,
     pub kernel_header: String,
     pub applications: Vec<(String, Vec<u8>, ApplicationCategory)>,
     pub app_sys_root: Rc<VirtualFilesystem>,
@@ -110,9 +111,14 @@ impl JibOsImage {
         name: &str,
         start_offset: Option<u32>,
         trim_code: bool,
+        debug: bool,
     ) -> Result<CompileResults, ComputerError> {
         let mut defs = HashMap::new();
         defs.insert("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into());
+
+        if debug {
+            defs.insert("DEBUG".into(), String::default());
+        }
 
         let compiler = Compiler {
             definitions: defs,
@@ -158,14 +164,16 @@ impl JibOsImage {
 
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
         // Compile OS into a file
-        let kernel_compiled = Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false)?;
-        let kernel_data = kernel_compiled.binary;
+        let kernel_dbg_compiled =
+            Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false, true)?;
+        let kernel_compiled =
+            Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false, false)?;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();
         {
             let mut writer = std::io::BufWriter::new(&mut interface_data);
-            kernel_compiled
+            kernel_dbg_compiled
                 .export_interface
                 .zero_offsets()
                 .write_interface(&mut writer)?;
@@ -184,7 +192,8 @@ impl JibOsImage {
         app_sys_fs.add_file(Path::new(Self::CBAPP_FILENAME), Self::CBAPP_DATA)?;
 
         let mut os_image = JibOsImage {
-            kernel: kernel_data,
+            kernel_dbg: kernel_dbg_compiled.binary,
+            kernel: kernel_compiled.binary,
             kernel_header: interface_str,
             applications: Vec::new(),
             app_sys_root: Rc::new(app_sys_fs),
@@ -239,6 +248,7 @@ impl JibOsImage {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
 
         fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
+        fs.create_file(fs.root_sector(), "boot_dbg.bin", &self.kernel_dbg)?;
 
         let home_dir = fs.create_directory(fs.root_sector(), "home")?;
         let bin_dir = fs.create_directory(fs.root_sector(), "bin")?;

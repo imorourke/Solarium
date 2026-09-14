@@ -130,9 +130,11 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     } else if ((base != NULL) && (base->disk_index == output->disk_index)) {
         start_loc.entry = base->entry;
     } else {
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print("provided relative path for mismatching disks\n");
         }
+#endif
         return K_ERR_FS_BAD_PATH;
     }
 
@@ -150,9 +152,11 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
 
         if (strcmp(pathtmp, "..") == 0) {
             if (start_loc.entry == disk->vol_hdr.root_sector) {
+#ifdef DEBUG
                 if (K_DBG_ENABLED) {
                     k_io_print("unable to traverse above the root node\n");
                 }
+#endif
                 return K_ERR_FS_ENT_INVALID;
             }
 
@@ -197,6 +201,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
         output->entry = start_loc.entry;
         return 0;
     } else {
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print("'");
             k_io_print(pathname);
@@ -210,6 +215,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
             }
             k_io_print("\n");
         }
+#endif
         return res;
     }
 }
@@ -225,11 +231,13 @@ export fn k_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, data: 
         // Update the size based on the input
         if (read_state.span_size < *size) {
             *size = read_state.span_size;
+#ifdef DEBUG
             if (K_DBG_ENABLED) {
                 k_io_print("found file size as ");
                 k_io_print_uint(*size);
                 k_io_print("\n");
             }
+#endif
         }
 
         // Add one to the data size for null character in the array

@@ -102,9 +102,11 @@ fn k_disk_move(ctl: *k_disk_control_t, offset: u32) void {
 
     // Wait for the ctl to be ready
     while (ctl->ready == 0) {
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print("Waiting...\n");
         }
+#endif
     }
 }
 
@@ -136,10 +138,12 @@ fn k_disk_data_write(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: 
             size_to_write = mem_size;
         }
 
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print_uint(current_size);
             k_io_print("\n");
         }
+#endif
 
         def data_write: *u8 = &ctl->data[0];
 
@@ -166,10 +170,12 @@ fn k_disk_data_read(ctl: *k_disk_control_t, disk_offset: u32, data: *u8, size: u
             size_to_read = mem_size;
         }
 
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print_uint(current_size);
             k_io_print("\n");
         }
+#endif
 
         k_disk_move(ctl, disk_offset + current_size);
         k_memcpy(data + current_size, &ctl->data, size_to_read);
@@ -321,11 +327,13 @@ export fn k_fs_io_state_read_next_section_until_ptr(state: *k_fs_io_state_t, dat
 
         def k_found: u8 = 0;
         if (until != 0) {
+#ifdef DEBUG
             if (K_DBG_ENABLED) {
                 k_io_print("Searching for : ");
                 k_io_print_uint(*until);
                 k_io_print("\n");
             }
+#endif
             def i: u32 = 0;
             def x: u8 = *until;
             while (i < copy_size) {
@@ -466,6 +474,7 @@ fn k_disk_fs_write_data(
     }
 
     if ((entry_offset + entry_size) > entry_header.payload_size) {
+#ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print("not enough size available to write data...\n");
             k_io_print_uint(entry_offset);
@@ -478,6 +487,7 @@ fn k_disk_fs_write_data(
             k_io_print_uint(entry_header.payload_size);
             k_io_print("\n");
         }
+#endif
         return K_ERR_FS_ENT_TOO_SMALL;
     }
 
@@ -863,6 +873,7 @@ fn _k_disk_fs_open_direct(device_num: u32) *k_disk_fs_t {
 
     // Setup the disk control block
     dev->ctl = DISK_LOC;
+#ifdef DEBUG
     if (K_DBG_ENABLED) {
         k_io_print("Setting disk location to 0x");
         k_io_print_hex(dev->ctl);
@@ -872,11 +883,13 @@ fn _k_disk_fs_open_direct(device_num: u32) *k_disk_fs_t {
         k_io_print_hex(K_LOC_DEVICE_HD_START);
         k_io_print("\n");
     }
+#endif
     dev->ctl->parked = 0;
     dev->ctl->memory_size = 0;
 
     // Copy the volume header
     k_disk_move(dev->ctl, 0);
+#ifdef DEBUG
     if (K_DBG_ENABLED) {
         k_io_print("Copying Header ");
         k_io_print_uint(&(dev->vol_hdr));
@@ -886,6 +899,7 @@ fn _k_disk_fs_open_direct(device_num: u32) *k_disk_fs_t {
         k_io_print_uint(sizeof(k_fs_vol_header_t));
         k_io_print("\n");
     }
+#endif
     k_memcpy(&(dev->vol_hdr), &dev->ctl->data, sizeof(k_fs_vol_header_t));
 
     // Setup the entry table

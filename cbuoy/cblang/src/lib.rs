@@ -150,24 +150,36 @@ mod test {
     use jib_asm::assemble_lines;
     use std::path::Path;
 
-    static EXAMPLE_FILES: &[&str] = &[
-        "examples/array_test.cb",
-        "examples/default.cb",
-        "examples/printing.cb",
-        "examples/threading.cb",
-        "tests/test_comment.cb",
-        "tests/test_kmalloc.cb",
-        "tests/test_math.cb",
-        "tests/test_struct_ptr.cb",
-        "../../cbos/bootloader.cb",
-        "../../cbos/os.cb",
+    static EXAMPLE_FILES: &[(&str, &[&str])] = &[
+        ("examples/array_test.cb", &[]),
+        ("examples/default.cb", &[]),
+        ("examples/printing.cb", &[]),
+        ("examples/threading.cb", &[]),
+        ("tests/test_comment.cb", &[]),
+        ("tests/test_kmalloc.cb", &[]),
+        ("tests/test_math.cb", &[]),
+        ("tests/test_struct_ptr.cb", &[]),
+        ("../../cbos/bootloader.cb", &[]),
+        ("../../cbos/os.cb", &[]),
+        ("../../cbos/os.cb", &["DEBUG"]),
     ];
 
     #[test]
     fn valid_compiling_and_assembler_output() {
-        for s in EXAMPLE_FILES {
+        for (s, defs) in EXAMPLE_FILES {
             let input_file = Path::join(&Path::new(env!("CARGO_MANIFEST_DIR")), &Path::new(s));
-            let compiler = Compiler::default();
+            let mut compiler = Compiler::default();
+            for d in defs.iter() {
+                if let Some((def, val)) = d.split_once('=') {
+                    compiler
+                        .definitions
+                        .insert(def.trim().into(), val.trim().into());
+                } else {
+                    compiler
+                        .definitions
+                        .insert(d.trim().into(), String::default());
+                }
+            }
             let res = compiler.compile_file(&input_file).unwrap();
 
             let asm_out_duplicate =
