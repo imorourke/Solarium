@@ -6,6 +6,7 @@ const K_SUCCESS: i32 = 0;
 const K_ERR_UNKNOWN: i32 = -1;
 const K_ERR_INVALID_ARG: i32 = -2;
 const K_ERR_BAD_ALLOC: i32 = -3;
+const K_ERR_BAD_ARG_NUM: i32 = -4;
 
 const K_ERR_DEV_UNKNOWN: i32 = -100; // Unknown device
 
@@ -21,6 +22,10 @@ const K_ERR_FS_BAD_NAME: i32 = -213; // Invalid entry name
 const K_ERR_FS_DUPLICATE_NAME: i32 = -214; // Duplicate name exists
 const K_ERR_FS_DISK_FULL: i32 = -215; // Unable to allocate new sector
 
+const K_ERR_SHELL_UNKNOWN_TYPE: i32 = -300; // Unknown magic number/file type
+const K_ERR_SHELL_NOT_EXECUTABLE: i32 = -301; // File not executable
+const K_ERR_SHELL_UNKNOWN_CMD: i32 = -302; // Unknown command
+
 fn k_err_to_string(err: i32) *u8 {
     if (err >= 0) {
         return "";
@@ -28,6 +33,8 @@ fn k_err_to_string(err: i32) *u8 {
         return "invalid arg";
     } else if (err == K_ERR_BAD_ALLOC) {
         return "bad alloc";
+    } else if (err == K_ERR_BAD_ARG_NUM) {
+        return "bad argument count";
     } else if (err == K_ERR_DEV_UNKNOWN) {
         return "unknown device";
     } else if (err == K_ERR_FS_NO_ENT) {
@@ -52,6 +59,12 @@ fn k_err_to_string(err: i32) *u8 {
         return "duplicate path name found";
     } else if (err == K_ERR_FS_DISK_FULL) {
         return "disk full";
+    } else if (err == K_ERR_SHELL_UNKNOWN_TYPE) {
+        return "unknown executable type";
+    } else if (err == K_ERR_SHELL_NOT_EXECUTABLE) {
+        return "file not executable";
+    } else if (err == K_ERR_SHELL_UNKNOWN_CMD) {
+        return "unknown command";
     }
 
     return "unknown";

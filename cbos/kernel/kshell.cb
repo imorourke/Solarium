@@ -56,6 +56,8 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     return 0;
 }
 
+// TODO - Continue to move to return codes
+
 fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def target_dir: k_fs_entry_id_t;
 
@@ -190,7 +192,7 @@ fn k_shell_fn_exec(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("\n");
         k_io_print_uint(argc);
         k_io_print("\n");
-        return -1;
+        return K_ERR_BAD_ARG_NUM;
     }
 }
 
@@ -206,7 +208,7 @@ fn k_shell_fn_exports(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
     if (disk == 0) {
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 
     if (state->fs.entry != 0) {
@@ -263,7 +265,7 @@ fn k_shell_fn_pwd(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         return 0;
     } else {
         k_io_print("No disk mounted\n");
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 }
 
@@ -276,7 +278,7 @@ fn k_shell_fn_reset(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     if (state == 0) {
         k_io_print("disk open state null\n");
-        return 1;
+        return K_ERR_INVALID_ARG;
     }
 
     def disk_num: i32 = 0;
@@ -289,7 +291,7 @@ fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             k_io_print("\n");
         } else {
             k_io_print("error mounting disk\n");
-            return 1;
+            return K_ERR_DEV_UNKNOWN;
         }
     } else {
         k_io_print("disk already mounted\n");
@@ -312,7 +314,7 @@ fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         state->fs.disk_index = -1;
         state->path[disk_num] = NULL;
         k_io_print("unable to mount disk\n");
-        return 1;
+        return K_ERR_DEV_UNKNOWN;
     }
 }
 
@@ -320,7 +322,7 @@ fn k_shell_fn_umount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk_num: i32 = state->fs.disk_index;
     if (disk_num < 0) {
         k_io_print("unknown disk to unmount\n");
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 
     state->fs.entry = 0;
@@ -328,16 +330,19 @@ fn k_shell_fn_umount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     state->path[disk_num] = 0;
     def disk: *k_disk_fs_t = k_disk_get(disk_num);
     if (disk != 0) {
-        if (k_disk_fs_close(disk_num) != 0) {
-            k_io_print("Error unmounting disk\n");
-            return -1;
+        def res: i32 = k_disk_fs_close(disk_num);
+        if (res != 0) {
+            k_io_print("Error unmounting disk - ");
+            k_io_print(k_err_to_string(res));
+            k_io_print("\n");
+            return res;
         } else {
             k_io_print("Disk Unmounted\n");
             return 0;
         }
     } else {
         k_io_print("Disk Not Mounted\n");
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 }
 
@@ -371,7 +376,7 @@ fn k_shell_fn_gc(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print(argv[1]);
         k_io_print("\n");
         k_io_print("  supports on/off/state\n");
-        return 1;
+        return K_ERR_SHELL_UNKNOWN_CMD;
     }
     return 0;
 }
@@ -395,7 +400,7 @@ fn k_shell_fn_dbg(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("Unknown dbg command ");
         k_io_print(argv[1]);
         k_io_print("\n");
-        return 1;
+        return K_ERR_SHELL_UNKNOWN_CMD;
     }
 
     return 0;
@@ -412,7 +417,7 @@ fn k_shell_fn_halt(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("Unknown halt command ");
         k_io_print(argv[1]);
         k_io_print("\n");
-        return 1;
+        return K_ERR_SHELL_UNKNOWN_CMD;
     }
 
     return 0;
@@ -477,19 +482,22 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
             exec_node.disk_index = exec_node.disk_index + 1;
         }
+    } else {
+        return K_ERR_INVALID_ARG;
     }
 
     k_io_print("^! Unknown Command: ");
     k_io_print(argv[0]);
     k_io_print("\n");
-    return -1;
+    return K_ERR_SHELL_UNKNOWN_CMD;
 }
 
 fn k_shell_run_script(state: *k_shell_state_t, script_file: k_fs_entry_id_t, argv: **u8, argc: i32) i32 {
     def arg_buffer: [K_SHELL_DEFAULT_ARG_SPLIT_SIZE]*u8;
 
     def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(script_file, 0, 0, &read_state) >= 0) {
+    def res: i32 = k_fs_io_state_init(script_file, 0, 0, &read_state);
+    if (res >= 0) {
         // Add one to the data size for null character in the array
         const DATA_SIZE: u32 = 128;
         def run_data: [DATA_SIZE + 1]u8;
@@ -506,11 +514,13 @@ fn k_shell_run_script(state: *k_shell_state_t, script_file: k_fs_entry_id_t, arg
                 if (K_DBG_ENABLED) {
                     k_io_print_stat("Arg Count", count);
                 }
-                k_shell_run_cmd(state, &arg_buffer, count);
+                k_shell_run_cmd(state, &arg_buffer, count); // TODO - Stop script on return != 0?
             }
             read_size = DATA_SIZE;
         }
         k_io_print("\n");
+    } else {
+        return res;
     }
 
     return 0;
@@ -549,7 +559,12 @@ fn k_shell_create_entry(state: *k_shell_state_t, name: *u8, entry_type: u8) i32 
 
     def target_dir: k_fs_entry_id_t;
     def res: i32 = k_fs_readlink(&file_path, K_FS_ENTRY_TYPE_DIR, &state->fs, &target_dir);
-    def dev: *k_disk_fs_t = k_disk_get(target_dir.disk_index);
+    if (res != 0) {
+        k_io_print("unable to read link - ");
+        k_io_print(k_err_to_string(res));
+        k_io_print("\n");
+        return res;
+    }
 
     if (K_DBG_ENABLED) {
         k_io_print("Folder: ");
@@ -561,14 +576,13 @@ fn k_shell_create_entry(state: *k_shell_state_t, name: *u8, entry_type: u8) i32 
         k_io_print("\n");
     }
 
-    if (dev == NULL) {
-        k_io_print("No matching device found for ");
-        k_io_print(&file_path);
-        return -1;
-    }
-
-    if (k_disk_fs_add_entry(dev, target_dir.entry, &file_name, entry_type) < 0) {
-        return -1;
+    def dev: *k_disk_fs_t = k_disk_get(target_dir.disk_index);
+    res = k_disk_fs_add_entry(dev, target_dir.entry, &file_name, entry_type);
+    if (res < 0) {
+        k_io_print("unable to add entry - ");
+        k_io_print(k_err_to_string(res));
+        k_io_print("\n");
+        return res;
     }
 
     return 0;
@@ -580,10 +594,14 @@ fn k_shell_fn_mkdir(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
 
     def i: i32 = 1;
     while (i < argc) {
-        if (0 != k_shell_create_entry(state, argv[i], K_FS_ENTRY_TYPE_DIR)) {
+        def res: i32 = k_shell_create_entry(state, argv[i], K_FS_ENTRY_TYPE_DIR);
+        if (0 != res) {
             k_io_print("unable to create directory with name ");
             k_io_print(argv[i]);
+            k_io_print(" - ");
+            k_io_print(k_err_to_string(res));
             k_io_print("\n");
+            return res;
         }
         i += 1;
     }
@@ -596,24 +614,36 @@ fn k_shell_fn_touch(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
         def target_dir: k_fs_entry_id_t;
         def file_path: *u8 = argv[i];
 
-        if (0 == k_fs_readlink(file_path, 0, &state->fs, &target_dir)) {
+        def res: i32;
+
+        res = k_fs_readlink(file_path, 0, &state->fs, &target_dir);
+        if (0 == res) {
             def out_header: k_fs_entry_header_t;
 
-            if (0 != k_fs_read_entry_header(target_dir, &out_header)) {
-                k_io_print("unable to get entry header\n");
-                return -1;
+            res = k_fs_read_entry_header(target_dir, &out_header);
+            if (0 != res) {
+                k_io_print("unable to get entry header - ");
+                k_io_print(k_err_to_string(res));
+                k_io_print("\n");
+                return res;
             }
 
             out_header.modification_time = k_rtc_current();
 
-            if (0 != k_fs_write_entry_header(target_dir, &out_header)) {
-                k_io_print("unable to write entry header\n");
-                return -1;
+            res = k_fs_write_entry_header(target_dir, &out_header);
+            if (0 != res) {
+                k_io_print("unable to write entry header - ");
+                k_io_print(k_err_to_string(res));
+                k_io_print("\n");
+                return res;
             }
         } else if (0 != k_shell_create_entry(state, file_path, K_FS_ENTRY_TYPE_FILE)) {
             k_io_print("unable to create directory with name ");
             k_io_print(file_path);
+            k_io_print(" - ");
+            k_io_print(k_err_to_string(res));
             k_io_print("\n");
+            return k_fs_readlink(file_path, 0, &state->fs, &target_dir);
         }
 
         i += 1;
@@ -627,21 +657,29 @@ fn k_shell_fn_rm(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
         def target_dir: k_fs_entry_id_t;
         def file_path: *u8 = argv[i];
 
-        if (0 != k_fs_readlink(file_path, 0, &state->fs, &target_dir)) {
+        def res: i32 = k_fs_readlink(file_path, 0, &state->fs, &target_dir);
+        if (0 != res) {
             k_io_print("unable to find file path for ");
             k_io_print(file_path);
+            k_io_print(" - ");
+            k_io_print(k_err_to_string(res));
             k_io_print("\n");
-            return -1;
-        } else if (0 != k_disk_fs_rm_entry(k_disk_get(target_dir.disk_index), target_dir.entry)) {
+            return res;
+        }
+
+        res = k_disk_fs_rm_entry(k_disk_get(target_dir.disk_index), target_dir.entry);
+        if (0 != res) {
             k_io_print("unable to rm entry with name ");
             k_io_print(file_path);
+            k_io_print(" - ");
+            k_io_print(k_err_to_string(res));
             k_io_print("\n");
-            return -1;
+            return res;
         }
 
         i += 1;
     }
-    return 0;
+    return K_SUCCESS;
 }
 
 fn k_shell_fn_sync(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
@@ -672,7 +710,7 @@ fn k_shell_fn_sync(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     if (res < 0) {
         k_io_print("unable to sync disk - ");
         k_err_to_string(res);
-        k_io_print("'\n");
+        k_io_print("\n");
         return res;
     } else {
         return 0;
@@ -682,7 +720,7 @@ fn k_shell_fn_sync(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
     if (disk == 0) {
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 
     if (argc >= 2) {
@@ -691,23 +729,25 @@ fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         if (res != 0) {
             k_io_print("unable to find file for '");
             k_io_print(argv[1]);
+            k_io_print("' - ");
+            k_io_print(k_err_to_string(res));
             k_io_print("'\n");
-            return -1;
+            return res;
         }
 
         def read_state: k_fs_io_state_t;
         if (k_fs_io_state_init(loc, 0, sizeof(u32), &read_state) >= 0) {
             def magic_data: u32 = 0;
             def read_size: u32 = sizeof(magic_data);
-
-            if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
+            res = k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size);
+            if (res > 0) {
                 if (magic_data != K_SHELL_MAGIC_HDR) {
                     k_io_print("unknown script type - should start with '#!sh'\n");
-                    return -1;
+                    return K_ERR_SHELL_UNKNOWN_TYPE;
                 }
             } else {
                 k_io_print("unable to read magic number\n");
-                return -1;
+                return res;
             }
         }
 
@@ -716,7 +756,7 @@ fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         k_io_print("unexpected number of entries for ");
         k_io_print(argv[0]);
         k_io_print("\n");
-        return -1;
+        return K_ERR_BAD_ARG_NUM;
     }
 }
 
@@ -772,52 +812,39 @@ fn k_shell_find_in_path(state: *k_shell_state_t, file: *u8) k_fs_entry_id_t {
 
 fn k_shell_run_path(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
     if (argc == 0) {
-        return -1;
+        return K_ERR_INVALID_ARG;
     }
 
     // Search for file, first from local directory. If not, then look in PATH
     def file: k_fs_entry_id_t = k_shell_find_in_path(state, argv[0]);
+    if (file.entry == 0) {
+        return K_ERR_FS_NO_ENT;
+    }
 
     def read_state: k_fs_io_state_t;
-    if ((file.entry != 0) && (k_fs_io_state_init(file, 0, sizeof(u32), &read_state) >= 0)) {
+    def res: i32 = k_fs_io_state_init(file, 0, sizeof(u32), &read_state);
+    if (res >= 0) {
         def magic_data: u32 = 0;
         def read_size: u32 = sizeof(magic_data);
+        res = k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size);
 
-        if (k_fs_io_state_read_next_section(&read_state, &magic_data, &read_size) > 0) {
+        if (res > 0) {
             if (magic_data == K_EXEC_MAGIC_HDR) {
                 return k_shell_run_binary(state, file, argv, argc);
             } else if (magic_data == K_SHELL_MAGIC_HDR) {
                 return k_shell_run_script(state, file, argv, argc);
             } else {
-                k_io_print("unknown executable type\n");
+                return K_ERR_SHELL_UNKNOWN_TYPE;
             }
         } else {
-            k_io_print("unable to read magic number\n");
-            return -1;
+            return res;
         }
     } else {
-        k_io_print("unable no valid executable found\n");
-        return -1;
+        return res;
     }
 }
 
 fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
-    if (K_DBG_ENABLED) {
-        k_io_print("Arg Count: ");
-        k_io_print_uint(argc);
-        k_io_print("\n");
-
-        def i: i32 = 0;
-        while (i < argc) {
-            k_io_print("  [");
-            k_io_print_uint(i);
-            k_io_print("] = ");
-            k_io_print(argv[i]);
-            k_io_print("\n");
-            i += 1;
-        }
-    }
-
     if (argc > 0) {
         def cmd: *u8 = argv[0];
         if (K_DBG_ENABLED) {
