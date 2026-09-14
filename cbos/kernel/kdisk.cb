@@ -528,8 +528,6 @@ fn k_disk_fs_write_data(
     return K_SUCCESS;
 }
 
-// TODO - Continue error types from here!
-
 fn k_disk_fs_read_directory_entries(
     dev: *k_disk_fs_t,
     entry: u16,
@@ -538,22 +536,23 @@ fn k_disk_fs_read_directory_entries(
     entry_offset: u32,
     flags: u32) i32
 {
-    if (!entries || !dev) {
-        return -1;
-    } else if (dev->entry_table[entry] == 0) {
-        return -1;
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!entries) {
+        return K_ERR_INVALID_ARG;
     } else if (entry_size == NULL) {
-        return 0;
+        return K_ERR_INVALID_ARG;
     }
 
     const DATA_SIZE: u32 = sizeof(k_fs_directory_entry_t);
 
     def header: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    if (k_disk_fs_io_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, 0, &state, &header) < 0) {
-        return -1;
+    def res: i32 = k_disk_fs_io_state_init_hdr(dev, entry, entry_offset * DATA_SIZE, 0, &state, &header);
+    if (res < 0) {
+        return res;
     } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
-        return -1;
+        return K_ERR_FS_NOT_DIR;
     }
 
     def read_size: u32 = DATA_SIZE;
@@ -565,7 +564,7 @@ fn k_disk_fs_read_directory_entries(
 
     while ((current_ind < max_size) && (k_fs_io_state_read_next_section(&state, current, &read_size) > 0)) {
         if (read_size != DATA_SIZE) {
-            return -1;
+            return K_ERR_FS_ENTRY_END;
         }
 
         if ((current->base_block != NULL) || include_null) {
@@ -576,7 +575,7 @@ fn k_disk_fs_read_directory_entries(
 
     *entry_size = current_ind;
 
-    return 0;
+    return K_SUCCESS;
 }
 
 fn k_fs_name_valid(name: *u8) u8 {
@@ -615,14 +614,16 @@ fn k_disk_fs_add_entry(
     entry_name: *u8,
     entry_type: u8) i32 {
     // Check for valid inputs
-    if (!dev || !entry_name) {
-        return -1;
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!entry_name) {
+        return K_ERR_INVALID_ARG;
     } else if ((entry_type != K_FS_ENTRY_TYPE_DIR) && (entry_type != K_FS_ENTRY_TYPE_FILE)) {
-        return -1;
+        return K_ERR_INVALID_ARG;
     }
 
     if (!k_fs_name_valid(entry_name)) {
-        return -3;
+        return K_ERR_FS_BAD_NAME;
     }
 
     // Check for (1) a duplicate name, and (2) an empty slot in the directory list
@@ -630,17 +631,18 @@ fn k_disk_fs_add_entry(
     def entry_size: u32 = ENTRY_SIZE;
     def entries: *k_fs_directory_entry_t = k_malloc(sizeof(k_fs_directory_entry_t) * ENTRY_SIZE);
     if (entries == NULL) {
-        return -1;
+        return K_ERR_BAD_ALLOC;
     }
 
     def target_offset: i32 = -1; // Set to -1 by default. Once found, will be positive or zero
 
     def dir_hdr: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    if (k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr) < 0) {
-        return -1;
+    def res: i32 = k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr);
+    if (res < 0) {
+        return res;
     } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
-        return -1;
+        return K_ERR_FS_NOT_DIR;
     }
 
     def current: k_fs_directory_entry_t;
@@ -651,7 +653,7 @@ fn k_disk_fs_add_entry(
     def current_offset: u32 = 0;
     while (k_fs_io_state_read_next_section(&state, &current, &read_size) > 0) {
         if (read_size != DATA_SIZE) {
-            return -1;
+            return K_ERR_FS_ENTRY_END;
         }
 
         if (current.base_block == NULL) {
@@ -660,7 +662,7 @@ fn k_disk_fs_add_entry(
             }
         } else {
             if (strcmp(&current.name, entry_name) == 0) {
-                return -1;
+                return K_ERR_FS_DUPLICATE_NAME;
             }
         }
 
@@ -671,7 +673,7 @@ fn k_disk_fs_add_entry(
 
     def new_block: u16 = k_disk_fs_next_free_entry(dev);
     if (!k_disk_fs_entry_valid(new_block)) {
-        return -1; // Disk full
+        return K_ERR_FS_DISK_FULL; // Disk full
     }
 
     dev->entry_table[new_block] = K_FS_ENTRY_END;
@@ -686,9 +688,10 @@ fn k_disk_fs_add_entry(
 
     def sect_size: u32 = dev->vol_hdr.sector_size;
 
-    if (0 != k_disk_data_write(dev->ctl, new_block * sect_size, &new_header, sizeof(new_header))) {
+    res = k_disk_data_write(dev->ctl, new_block * sect_size, &new_header, sizeof(new_header));
+    if (0 != res) {
         dev->entry_table[new_block] = 0;
-        return -1;
+        return res;
     }
 
     def new_dir_entry: k_fs_directory_entry_t;
@@ -701,26 +704,28 @@ fn k_disk_fs_add_entry(
     if (target_offset < 0) {
         target_offset = dir_hdr.payload_size / sizeof(k_fs_directory_entry_t);
 
-        if (0 != k_disk_fs_set_entry_size(dev, parent, dir_hdr.payload_size + sizeof(k_fs_directory_entry_t))) {
-            k_io_print("Unable to set directory entry size\n");
+        res = k_disk_fs_set_entry_size(dev, parent, dir_hdr.payload_size + sizeof(k_fs_directory_entry_t));
+        if (0 != res) {
             dev->entry_table[new_block] = 0;
-            return -1;
+            return res;
         }
     }
 
-    if (0 != k_disk_fs_write_data(dev, parent, target_offset * sizeof(k_fs_directory_entry_t), &new_dir_entry, sizeof(k_fs_directory_entry_t))) {
-        k_io_print("Unable to write directory entry data\n");
+    res = k_disk_fs_write_data(dev, parent, target_offset * sizeof(k_fs_directory_entry_t), &new_dir_entry, sizeof(k_fs_directory_entry_t));
+    if (0 != res) {
         dev->entry_table[new_block] = 0;
-        return -1;
+        return res;
     }
 
-    def res: i32 = k_disk_fs_flush(dev);
+    res = k_disk_fs_flush(dev);
     if (res < 0) {
         return res;
     }
 
     return new_block;
 }
+
+// TODO - Continue error types from here!
 
 fn k_disk_fs_rm_entry(
     dev: *k_disk_fs_t,

@@ -5,6 +5,7 @@ const K_SUCCESS: i32 = 0;
 
 const K_ERR_UNKNOWN: i32 = -1;
 const K_ERR_INVALID_ARG: i32 = -2;
+const K_ERR_BAD_ALLOC: i32 = -3;
 
 const K_ERR_DEV_UNKNOWN: i32 = -100; // Unknown device
 
@@ -15,5 +16,9 @@ const K_ERR_FS_ENTRY_INVALID: i32 = -203; // FS entry is invalid
 const K_ERR_FS_ENT_INVALID: i32 = -204; // Invalid entry
 const K_ERR_FS_NO_SECTOR: i32 = -210; // No available sector
 const K_ERR_FS_ENT_TOO_SMALL: i32 = -211; // Not enough space allocated for entry
+const K_ERR_FS_ENTRY_END: i32 = -212; // Unexpected end of file
+const K_ERR_FS_BAD_NAME: i32 = -213; // Invalid entry name
+const K_ERR_FS_DUPLICATE_NAME: i32 = -214; // Duplicate name exists
+const K_ERR_FS_DISK_FULL: i32 = -215; // Unable to allocate new sector
 
 #endif // K_ERR
