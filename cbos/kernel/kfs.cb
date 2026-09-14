@@ -46,17 +46,18 @@ fn k_fs_get_dir_entry_by_parent_id(parent: k_fs_entry_id_t, base_block: u16, ent
 
     def header: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    if (k_disk_fs_io_state_init_hdr(k_disk_get(parent.disk_index), parent.entry, 0, 0, &state, &header) < 0) {
-        return -1;
+    def res: i32 = k_disk_fs_io_state_init_hdr(k_disk_get(parent.disk_index), parent.entry, 0, 0, &state, &header);
+    if (res < 0) {
+        return res;
     } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
-        return -1;
+        return K_ERR_FS_NOT_DIR;
     }
 
     def read_size: u32 = DATA_SIZE;
 
     while (k_fs_io_state_read_next_section(&state, &tmp, &read_size) > 0) {
         if (read_size != DATA_SIZE) {
-            return -1;
+            return K_ERR_FS_ENT_TOO_SMALL;
         }
 
         if (tmp.base_block == base_block) {
@@ -65,13 +66,14 @@ fn k_fs_get_dir_entry_by_parent_id(parent: k_fs_entry_id_t, base_block: u16, ent
         }
     }
 
-    return -1;
+    return K_ERR_FS_NO_ENT;
 }
 
 export fn k_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, dir_entry: *k_fs_directory_entry_t) i32 {
     def header: k_fs_entry_header_t;
-    if (k_fs_read_entry_header(entry, &header) != 0) {
-        return -1;
+    def res: i32 = k_fs_read_entry_header(entry, &header);
+    if (res != 0) {
+        return res;
     }
 
     def parent: k_fs_entry_id_t;
@@ -96,7 +98,7 @@ export fn k_fs_get_dir_entry_by_name(parent: k_fs_entry_id_t, name: *u8, entry: 
 ///     0 on success
 export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, output: *k_fs_entry_id_t) i32 {
     if ((pathname == NULL) || (output == NULL)) {
-        return -1;
+        return K_ERR_INVALID_ARG;
     }
 
     def current: *u8 = pathname;
@@ -112,13 +114,12 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     } else if (base != NULL) {
         output->disk_index = base->disk_index;
     } else {
-        return -1;
+        return K_ERR_FS_BAD_PATH;
     }
 
     def disk: *k_disk_fs_t = k_disk_get(output->disk_index);
     if (disk == NULL) {
-        k_io_print("unable to get disk\n");
-        return -1;
+        return K_ERR_DEV_UNKNOWN;
     }
 
     def start_loc: k_fs_entry_id_t;
@@ -129,11 +130,14 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     } else if ((base != NULL) && (base->disk_index == output->disk_index)) {
         start_loc.entry = base->entry;
     } else {
-        k_io_print("provided relative path for mismatching disks\n");
-        return -1;
+        if (K_DBG_ENABLED) {
+            k_io_print("provided relative path for mismatching disks\n");
+        }
+        return K_ERR_FS_BAD_PATH;
     }
 
     def pathtmp: [128]u8;
+    def res: i32;
 
     while (*current != '\0') {
         def next: *u8 = current + 1;
@@ -145,34 +149,33 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
         k_memcpy(pathtmp, current, next - current);
 
         if (strcmp(pathtmp, "..") == 0) {
-            def out_entry: k_fs_entry_header_t;
             if (start_loc.entry == disk->vol_hdr.root_sector) {
-                k_io_print("unable to traverse above the root node\n");
-                return -1;
-            } else if (0 == k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry)) {
+                if (K_DBG_ENABLED) {
+                    k_io_print("unable to traverse above the root node\n");
+                }
+                return K_ERR_FS_ENT_INVALID;
+            }
+
+            def out_entry: k_fs_entry_header_t;
+            res = k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry);
+            if (0 == res) {
                 start_loc.entry = out_entry.parent;
             } else {
-                k_io_print("unable to find parent node\n");
-                return -1;
+                return res;
             }
         } else if (strcmp(pathtmp, ".") == 0) {
             // Do Nothing
         } else {
             def out_entry: k_fs_directory_entry_t;
-            if (k_disk_fs_get_dir_entry_by_name(disk, start_loc.entry, pathtmp, &out_entry) == 0) {
+            res = k_disk_fs_get_dir_entry_by_name(disk, start_loc.entry, pathtmp, &out_entry);
+            if (res == 0) {
                 if ((*next == NULL) || (out_entry.entry_type == K_FS_ENTRY_TYPE_DIR)) {
                     start_loc.entry = out_entry.base_block;
                 } else {
-                    //k_io_print("entry '");
-                    //k_io_print(pathname);
-                    //k_io_print("' is not a directory entry\n");
-                    return -1;
+                    return K_ERR_FS_NOT_DIR;
                 }
             } else {
-                //k_io_print("unable to find entry with name '");
-                //k_io_print(pathname);
-                //k_io_print("'\n");
-                return -1;
+                return res;
             }
         }
 
@@ -184,38 +187,48 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     }
 
     def out_entry: k_fs_entry_header_t;
-    if ((pathtype == 0) || ((0 == k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry)) && (out_entry.entry_type == pathtype))) {
+    if (pathtype == 0) {
         output->entry = start_loc.entry;
         return 0;
+    }
+
+    res = k_disk_fs_read_entry_header(disk, start_loc.entry, &out_entry);
+    if ((res == 0) && (out_entry.entry_type == pathtype)) {
+        return 0;
     } else {
-        k_io_print("'");
-        k_io_print(pathname);
-        k_io_print("' is not a ");
-        if (pathtype == 1) {
-            k_io_print("directory");
-        } else if (pathtype == 2) {
-            k_io_print("file");
-        } else {
-            k_io_print("??");
+        if (K_DBG_ENABLED) {
+            k_io_print("'");
+            k_io_print(pathname);
+            k_io_print("' is not a ");
+            if (pathtype == 1) {
+                k_io_print("directory");
+            } else if (pathtype == 2) {
+                k_io_print("file");
+            } else {
+                k_io_print("??");
+            }
+            k_io_print("\n");
         }
-        k_io_print("\n");
-        return -1;
+        return res;
     }
 }
 
 export fn k_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, data: *u8) i32 {
     if (!size || !data) {
-        return -1;
+        return K_ERR_INVALID_ARG;
     }
 
     def read_state: k_fs_io_state_t;
-    if (k_fs_io_state_init(entry, offset, *size, &read_state) >= 0) {
+    def res: i32 = k_fs_io_state_init(entry, offset, *size, &read_state);
+    if (res >= 0) {
         // Update the size based on the input
         if (read_state.span_size < *size) {
             *size = read_state.span_size;
-            k_io_print("found file size as ");
-            k_io_print_uint(*size);
-            k_io_print("\n");
+            if (K_DBG_ENABLED) {
+                k_io_print("found file size as ");
+                k_io_print_uint(*size);
+                k_io_print("\n");
+            }
         }
 
         // Add one to the data size for null character in the array
@@ -231,7 +244,7 @@ export fn k_fs_file_read(entry: k_fs_entry_id_t, offset: u32, size: *u32, data: 
         return 0;
     } else {
         *size = 0;
-        return -1;
+        return res;
     }
 }
 

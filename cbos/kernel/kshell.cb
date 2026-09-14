@@ -3,6 +3,7 @@
 
 #include kcpu.cb
 #include kdbg.cb
+#include kerr.cb
 #include kfs.cb
 #include klink.cb
 #include kmalloc.cb
@@ -48,6 +49,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  touch <path>  -> creates the specified file, or updates the modification\n");
     k_io_print("                   time for the provided file or folder\n");
     k_io_print("  rm <path>     -> removes the file or folder (and subitems)\n");
+    k_io_print("  sync [path]   -> syncs the disk state to the disk for disk with the given path\n");
     k_io_print("  reset         -> resets the processor\n");
     k_io_print("  halt          -> halts the CPU\n");
     k_io_print("  halt [on/off] -> turns on/off auto-halt\n");
@@ -642,6 +644,41 @@ fn k_shell_fn_rm(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
     return 0;
 }
 
+fn k_shell_fn_sync(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    def disk: *k_disk_fs_t = NULL;
+
+    if (argc >= 2) {
+        def loc: k_fs_entry_id_t;
+        def res: i32 = k_fs_readlink(argv[1], K_FS_ENTRY_TYPE_FILE, &state->fs, &loc);
+        if (res != 0) {
+            k_io_print("unable to find file for '");
+            k_io_print(argv[1]);
+            k_io_print(" - ");
+            k_err_to_string(res);
+            k_io_print("'\n");
+            return res;
+        }
+        disk = k_disk_get(loc.disk_index);
+    } else {
+        disk = k_disk_get(state->fs.disk_index);
+    }
+
+    if (disk == 0) {
+        k_io_print("no disk found\n");
+        return K_ERR_DEV_UNKNOWN;
+    }
+
+    def res: i32 = k_disk_fs_flush(disk);
+    if (res < 0) {
+        k_io_print("unable to sync disk - ");
+        k_err_to_string(res);
+        k_io_print("'\n");
+        return res;
+    } else {
+        return 0;
+    }
+}
+
 fn k_shell_fn_run(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     def disk: *k_disk_fs_t = k_disk_get(state->fs.disk_index);
     if (disk == 0) {
@@ -825,6 +862,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_touch;
         } else if (strcmp(cmd, "rm") == 0) {
             sh_fn = k_shell_fn_rm;
+        } else if (strcmp(cmd, "sync") == 0) {
+            sh_fn = k_shell_fn_sync;
         }
 
         if (sh_fn != 0) {

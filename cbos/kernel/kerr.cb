@@ -12,13 +12,49 @@ const K_ERR_DEV_UNKNOWN: i32 = -100; // Unknown device
 const K_ERR_FS_NO_ENT: i32 = -200; // No entry found
 const K_ERR_FS_NOT_DIR: i32 = -201; // Not a directory
 const K_ERR_FS_NOT_FILE: i32 = -202; // Not a file
-const K_ERR_FS_ENTRY_INVALID: i32 = -203; // FS entry is invalid
-const K_ERR_FS_ENT_INVALID: i32 = -204; // Invalid entry
+const K_ERR_FS_BAD_PATH: i32 = -203; // Bad path
+const K_ERR_FS_ENT_INVALID: i32 = -204; // FS invalid entry
 const K_ERR_FS_NO_SECTOR: i32 = -210; // No available sector
 const K_ERR_FS_ENT_TOO_SMALL: i32 = -211; // Not enough space allocated for entry
 const K_ERR_FS_ENTRY_END: i32 = -212; // Unexpected end of file
 const K_ERR_FS_BAD_NAME: i32 = -213; // Invalid entry name
 const K_ERR_FS_DUPLICATE_NAME: i32 = -214; // Duplicate name exists
 const K_ERR_FS_DISK_FULL: i32 = -215; // Unable to allocate new sector
+
+fn k_err_to_string(err: i32) *u8 {
+    if (err >= 0) {
+        return "";
+    } else if (err == K_ERR_INVALID_ARG) {
+        return "invalid arg";
+    } else if (err == K_ERR_BAD_ALLOC) {
+        return "bad alloc";
+    } else if (err == K_ERR_DEV_UNKNOWN) {
+        return "unknown device";
+    } else if (err == K_ERR_FS_NO_ENT) {
+        return "no entry found";
+    } else if (err == K_ERR_FS_NOT_DIR) {
+        return "entry not a directory";
+    } else if (err == K_ERR_FS_NOT_FILE) {
+        return "entry not a file";
+    } else if (err == K_ERR_FS_BAD_PATH) {
+        return "bad path";
+    } else if (err == K_ERR_FS_ENT_INVALID) {
+        return "invalid entry";
+    } else if (err == K_ERR_FS_NO_SECTOR) {
+        return "no available sector";
+    } else if (err == K_ERR_FS_ENT_TOO_SMALL) {
+        return "entry too small";
+    } else if (err == K_ERR_FS_ENTRY_END) {
+        return "unexpected end of entry";
+    } else if (err == K_ERR_FS_BAD_NAME) {
+        return "invalid fs entry name";
+    } else if (err == K_ERR_FS_DUPLICATE_NAME) {
+        return "duplicate path name found";
+    } else if (err == K_ERR_FS_DISK_FULL) {
+        return "disk full";
+    }
+
+    return "unknown";
+}
 
 #endif // K_ERR
