@@ -1,4 +1,5 @@
 mod jibos;
+mod pram;
 
 use cbfs_lib::{FileSystem, FileSystemError};
 use cblang::{CompilerError, ProgramType, TokenError, preprocessor::PreprocessorError};
@@ -19,6 +20,8 @@ use jib_cpu::{
 use std::{rc::Rc, vec::Vec};
 
 pub use jibos::{ApplicationCategory, JibApplication, JibOsImage};
+
+use crate::{jibos::KernelOptions, pram::ComputerPram};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JibCode {
@@ -44,6 +47,7 @@ pub struct JibComputer {
     dev_serial_io: Rc<RefCell<SerialInputOutputDevice>>,
     #[cfg(not(target_arch = "wasm32"))]
     dev_rtc_timer: Rc<RefCell<RtcTimerDevice>>,
+    dev_pram: Rc<RefCell<ComputerPram>>,
     inst_history: CircularBuffer<(u32, Instruction), 10>,
     hard_drive: Option<Rc<RefCell<BlockDevice>>>,
     #[cfg(test)]
@@ -79,6 +83,7 @@ impl JibComputer {
             dev_serial_io: Rc::new(RefCell::new(SerialInputOutputDevice::new(2048))),
             #[cfg(not(target_arch = "wasm32"))]
             dev_rtc_timer: Rc::new(RefCell::new(RtcTimerDevice::default())),
+            dev_pram: Rc::new(RefCell::new(ComputerPram::default())),
             inst_history: Default::default(),
             hard_drive: None,
             #[cfg(test)]
@@ -238,6 +243,7 @@ impl JibComputer {
             Rc::new(RefCell::new(RtcClockDevice)),
             #[cfg(not(target_arch = "wasm32"))]
             self.dev_rtc_timer.clone(),
+            self.dev_pram.clone(),
         ];
 
         for i in 0..Self::DEVICE_COUNT {
@@ -265,9 +271,11 @@ impl JibComputer {
         for (i, x) in JibOsImage::compile_kernel_code(
             Self::BOOTLOADER_CODE,
             "bootloader.cb",
-            Some(Self::BOOTLOADER_START),
-            true,
-            false,
+            KernelOptions {
+                start_offset: Some(Self::BOOTLOADER_START),
+                trim_code: true,
+                debug: false,
+            },
         )?
         .asm
         .bytes
@@ -532,12 +540,19 @@ impl From<std::io::Error> for ComputerError {
 #[cfg(test)]
 mod test {
     use super::JibComputer;
-    use crate::{JibCode, JibOsImage};
+    use crate::{JibCode, JibOsImage, jibos::KernelOptions};
 
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
-        let asm = JibOsImage::compile_kernel_code(in_code, "input.cb", None, true)
-            .unwrap()
-            .asm;
+        let asm = JibOsImage::compile_kernel_code(
+            in_code,
+            "input.cb",
+            KernelOptions {
+                trim_code: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .asm;
 
         let mut cpu = JibComputer::new().unwrap();
         cpu.set_code(&JibCode {

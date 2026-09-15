@@ -65,6 +65,7 @@ fn main() void {
     k_irq_set(2, irq_sigint);
 
     k_device_init(0);
+    k_clock_init();
     k_io_init();
     k_rtc_init();
 

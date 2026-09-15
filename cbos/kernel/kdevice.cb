@@ -57,4 +57,19 @@ fn k_device_first_of_type(type_id: u16) *k_device_t {
     return 0;
 }
 
+struct k_device_pram_t {
+    id: u16;
+    boot_debug: u8;
+}
+
+fn k_device_boot_settings() k_device_pram_t {
+    def settings: k_device_pram_t;
+    k_memset(&settings, 0, sizeof(settings));
+    def dev: *k_device_t = k_device_first_of_type(100);
+    if (dev != NULL) {
+        settings = *((dev->data) : *k_device_pram_t);
+    }
+    return settings;
+}
+
 #endif // K_DEVICE

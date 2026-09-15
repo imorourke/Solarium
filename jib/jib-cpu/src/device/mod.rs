@@ -26,6 +26,7 @@ pub enum DeviceType {
     RtcClock,
     RtcTimer,
     BlockDevice,
+    Custom(u16),
 }
 
 impl DeviceType {
@@ -37,6 +38,7 @@ impl DeviceType {
             Self::RtcClock => 3,
             Self::RtcTimer => 4,
             Self::BlockDevice => 5,
+            Self::Custom(id) => *id,
         }
     }
 }

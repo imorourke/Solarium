@@ -42,6 +42,23 @@ macro_rules! os_dir {
     };
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KernelOptions {
+    pub start_offset: Option<u32>,
+    pub trim_code: bool,
+    pub debug: bool,
+}
+
+impl Default for KernelOptions {
+    fn default() -> Self {
+        Self {
+            start_offset: None,
+            trim_code: false,
+            debug: false,
+        }
+    }
+}
+
 impl JibOsImage {
     /// OS Code
     pub const CODE_OS: &str = include_str!(os_dir!("os.cb"));
@@ -109,14 +126,12 @@ impl JibOsImage {
     pub fn compile_kernel_code(
         code: &str,
         name: &str,
-        start_offset: Option<u32>,
-        trim_code: bool,
-        debug: bool,
+        options: KernelOptions,
     ) -> Result<CompileResults, ComputerError> {
         let mut defs = HashMap::new();
         defs.insert("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into());
 
-        if debug {
+        if options.debug {
             defs.insert("DEBUG".into(), String::default());
         }
 
@@ -125,9 +140,11 @@ impl JibOsImage {
             options: CodeGenerationOptions {
                 prog_type: ProgramType::Kernel {
                     stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                    base_location: start_offset.unwrap_or(ProgramType::DEFAULT_START_OFFSET),
+                    base_location: options
+                        .start_offset
+                        .unwrap_or(ProgramType::DEFAULT_START_OFFSET),
                 },
-                trim_code,
+                trim_code: options.trim_code,
                 ..Default::default()
             },
             ..Default::default()
@@ -164,10 +181,16 @@ impl JibOsImage {
 
     pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
         // Compile OS into a file
-        let kernel_dbg_compiled =
-            Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false, true)?;
+        let kernel_dbg_compiled = Self::compile_kernel_code(
+            Self::CODE_OS,
+            "os.cb",
+            KernelOptions {
+                debug: true,
+                ..Default::default()
+            },
+        )?;
         let kernel_compiled =
-            Self::compile_kernel_code(Self::CODE_OS, "os.cb", None, false, false)?;
+            Self::compile_kernel_code(Self::CODE_OS, "os.cb", KernelOptions::default())?;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();

@@ -2,6 +2,7 @@
 #define K_CLOCK_DEV
 
 #include kconfig.cb
+#include kdevice.cb
 
 struct k_irq_clock_control_t {
     device_id: u16;
@@ -9,7 +10,11 @@ struct k_irq_clock_control_t {
     interrupt: u32;
 }
 
-global K_CLOCK: *k_irq_clock_control_t = K_LOC_DEVICE_START + 0x20u32;
+global K_CLOCK: *k_irq_clock_control_t = NULL;
+
+fn k_clock_init() void {
+    K_CLOCK = k_device_first_of_type(K_DEVICE_ID_IRQ_CLOCK);
+}
 
 export fn k_clock_configure(interval: u32, interrupt: u32) void {
     K_CLOCK->interval = interval;

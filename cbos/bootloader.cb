@@ -6,6 +6,7 @@
 #include <kernel/klink.cb>
 
 global BOOT_KERNEL_NAME: *u8 = "boot.bin";
+global BOOT_KERNEL_NAME_DBG: *u8 = "boot_dbg.bin";
 
 fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
     def read_state: k_fs_io_state_t;
@@ -157,12 +158,18 @@ fn main() void {
         cwd = disk->vol_hdr.root_sector;
     }
 
+    def name: *u8 = BOOT_KERNEL_NAME;
+    def settings: k_device_pram_t = k_device_boot_settings();
+    if (settings.boot_debug) {
+        name = BOOT_KERNEL_NAME_DBG;
+    }
+
     k_io_print("Looking for '");
-    k_io_print(BOOT_KERNEL_NAME);
+    k_io_print(name);
     k_io_print("'...\n");
 
     def out_entry: k_fs_directory_entry_t;
-    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, BOOT_KERNEL_NAME, &out_entry) == 0) {
+    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, name, &out_entry) == 0) {
         k_io_print("Found boot entry\n");
         if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
             def load_loc: u32;
