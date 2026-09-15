@@ -38,6 +38,11 @@ struct Args {
         help = "will only run compiling/initialization phase, but will not boot or run the system"
     )]
     no_boot: bool,
+    #[arg(
+        long = "debug",
+        help = "boots to the debug image instead of the primary boot image"
+    )]
+    boot_debug: bool,
 }
 
 fn main() -> Result<(), ComputerError> {
@@ -60,6 +65,7 @@ fn main() -> Result<(), ComputerError> {
     computer.set_disk_filesystem(hd)?;
     computer.use_bootloader(true)?;
     computer.reset(None)?;
+    computer.set_pram_debug(args.boot_debug);
 
     if !args.no_boot {
         computer.set_running_request(true);

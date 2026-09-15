@@ -1,4 +1,4 @@
-use jib_computer::JibCode;
+use jib_computer::{ComputerPram, JibCode};
 use jib_cpu::cpu::RegisterManager;
 
 #[derive(Debug, Clone)]
@@ -15,6 +15,7 @@ pub enum UiToThread {
     SerialInput(String),
     RequestMemory(u32, u32),
     SetMultiplier(i32),
+    SetPramSettings(ComputerPram),
     #[cfg(not(target_arch = "wasm32"))]
     Exit,
 }
@@ -31,4 +32,5 @@ pub enum ThreadToUi {
     ThreadExit,
     CpuRunning(bool),
     BootloaderState(bool),
+    PramSettings(ComputerPram),
 }

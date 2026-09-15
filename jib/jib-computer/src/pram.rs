@@ -3,7 +3,7 @@ use jib_cpu::{
     memory::{MemorySegment, MemorySegmentError},
 };
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ComputerPram {
     pub boot_debug: bool,
 }

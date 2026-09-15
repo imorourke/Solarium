@@ -159,8 +159,9 @@ fn main() void {
     }
 
     def name: *u8 = BOOT_KERNEL_NAME;
-    def settings: k_device_pram_t = k_device_boot_settings();
+    def settings: k_device_pram_t = k_device_pram_settings();
     if (settings.boot_debug) {
+        k_io_print("Selected debug mode\n");
         name = BOOT_KERNEL_NAME_DBG;
     }
 

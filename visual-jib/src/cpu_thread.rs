@@ -1,11 +1,13 @@
 use crate::messages::{ThreadToUi, UiToThread};
 use jib_asm::InstructionList;
-use jib_computer::{ComputerError, JibCode, JibComputer, StopMode};
+use jib_computer::{ComputerError, ComputerPram, JibCode, JibComputer, StopMode};
 use jib_cpu::cpu::Register;
 use std::sync::mpsc::{Receiver, RecvError, Sender, TryRecvError};
 
 pub struct CpuState {
     running_prev: bool,
+    settings_prev: Option<ComputerPram>,
+    bootloader_prev: Option<bool>,
     step_repeat_count: i64,
     #[cfg(not(target_arch = "wasm32"))]
     run_thread: bool,
@@ -23,6 +25,8 @@ impl CpuState {
     pub fn new(rx: Receiver<UiToThread>, tx: Sender<ThreadToUi>) -> Result<Self, ComputerError> {
         let mut s = Self {
             running_prev: false,
+            settings_prev: None,
+            bootloader_prev: None,
             step_repeat_count: 1,
             #[cfg(not(target_arch = "wasm32"))]
             run_thread: true,
@@ -36,6 +40,11 @@ impl CpuState {
 
         s.computer
             .set_disk_filesystem(s.computer.get_os_image().create_hard_drive()?)?;
+
+        s.tx.send(ThreadToUi::BootloaderState(s.computer.using_bootloader()))
+            .unwrap();
+        s.tx.send(ThreadToUi::PramSettings(s.computer.get_pram_settings()))
+            .unwrap();
 
         Ok(s)
     }
@@ -68,6 +77,7 @@ impl CpuState {
             match msg {
                 UiToThread::UseBootloader(bootloader) => {
                     state.computer.use_bootloader(bootloader)?;
+                    state.bootloader_prev = Some(bootloader);
                     state.reset()?;
                     state
                         .tx
@@ -76,6 +86,15 @@ impl CpuState {
                         ))
                         .unwrap();
                     return Ok(Some(ThreadToUi::ProcessorReset));
+                }
+                UiToThread::SetPramSettings(settings) => {
+                    state.computer.set_pram_debug(settings.boot_debug);
+                    state.settings_prev = Some(settings);
+                    state
+                        .tx
+                        .send(ThreadToUi::PramSettings(state.computer.get_pram_settings()))
+                        .unwrap();
+                    return Ok(None);
                 }
                 UiToThread::CpuStep => {
                     if let Err(e) = state.computer.step_cpu(None, None) {
@@ -241,6 +260,24 @@ impl CpuState {
             self.running_prev = self.computer.get_running();
             self.tx
                 .send(ThreadToUi::CpuRunning(self.running_prev))
+                .unwrap();
+        }
+
+        // Update debug state
+        let pram_current = self.computer.get_pram_settings();
+        if Some(pram_current) != self.settings_prev {
+            self.settings_prev = Some(pram_current);
+            self.tx
+                .send(ThreadToUi::PramSettings(pram_current))
+                .unwrap();
+        }
+
+        // Update bootloader state
+        let bootloader_current = self.computer.using_bootloader();
+        if Some(bootloader_current) != self.bootloader_prev {
+            self.bootloader_prev = Some(bootloader_current);
+            self.tx
+                .send(ThreadToUi::BootloaderState(bootloader_current))
                 .unwrap();
         }
 

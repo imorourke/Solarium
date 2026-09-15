@@ -19,9 +19,10 @@ use jib_cpu::{
 };
 use std::{rc::Rc, vec::Vec};
 
-pub use jibos::{ApplicationCategory, JibApplication, JibOsImage};
-
-use crate::{jibos::KernelOptions, pram::ComputerPram};
+pub use crate::{
+    jibos::{ApplicationCategory, JibApplication, JibOsImage, KernelOptions},
+    pram::ComputerPram,
+};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JibCode {
@@ -103,6 +104,14 @@ impl JibComputer {
 
     pub fn get_os_image(&self) -> &JibOsImage {
         &self.os_image
+    }
+
+    pub fn get_pram_settings(&self) -> ComputerPram {
+        *self.dev_pram.borrow()
+    }
+
+    pub fn set_pram_debug(&mut self, debug: bool) {
+        self.dev_pram.borrow_mut().boot_debug = debug;
     }
 
     fn create_block_device(fs: &FileSystem) -> Result<Rc<RefCell<BlockDevice>>, ComputerError> {

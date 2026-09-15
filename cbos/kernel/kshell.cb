@@ -33,6 +33,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  dbg           -> prints current debug output status\n");
     k_io_print("  dbg [on/off]  -> enables/disables debug output\n");
 #endif
+    k_io_print("  boot [d/r]    -> chooses to boot in (r)elease or (d)ebug mode\n");
     k_io_print("  mem           -> shows the current heap allocations\n");
     k_io_print("  gc            -> frees non-kernel allocated memory\n");
     k_io_print("  gc [on/off]   -> turns on/off application memory freeing on close\n");
@@ -419,6 +420,32 @@ fn k_shell_fn_dbg(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     return 0;
 }
 #endif
+
+fn k_shell_fn_boot(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    def settings: k_device_pram_t = k_device_pram_settings();
+
+    if (argc == 1) {
+        k_io_print("Boot Mode: ");
+        if (settings.boot_debug) {
+            k_io_print("Debug");
+        } else {
+            k_io_print("Release");
+        }
+        k_io_print("\n");
+        return 0;
+    } else if (strcmp(argv[1], "r") == 0) {
+        settings.boot_debug = 0;
+    } else if (strcmp(argv[1], "d") == 0) {
+        settings.boot_debug = 1;
+    } else {
+        k_io_print("Unknown boot command ");
+        k_io_print(argv[1]);
+        k_io_print("\n");
+        return K_ERR_SHELL_UNKNOWN_CMD;
+    }
+
+    return k_device_pram_settings_set(&settings);
+}
 
 fn k_shell_fn_halt(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     if (argc == 1) {
@@ -900,6 +927,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
         } else if (strcmp(cmd, "dbg") == 0) {
             sh_fn = k_shell_fn_dbg;
 #endif
+        } else if (strcmp(cmd, "boot") == 0) {
+            sh_fn = k_shell_fn_boot;
         } else if (strcmp(cmd, "run") == 0) {
             sh_fn = k_shell_fn_run;
         } else if (strcmp(cmd, "exports") == 0) {

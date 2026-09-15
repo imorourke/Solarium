@@ -8,7 +8,7 @@ use eframe::egui::{
     TextBuffer, TextEdit, ThemePreference,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
-use jib_computer::{ApplicationCategory, JibCode, JibComputer, JibOsImage};
+use jib_computer::{ApplicationCategory, ComputerPram, JibCode, JibComputer, JibOsImage};
 use jib_cpu::cpu::RegisterManager;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -133,6 +133,7 @@ pub struct VisualJib {
     memory_windows: Vec<MemoryViewWindow>,
     memory_window_id: usize,
     use_bootloader: bool,
+    pram_settings: ComputerPram,
     sys_root: Rc<dyn PreprocessorFilesystem>,
     cbos_components: Vec<Rc<CodeComponent>>,
 }
@@ -207,6 +208,7 @@ impl Default for VisualJib {
             memory_windows: Vec::new(),
             memory_window_id: 0,
             use_bootloader: false,
+            pram_settings: ComputerPram::default(),
             sys_root: root_rc,
             cbos_components: cbos_components.into_iter().map(Rc::new).collect(),
         };
@@ -283,6 +285,7 @@ impl VisualJib {
                 }
                 ThreadToUi::CpuRunning(running) => self.cpu_run_requested = running,
                 ThreadToUi::BootloaderState(bootloader) => self.use_bootloader = bootloader,
+                ThreadToUi::PramSettings(settings) => self.pram_settings = settings,
                 #[cfg(not(target_arch = "wasm32"))]
                 ThreadToUi::ThreadExit => std::process::exit(1),
             };
@@ -552,6 +555,17 @@ impl eframe::App for VisualJib {
                     if ui.button("Reset Disk").clicked() {
                         self.tx_ui.send(UiToThread::DiskReset).unwrap();
                     }
+
+                    ui.menu_button("PRAM", |ui| {
+                        if ui
+                            .checkbox(&mut self.pram_settings.boot_debug, "Debug")
+                            .changed()
+                        {
+                            self.tx_ui
+                                .send(UiToThread::SetPramSettings(self.pram_settings))
+                                .unwrap();
+                        }
+                    });
 
                     #[cfg(not(target_arch = "wasm32"))]
                     if ui.button("Save Disk").clicked() {
