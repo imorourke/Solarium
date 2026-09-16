@@ -40,6 +40,7 @@ impl CpuState {
 
         s.computer
             .set_disk_filesystem(s.computer.get_os_image().create_hard_drive()?)?;
+        s.computer.use_bootloader(true)?;
 
         s.tx.send(ThreadToUi::BootloaderState(s.computer.using_bootloader()))
             .unwrap();
