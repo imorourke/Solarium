@@ -228,7 +228,6 @@ impl Default for VisualJib {
 
         for m in [
             UiToThread::SetMultiplier(window.current_cpu_speed),
-            UiToThread::UseBootloader(window.use_bootloader),
             UiToThread::CpuRun(true),
         ] {
             window.tx_ui.send(m).unwrap();
