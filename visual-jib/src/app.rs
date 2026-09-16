@@ -202,7 +202,7 @@ impl Default for VisualJib {
             rx_window,
             registers: RegisterManager::default(),
             program_counter: ProgramCounterView::default(),
-            current_cpu_speed: 10.clamp(Self::SPEED_MIN, Self::SPEED_MAX),
+            current_cpu_speed: Self::SPEED_MAX,
             code_windows: Vec::new(),
             code_window_id: 0,
             memory_windows: Vec::new(),
