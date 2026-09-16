@@ -735,7 +735,7 @@ fn k_disk_fs_add_entry(
     return new_block;
 }
 
-fn k_disk_fs_rm_entry(
+fn k_disk_fs_rm_entry_no_sync(
     dev: *k_disk_fs_t,
     entry: u16) i32 {
     def entry_hdr: k_fs_entry_header_t;
@@ -770,7 +770,7 @@ fn k_disk_fs_rm_entry(
             }
 
             if (dir_entry.base_block != NULL) {
-                res = k_disk_fs_rm_entry(dev, dir_entry.base_block);
+                res = k_disk_fs_rm_entry_no_sync(dev, dir_entry.base_block);
                 if (0 != res) {
                     return res;
                 }
@@ -823,12 +823,21 @@ fn k_disk_fs_rm_entry(
         sector = next;
     }
 
-    res = k_disk_fs_flush(dev);
+    return 0;
+}
+
+fn k_disk_fs_rm_entry(
+    dev: *k_disk_fs_t,
+    entry: u16) i32 {
+    def res: i32 = k_disk_fs_rm_entry_no_sync(dev, entry);
     if (res < 0) {
         return res;
     }
 
-    return 0;
+    res = k_disk_fs_flush(dev);
+    if (res < 0) {
+        return res;
+    }
 }
 
 fn k_disk_fs_get_dir_entry_by_name(
