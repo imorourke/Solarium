@@ -379,11 +379,13 @@ fn k_shell_fn_gc(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     } else if (strcmp(argv[1], "off") == 0) {
         K_EXEC_AUTO_FREE = 0;
     } else if (strcmp(argv[1], "state") == 0) {
+        k_io_print("auto-gc ");
         if (K_EXEC_AUTO_FREE) {
-            k_io_print("auto-gc on\n");
+            k_io_print("on");
         } else {
-            k_io_print("auto-gc off\n");
+            k_io_print("off");
         }
+        k_io_print("\n");
     } else {
         k_io_print("Unknown gc command ");
         k_io_print(argv[1]);
