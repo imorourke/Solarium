@@ -4110,7 +4110,6 @@ version = "0.10.4"
 dependencies = [
  "cbfs-lib",
  "cblang",
- "chrono",
  "eframe",
  "image",
  "jib-asm",
