@@ -8,6 +8,7 @@
 #include klink.cb
 #include kmalloc.cb
 #include kmalloc_dbg.cb
+#include kpram.cb
 #include kserialio.cb
 
 const K_SHELL_DEFAULT_INPUT_BUFFER_SIZE: u32 = 128;

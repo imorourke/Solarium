@@ -55,6 +55,7 @@ pub static DEFAULT_FILES: &[(&str, &str)] = &[
         "kernel/kmalloc_dbg.cb",
         include_str!(os_dir!("kernel/kmalloc_dbg.cb")),
     ),
+    ("kernel/kpram.cb", include_str!(os_dir!("kernel/kpram.cb"))),
     ("kernel/krtc.cb", include_str!(os_dir!("kernel/krtc.cb"))),
     (
         ("kernel/kserialio.cb"),

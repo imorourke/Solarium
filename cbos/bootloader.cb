@@ -2,6 +2,7 @@
 #include <kernel/kdisk.cb>
 #include <kernel/kdevice.cb>
 #include <kernel/kfs.cb>
+#include <kernel/kpram.cb>
 #include <kernel/kserialio.cb>
 #include <kernel/klink.cb>
 
