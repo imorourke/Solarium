@@ -10,12 +10,9 @@ cfg_select! {
     not(target_arch = "wasm32") => {
         fn main() -> eframe::Result<()> {
             use eframe::egui::{self, IconData};
-            use std::io::Cursor;
 
-            let mut icon_bytes = Vec::new();
             let img = image::load_from_memory(include_bytes!("../../doc/images/logo.png")).unwrap();
-            img.write_to(&mut Cursor::new(&mut icon_bytes), image::ImageFormat::Png)
-                .unwrap();
+            let img_bytes = img.to_rgba8();
 
             let app_name = if cfg!(target_os = "linux") {
                 "visual-jib"
@@ -27,7 +24,7 @@ cfg_select! {
                 viewport: egui::ViewportBuilder::default()
                     .with_inner_size((1024.0, 600.0))
                     .with_icon(IconData {
-                        rgba: icon_bytes,
+                        rgba: img_bytes.into_raw(),
                         width: img.width(),
                         height: img.height(),
                     })
