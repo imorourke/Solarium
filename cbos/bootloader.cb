@@ -149,6 +149,7 @@ fn main() void {
     k_device_init(0);
     k_io_init();
     k_disk_init();
+    k_device_pram_init();
 
     def cwd: u16; // Current Directory
 

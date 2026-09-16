@@ -64,26 +64,34 @@ struct k_device_pram_t {
 }
 
 const K_DEVICE_ID_PRAM_SETTINGS: u16 = 100;
+global K_DEVICE_PRAM_SETTINGS: *k_device_pram_t = 0;
+
+fn k_device_pram_init() void {
+    def dev: *k_device_t = k_device_first_of_type(K_DEVICE_ID_PRAM_SETTINGS);
+    if (dev != NULL) {
+        K_DEVICE_PRAM_SETTINGS = ((dev->data) : *k_device_pram_t);
+    } else {
+        K_DEVICE_PRAM_SETTINGS = 0;
+    }
+}
 
 fn k_device_pram_settings() k_device_pram_t {
     def settings: k_device_pram_t;
-    k_memset(&settings, 0, sizeof(settings));
-    def dev: *k_device_t = k_device_first_of_type(K_DEVICE_ID_PRAM_SETTINGS);
-    if (dev != NULL) {
-        settings = *((dev->data) : *k_device_pram_t);
+    if (K_DEVICE_PRAM_SETTINGS != NULL) {
+        settings = *K_DEVICE_PRAM_SETTINGS;
+    } else {
+        k_memset(&settings, 0, sizeof(settings));
     }
     return settings;
 }
 
 fn k_device_pram_settings_set(vals: *k_device_pram_t) i32 {
-    def dev: *k_device_t = k_device_first_of_type(K_DEVICE_ID_PRAM_SETTINGS);
-    if (!dev) {
+    if (!K_DEVICE_PRAM_SETTINGS) {
         return K_ERR_DEV_UNKNOWN;
     } else if (!vals) {
         return K_ERR_INVALID_ARG;
     } else {
-        def settings: *k_device_pram_t = dev->data;
-        settings->boot_debug = vals->boot_debug;
+        K_DEVICE_PRAM_SETTINGS->boot_debug = vals->boot_debug;
         return K_SUCCESS;
     }
 }

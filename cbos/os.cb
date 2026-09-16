@@ -68,6 +68,7 @@ fn main() void {
     k_clock_init();
     k_io_init();
     k_rtc_init();
+    k_device_pram_init();
 
     k_tsk_init(os_main, K_OS_THREAD);
 
