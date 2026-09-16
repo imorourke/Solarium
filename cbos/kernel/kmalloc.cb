@@ -73,7 +73,7 @@ asmfn k_memcpy(dst: *u8, src: *u8, size: u32) void {
 
 
 
-fn k_malloc_pid(size: u32, pid: u32) *u8 {
+export fn k_malloc_pid(size: u32, pid: u32) *u8 {
     def val: *mem_val_t = K_MEM_ROOT;
     if (val == 0) {
         val = K_MEM_START;

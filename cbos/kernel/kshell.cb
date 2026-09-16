@@ -516,6 +516,7 @@ fn k_shell_fn_exec_path(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
                 ) {
                 // Create the executable state
                 def exec_state: k_exec_state_t;
+                k_memset(&exec_state, 0, sizeof(exec_state));
                 exec_state.cwd = state->fs;
 
                 // Set the file path

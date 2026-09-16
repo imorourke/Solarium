@@ -12,6 +12,15 @@ fn __main(state: *k_exec_state_t, argv: **u8, argc: u32) i32 {
     return main(argv, argc);
 }
 
+fn malloc(size: u32) *u8 {
+    def pid: u32 = __APP_STATE__->pid;
+    if (pid != 0) {
+        return k_malloc_pid(size, pid);
+    } else {
+        return NULL;
+    }
+}
+
 fn readlink(pathname: *u8, pathtype: u8, output: *k_fs_entry_id_t) i32 {
     return k_fs_readlink(pathname, pathtype, &__APP_STATE__->cwd, output);
 }
