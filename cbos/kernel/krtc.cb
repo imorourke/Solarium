@@ -19,6 +19,7 @@ export struct k_datetime_t {
 struct k_rtc_control_t {
     device_id: u16;
     datetime: k_datetime_t;
+    uptime_msec: u32;
 }
 
 struct k_rtc_timer_t {
@@ -56,6 +57,14 @@ export fn k_rtc_current() k_datetime_t {
         def temp: k_datetime_t;
         k_memset(&temp, 0, sizeof(temp));
         return temp;
+    }
+}
+
+export fn k_rtc_elapsed_msecs() u32 {
+    if (K_RTC_BASE == 0) {
+        return 0;
+    } else {
+        return K_RTC_BASE->uptime_msec;
     }
 }
 

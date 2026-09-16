@@ -7,8 +7,17 @@ use crate::{
 
 extern crate std;
 
-#[derive(Default)]
-pub struct RtcClockDevice;
+pub struct RtcClockDevice {
+    reset_time: chrono::DateTime<chrono::Utc>,
+}
+
+impl Default for RtcClockDevice {
+    fn default() -> Self {
+        Self {
+            reset_time: chrono::Utc::now(),
+        }
+    }
+}
 
 impl MemorySegment for RtcClockDevice {
     fn get(&self, offset: u32) -> Result<u8, MemorySegmentError> {
@@ -21,6 +30,7 @@ impl MemorySegment for RtcClockDevice {
         } else {
             let index = offset - DEVICE_ID_SIZE;
             let time = chrono::Utc::now();
+            let elapsed = (time - self.reset_time).num_milliseconds().max(0) as u32;
             match index {
                 0 => Ok((time.year() as i16).to_be_bytes()[0]),
                 1 => Ok((time.year() as i16).to_be_bytes()[1]),
@@ -30,6 +40,7 @@ impl MemorySegment for RtcClockDevice {
                 5 => Ok(time.minute() as u8),
                 6 => Ok(time.second() as u8),
                 7 => Ok((time.timestamp_millis() / 10) as u8),
+                8..12 => Ok(elapsed.to_be_bytes()[index as usize - 8]),
                 _ => Ok(0),
             }
         }
@@ -40,7 +51,7 @@ impl MemorySegment for RtcClockDevice {
     }
 
     fn reset(&mut self) {
-        // Do Nothing
+        self.reset_time = chrono::Utc::now();
     }
 
     fn len(&self) -> u32 {

@@ -3,11 +3,73 @@
 #include <kernel/kdevice.cb>
 #include <kernel/kfs.cb>
 #include <kernel/kpram.cb>
+#include <kernel/krtc.cb>
 #include <kernel/kserialio.cb>
 #include <kernel/klink.cb>
 
 global BOOT_KERNEL_NAME: *u8 = "boot.bin";
 global BOOT_KERNEL_NAME_DBG: *u8 = "boot_dbg.bin";
+
+fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32;
+
+fn main() void {
+    k_device_init(0);
+    k_io_init();
+    k_disk_init();
+    k_rtc_init();
+    k_device_pram_init();
+
+    def cwd: u16; // Current Directory
+
+    def t0: u32 = k_rtc_elapsed_msecs();
+
+    k_io_print("Opening disk...\n");
+    def disk: *k_disk_fs_t = k_disk_fs_open(0);
+    if (disk != 0) {
+        cwd = disk->vol_hdr.root_sector;
+    }
+
+    def name: *u8 = BOOT_KERNEL_NAME;
+    def settings: k_device_pram_t = k_device_pram_settings();
+    if (settings.boot_debug) {
+        k_io_print("Selected debug mode\n");
+        name = BOOT_KERNEL_NAME_DBG;
+    }
+
+    k_io_print("Looking for '");
+    k_io_print(name);
+    k_io_print("'...\n");
+
+    def out_entry: k_fs_directory_entry_t;
+    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, name, &out_entry) == 0) {
+        k_io_print("Found boot entry\n");
+        if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
+            def load_loc: u32;
+            if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
+                def t1: u32 = k_rtc_elapsed_msecs();
+                k_io_print("Finished bootloader after ");
+                k_io_print_uint(t1 - t0);
+                k_io_print(" msec\n");
+
+                asm {
+                    "copy 8 6";
+                    "ldi 9:u16 @{load_loc}@";
+                    "add 8:u32 8 9";
+                    "ld 8:u32 8";
+                    "jmp 8";
+                }
+            } else {
+                k_io_print("unable to initialize kernel\n");
+            }
+        } else {
+            k_io_print("no boot file found - directory found instead\n");
+        }
+    } else {
+        k_io_print("no boot file found\n");
+    }
+
+    asm { "halt"; }
+}
 
 fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
     def read_state: k_fs_io_state_t;
@@ -144,55 +206,4 @@ fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
     } else {
         return -1;
     }
-}
-
-fn main() void {
-    k_device_init(0);
-    k_io_init();
-    k_disk_init();
-    k_device_pram_init();
-
-    def cwd: u16; // Current Directory
-
-    k_io_print("Opening disk...\n");
-    def disk: *k_disk_fs_t = k_disk_fs_open(0);
-    if (disk != 0) {
-        cwd = disk->vol_hdr.root_sector;
-    }
-
-    def name: *u8 = BOOT_KERNEL_NAME;
-    def settings: k_device_pram_t = k_device_pram_settings();
-    if (settings.boot_debug) {
-        k_io_print("Selected debug mode\n");
-        name = BOOT_KERNEL_NAME_DBG;
-    }
-
-    k_io_print("Looking for '");
-    k_io_print(name);
-    k_io_print("'...\n");
-
-    def out_entry: k_fs_directory_entry_t;
-    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, name, &out_entry) == 0) {
-        k_io_print("Found boot entry\n");
-        if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
-            def load_loc: u32;
-            if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
-                asm {
-                    "copy 8 6";
-                    "ldi 9:u16 @{load_loc}@";
-                    "add 8:u32 8 9";
-                    "ld 8:u32 8";
-                    "jmp 8";
-                }
-            } else {
-                k_io_print("unable to initialize kernel\n");
-            }
-        } else {
-            k_io_print("no boot file found - directory found instead\n");
-        }
-    } else {
-        k_io_print("no boot file found\n");
-    }
-
-    asm { "halt"; }
 }
