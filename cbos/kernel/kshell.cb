@@ -50,6 +50,7 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("                   file provided by the given argument. Scripts are run\n");
     k_io_print("                   with each line of the file provided as if it were typed\n");
     k_io_print("                   into the console as a script\n");
+    k_io_print("  time [cmd]    -> prints out the elapsed time for the given command\n");
     k_io_print("  cd [dir]      -> changes directory to the provided folder\n");
     k_io_print("                   or parent directory if '..' provided\n");
     k_io_print("  mkdir <dir>   -> creates the specified directory/directories\n");
@@ -289,6 +290,18 @@ fn k_shell_fn_reset(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_disk_fs_close_all();
     k_cpu_reset();
     return 0;
+}
+
+fn k_shell_fn_time(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    def t0: u32 = k_rtc_elapsed_msecs();
+    def res: i32 = 0;
+    if (argc > 1) {
+        res = k_shell_run_cmd(state, argv + 1, argc - 1);
+    }
+    def t1: u32 = k_rtc_elapsed_msecs();
+    k_io_print_uint(t1 - t0);
+    k_io_print(" msec\n");
+    return res;
 }
 
 fn k_shell_fn_mount(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
@@ -953,6 +966,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_rm;
         } else if (strcmp(cmd, "sync") == 0) {
             sh_fn = k_shell_fn_sync;
+        } else if (strcmp(cmd, "time") == 0) {
+            sh_fn = k_shell_fn_time;
         }
 
         def res: i32;
