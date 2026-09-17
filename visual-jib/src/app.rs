@@ -120,6 +120,8 @@ pub struct VisualJib {
     cpu_thread: Option<std::thread::JoinHandle<()>>,
     #[cfg(target_arch = "wasm32")]
     cpu_state: CpuState,
+    #[cfg(target_arch = "wasm32")]
+    cpu_stopwatch: wasm_stopwatch::Stopwatch,
     tx_ui: std::sync::mpsc::Sender<UiToThread>,
     tx_thread: std::sync::mpsc::Sender<ThreadToUi>,
     rx_ui: std::sync::mpsc::Receiver<ThreadToUi>,
@@ -195,6 +197,8 @@ impl Default for VisualJib {
             text_serial_input: String::default(),
             #[cfg(target_arch = "wasm32")]
             cpu_state: CpuState::new(rx_thread, tx_thread).unwrap(),
+            #[cfg(target_arch = "wasm32")]
+            cpu_stopwatch: wasm_stopwatch::Stopwatch::new(),
             tx_ui,
             rx_ui,
             tx_thread: tx_thread_local,
@@ -297,7 +301,10 @@ impl VisualJib {
         }
 
         #[cfg(target_arch = "wasm32")]
-        self.cpu_state.process_messages().unwrap();
+        if self.cpu_stopwatch.get_time() > CpuState::THREAD_LOOP_MS as f64 / 1000.0 {
+            self.cpu_stopwatch.reset();
+            self.cpu_state.process_messages().unwrap();
+        }
     }
 
     fn update_interval(&self) -> Option<Duration> {
