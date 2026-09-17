@@ -9,27 +9,40 @@ use app::VisualJib;
 cfg_select! {
     not(target_arch = "wasm32") => {
         fn main() -> eframe::Result<()> {
-            use eframe::egui::{self, IconData};
+            use eframe::egui::ViewportBuilder;
 
-            let img = image::load_from_memory(include_bytes!("../../doc/images/logo.png")).unwrap();
-            let img_bytes = img.to_rgba8();
-
-            let app_name = if cfg!(target_os = "linux") {
-                "visual-jib"
-            } else {
-                "VisualJib"
+            const APP_NAME: &str = cfg_select! {
+                target_os = "linux" => "visual-jib",
+                _ => "VisualJib",
             };
 
+            cfg_select! {
+                target_os = "macos" => {
+                    fn viewport_icon(viewport: ViewportBuilder) -> ViewportBuilder {
+                        viewport
+                    }
+                }
+                _ => {
+                    fn viewport_icon(viewport: egui::ViewportBuilder) -> ViewportBuilder {
+                        use eframe::egui::{self, IconData};
+
+                        let img = image::load_from_memory(include_bytes!("../../doc/images/logo.png")).unwrap();
+                        let img_bytes = img.to_rgba8();
+
+                        viewport.with_icon(IconData {
+                            rgba: img_bytes.into_raw(),
+                            width: img.width(),
+                            height: img.height(),
+                        })
+                    }
+                }
+            }
+
             let native_options = eframe::NativeOptions {
-                viewport: egui::ViewportBuilder::default()
+                viewport: viewport_icon(ViewportBuilder::default()
                     .with_inner_size((1024.0, 600.0))
-                    .with_icon(IconData {
-                        rgba: img_bytes.into_raw(),
-                        width: img.width(),
-                        height: img.height(),
-                    })
                     .with_title("VisualJib")
-                    .with_app_id(app_name),
+                    .with_app_id(APP_NAME)),
                 ..eframe::NativeOptions::default()
             };
 
