@@ -85,7 +85,7 @@ fn main() -> Result<(), ComputerError> {
             while r2.load(std::sync::atomic::Ordering::Relaxed) {
                 let mut buffer = String::new();
                 std::io::stdin().read_line(&mut buffer).unwrap();
-                tx.send(buffer.trim_end_matches('\n').to_owned()).unwrap();
+                tx.send(buffer.trim_end().to_owned()).unwrap();
             }
         });
 
@@ -115,7 +115,6 @@ fn main() -> Result<(), ComputerError> {
                         break;
                     }
                 }
-                std::thread::sleep(Duration::from_millis(10));
             } else if computer.get_running_requested() {
                 computer.step_devices()?;
                 std::thread::sleep(Duration::from_millis(100));
