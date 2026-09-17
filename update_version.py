@@ -9,6 +9,13 @@ import subprocess
 from pathlib import Path
 
 
+class ProgramArguments(argparse.Namespace):
+    def __init__(self):
+        super().__init__()
+        self.version_str: str
+        self.no_cargo: bool = False
+
+
 def main():
     p = argparse.ArgumentParser(
         usage="Provide a version number to update all relevant versions to the current, and update the Cargo.lock file"
@@ -23,9 +30,11 @@ def main():
         action="store_true",
         help="skip running the cargo command to update the lock file",
     )
-    args = p.parse_args()
 
-    version_str: str = args.version_str  # pyright: ignore[reportAny]
+    nsp = ProgramArguments()
+    args = p.parse_args(namespace=nsp)
+
+    version_str: str = args.version_str
 
     version_re = re.compile(r"^\d+\.\d+\.\d+$")
     if not version_re.match(version_str):
@@ -56,7 +65,7 @@ def main():
         data = re.sub(re_str, replace_val, data)
         _ = file_path.write_text(data)
 
-    should_run_cargo: bool = not args.no_cargo  # pyright: ignore[reportAny]
+    should_run_cargo: bool = not args.no_cargo
 
     if should_run_cargo:
         p = subprocess.Popen(
