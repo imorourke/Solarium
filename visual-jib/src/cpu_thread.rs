@@ -298,6 +298,8 @@ impl CpuState {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn cpu_thread(rx: Receiver<UiToThread>, tx: Sender<ThreadToUi>) {
+    use std::time::{Duration, Instant};
+
     let mut state = match CpuState::new(rx, tx.clone()) {
         Ok(cpu) => cpu,
         Err(e) => {
@@ -307,15 +309,19 @@ pub fn cpu_thread(rx: Receiver<UiToThread>, tx: Sender<ThreadToUi>) {
         }
     };
 
+    const THREAD_DUR: Duration = Duration::from_millis(CpuState::THREAD_LOOP_MS);
+
     while state.run_thread {
+        let t0 = Instant::now();
         if let Err(e) = state.process_messages() {
             tx.send(ThreadToUi::LogMessage(format!("Error: {e}")))
                 .unwrap();
             state.computer.set_running_request(false);
         }
+        let dt = Instant::now() - t0;
 
-        if state.computer.get_running() {
-            std::thread::sleep(std::time::Duration::from_millis(CpuState::THREAD_LOOP_MS));
+        if state.computer.get_running() && dt < THREAD_DUR {
+            std::thread::sleep(THREAD_DUR - dt);
         }
     }
 
