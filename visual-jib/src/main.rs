@@ -23,8 +23,8 @@ cfg_select! {
                     }
                 }
                 _ => {
-                    fn viewport_icon(viewport: egui::ViewportBuilder) -> ViewportBuilder {
-                        use eframe::egui::{self, IconData};
+                    fn viewport_icon(viewport: ViewportBuilder) -> ViewportBuilder {
+                        use eframe::egui::IconData;
 
                         let img = image::load_from_memory(include_bytes!("../../doc/images/logo.png")).unwrap();
                         let img_bytes = img.to_rgba8();
