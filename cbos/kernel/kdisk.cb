@@ -637,13 +637,6 @@ fn k_disk_fs_add_entry(
     }
 
     // Check for (1) a duplicate name, and (2) an empty slot in the directory list
-    def ENTRY_SIZE: u32 = 10;
-    def entry_size: u32 = ENTRY_SIZE;
-    def entries: *k_fs_directory_entry_t = k_malloc(sizeof(k_fs_directory_entry_t) * ENTRY_SIZE);
-    if (entries == NULL) {
-        return K_ERR_BAD_ALLOC;
-    }
-
     def target_offset: i32 = -1; // Set to -1 by default. Once found, will be positive or zero
 
     def dir_hdr: k_fs_entry_header_t;
