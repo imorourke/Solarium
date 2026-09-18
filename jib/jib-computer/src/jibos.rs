@@ -42,21 +42,11 @@ macro_rules! os_dir {
     };
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KernelOptions {
     pub start_offset: Option<u32>,
     pub trim_code: bool,
     pub debug: bool,
-}
-
-impl Default for KernelOptions {
-    fn default() -> Self {
-        Self {
-            start_offset: None,
-            trim_code: false,
-            debug: false,
-        }
-    }
 }
 
 impl JibOsImage {
