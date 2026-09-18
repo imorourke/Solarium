@@ -7,6 +7,7 @@ const K_ERR_UNKNOWN: i32 = -1;
 const K_ERR_INVALID_ARG: i32 = -2;
 const K_ERR_BAD_ALLOC: i32 = -3;
 const K_ERR_BAD_ARG_NUM: i32 = -4;
+const K_ERR_NOT_IMPLEMENTED: i32 = -5;
 
 const K_ERR_DEV_UNKNOWN: i32 = -100; // Unknown device
 
@@ -29,12 +30,16 @@ const K_ERR_SHELL_UNKNOWN_CMD: i32 = -302; // Unknown command
 fn k_err_to_string(err: i32) *u8 {
     if (err >= 0) {
         return "";
+    } else if (err == K_ERR_UNKNOWN) {
+        return "unknown";
     } else if (err == K_ERR_INVALID_ARG) {
         return "invalid arg";
     } else if (err == K_ERR_BAD_ALLOC) {
         return "bad alloc";
     } else if (err == K_ERR_BAD_ARG_NUM) {
         return "bad argument count";
+    } else if (err == K_ERR_NOT_IMPLEMENTED) {
+        return "not implemented";
     } else if (err == K_ERR_DEV_UNKNOWN) {
         return "unknown device";
     } else if (err == K_ERR_FS_NO_ENT) {
@@ -67,7 +72,7 @@ fn k_err_to_string(err: i32) *u8 {
         return "unknown command";
     }
 
-    return "unknown";
+    return "really unknown";
 }
 
 #endif // K_ERR
