@@ -615,22 +615,73 @@ fn k_fs_name_valid(name: *u8) u8 {
         c += 1;
     }
 
-    return (i > 0) && (i < K_FS_ENTRY_NAME_LEN);
+    return (i > 0) && ((i + 1) < K_FS_ENTRY_NAME_LEN);
 }
 
-fn k_disk_fs_add_entry(
+fn k_disk_fs_del_dir_entry(
     dev: *k_disk_fs_t,
-    parent: u16,
-    entry_name: *u8,
-    entry_type: u8) i32 {
-    // Check for valid inputs
+    dir: u16,
+    entry: u16,
+    flags: u32) i32 {
     if (!dev) {
         return K_ERR_DEV_UNKNOWN;
-    } else if (!entry_name) {
-        return K_ERR_INVALID_ARG;
-    } else if ((entry_type != K_FS_ENTRY_TYPE_DIR) && (entry_type != K_FS_ENTRY_TYPE_FILE)) {
+    } else if (flags) { // No flags supported yet
         return K_ERR_INVALID_ARG;
     }
+
+    // Setup the read entry
+    def dir_entry: k_fs_entry_header_t;
+    def state: k_fs_io_state_t;
+    def res: i32 = k_disk_fs_io_state_init_hdr(dev, dir, 0, 0, &state, &dir_entry);
+    if (res < 0) {
+        return res;
+    } else if (dir_entry.entry_type != K_FS_ENTRY_TYPE_DIR) {
+        return K_ERR_FS_NOT_DIR;
+    }
+
+    def current: k_fs_directory_entry_t;
+    const DATA_SIZE: u32 = sizeof(current);
+    def read_size: u32 = DATA_SIZE;
+    def current_offset: i32 = 0;
+    def found: u8 = 0;
+    while (k_fs_io_state_read_next_section(&state, &current, &read_size) > 0) {
+        if (read_size != DATA_SIZE) {
+            return K_ERR_FS_ENTRY_END;
+        }
+
+        if (current.base_block == entry) {
+            found = 1;
+            current.base_block = 0;
+            res = k_disk_fs_write_data(
+                dev,
+                dir,
+                current_offset * sizeof(current),
+                &current,
+                sizeof(current));
+        }
+
+        current_offset += 1;
+    }
+
+    if (found) {
+        return K_SUCCESS;
+    } else {
+        return K_ERR_FS_NO_ENT;
+    }
+}
+
+
+fn k_disk_fs_add_dir_entry(
+    dev: *k_disk_fs_t,
+    dir: u16,
+    dir_hdr: *k_fs_directory_entry_t) i32 {
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!dir_hdr) {
+        return K_ERR_INVALID_ARG;
+    }
+
+    def entry_name: *u8 = &dir_hdr->name[0];
 
     if (!k_fs_name_valid(entry_name)) {
         return K_ERR_FS_BAD_NAME;
@@ -639,19 +690,18 @@ fn k_disk_fs_add_entry(
     // Check for (1) a duplicate name, and (2) an empty slot in the directory list
     def target_offset: i32 = -1; // Set to -1 by default. Once found, will be positive or zero
 
-    def dir_hdr: k_fs_entry_header_t;
+    def dir_entry: k_fs_entry_header_t;
     def state: k_fs_io_state_t;
-    def res: i32 = k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &dir_hdr);
+    def res: i32 = k_disk_fs_io_state_init_hdr(dev, dir, 0, 0, &state, &dir_entry);
     if (res < 0) {
         return res;
-    } else if (dir_hdr.entry_type != K_FS_ENTRY_TYPE_DIR) {
+    } else if (dir_entry.entry_type != K_FS_ENTRY_TYPE_DIR) {
         return K_ERR_FS_NOT_DIR;
     }
 
-    def current: k_fs_directory_entry_t;
-
     // Search for an empty section
-    const DATA_SIZE: u32 = sizeof(k_fs_directory_entry_t);
+    def current: k_fs_directory_entry_t;
+    const DATA_SIZE: u32 = sizeof(current);
     def read_size: u32 = DATA_SIZE;
     def current_offset: u32 = 0;
     while (k_fs_io_state_read_next_section(&state, &current, &read_size) > 0) {
@@ -672,8 +722,40 @@ fn k_disk_fs_add_entry(
         current_offset += 1;
     }
 
-    // Create the new entry value
+    if (target_offset < 0) {
+        target_offset = dir_entry.payload_size / sizeof(k_fs_directory_entry_t);
 
+        res = k_disk_fs_set_entry_size(dev, dir, dir_entry.payload_size + sizeof(k_fs_directory_entry_t));
+        if (0 != res) {
+            return res;
+        }
+    }
+
+    res = k_disk_fs_write_data(
+        dev,
+        dir,
+        target_offset * sizeof(k_fs_directory_entry_t),
+        dir_hdr,
+        sizeof(k_fs_directory_entry_t));
+
+    return res;
+}
+
+fn k_disk_fs_add_entry(
+    dev: *k_disk_fs_t,
+    parent: u16,
+    entry_name: *u8,
+    entry_type: u8) i32 {
+    // Check for valid inputs
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    } else if (!entry_name) {
+        return K_ERR_INVALID_ARG;
+    } else if ((entry_type != K_FS_ENTRY_TYPE_DIR) && (entry_type != K_FS_ENTRY_TYPE_FILE)) {
+        return K_ERR_INVALID_ARG;
+    }
+
+    // Create the new entry value
     def new_block: u16 = k_disk_fs_next_free_entry(dev);
     if (!k_disk_fs_entry_valid(new_block)) {
         return K_ERR_FS_DISK_FULL; // Disk full
@@ -691,7 +773,7 @@ fn k_disk_fs_add_entry(
 
     def sect_size: u32 = dev->vol_hdr.sector_size;
 
-    res = k_disk_data_write(dev->ctl, new_block * sect_size, &new_header, sizeof(new_header));
+    def res: i32 = k_disk_data_write(dev->ctl, new_block * sect_size, &new_header, sizeof(new_header));
     if (0 != res) {
         dev->entry_table[new_block] = 0;
         return res;
@@ -704,17 +786,10 @@ fn k_disk_fs_add_entry(
     new_dir_entry.entry_type = entry_type;
     strcpy(&new_dir_entry.name, entry_name);
 
-    if (target_offset < 0) {
-        target_offset = dir_hdr.payload_size / sizeof(k_fs_directory_entry_t);
-
-        res = k_disk_fs_set_entry_size(dev, parent, dir_hdr.payload_size + sizeof(k_fs_directory_entry_t));
-        if (0 != res) {
-            dev->entry_table[new_block] = 0;
-            return res;
-        }
-    }
-
-    res = k_disk_fs_write_data(dev, parent, target_offset * sizeof(k_fs_directory_entry_t), &new_dir_entry, sizeof(k_fs_directory_entry_t));
+    res = k_disk_fs_add_dir_entry(
+        dev,
+        parent,
+        &new_dir_entry);
     if (0 != res) {
         dev->entry_table[new_block] = 0;
         return res;
@@ -726,6 +801,95 @@ fn k_disk_fs_add_entry(
     }
 
     return new_block;
+}
+
+fn k_disk_fs_get_dir_entry(
+    dev: *k_disk_fs_t,
+    parent: u16,
+    entry: u16,
+    dir_entry: *k_fs_directory_entry_t) i32 {
+    if (!k_disk_fs_entry_valid(entry)) {
+        return K_ERR_FS_ENT_INVALID;
+    }
+
+    def tmp: k_fs_directory_entry_t;
+    const DATA_SIZE: u32 = sizeof(tmp);
+
+    def header: k_fs_entry_header_t;
+    def state: k_fs_io_state_t;
+    def res: i32 = k_disk_fs_io_state_init_hdr(dev, parent, 0, 0, &state, &header);
+    if (res < 0) {
+        return res;
+    } else if (header.entry_type != K_FS_ENTRY_TYPE_DIR) {
+        return K_ERR_FS_NOT_DIR;
+    }
+
+    def read_size: u32 = DATA_SIZE;
+
+    while (k_fs_io_state_read_next_section(&state, &tmp, &read_size) > 0) {
+        if (read_size != DATA_SIZE) {
+            return K_ERR_FS_ENTRY_END;
+        }
+
+        if (tmp.base_block == entry) {
+            *dir_entry = tmp;
+            return 0;
+        }
+    }
+
+    return K_ERR_FS_NO_ENT;
+}
+
+fn k_disk_fs_move_entry(
+    dev: *k_disk_fs_t,
+    entry: u16,
+    new_parent: u16,
+    new_name: *u8) i32 {
+    if (!dev) {
+        return K_ERR_DEV_UNKNOWN;
+    }
+
+    // First, get the current entry value
+    def entry_hdr: k_fs_entry_header_t;
+    def res: i32 = k_disk_fs_read_entry_header(dev, entry, &entry_hdr);
+    if (res != 0) {
+        return res;
+    }
+    def parent_original: u16 = entry_hdr.parent;
+
+    // Next get the current directory entry value
+    def dir_entry: k_fs_directory_entry_t;
+    res = k_disk_fs_get_dir_entry(dev, parent_original, entry, &dir_entry);
+    if (res != 0) {
+        return res;
+    }
+
+    // Update the name if present
+    if (new_name && k_fs_name_valid(new_name)) {
+        strcpy(&dir_entry.name[0], new_name);
+    }
+
+    // Attempt to add the entry to the new parent
+    res = k_disk_fs_add_dir_entry(dev, new_parent, &dir_entry);
+    if (res != 0) {
+        return res;
+    }
+
+    // Update the entry header for the new parent
+    entry_hdr.parent = new_parent;
+    def sect_size: u32 = dev->vol_hdr.sector_size;
+    res = k_disk_data_write(dev->ctl, entry * sect_size, &entry_hdr, sizeof(entry_hdr));
+    if (0 != res) {
+        def res2: i32 = k_disk_fs_del_dir_entry(dev, new_parent, entry, 0);
+        if (res2 != 0) {
+            return res2;
+        } else {
+            return res;
+        }
+    }
+
+    // Remove the original entry
+    return k_disk_fs_del_dir_entry(dev, parent_original, entry, 0);
 }
 
 fn k_disk_fs_rm_entry_no_sync(
@@ -837,7 +1001,7 @@ fn k_disk_fs_get_dir_entry_by_name(
     dev: *k_disk_fs_t,
     parent: u16,
     name: *u8,
-    entry: *k_fs_directory_entry_t) i32 {
+    dir_entry: *k_fs_directory_entry_t) i32 {
     def tmp: k_fs_directory_entry_t;
 
     const DATA_SIZE: u32 = sizeof(tmp);
@@ -859,7 +1023,7 @@ fn k_disk_fs_get_dir_entry_by_name(
         }
 
         if ((tmp.base_block != NULL) && (strcmp(name, &tmp.name) == 0)) {
-            *entry = tmp;
+            *dir_entry = tmp;
             return 0;
         }
     }
