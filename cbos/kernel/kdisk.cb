@@ -20,8 +20,6 @@ export const K_FS_ENTRY_NAME_LEN: u32 = 60;
 export const K_FS_ENTRY_TYPE_DIR: u8 = 1;
 export const K_FS_ENTRY_TYPE_FILE: u8 = 2;
 
-const K_DISK_FS_READ_ALL_ENTRIES: u32 = 1;
-
 export struct k_fs_vol_header_t {
     version: u16;
     sector_size: u16;
@@ -543,8 +541,7 @@ fn k_disk_fs_read_directory_entries(
     entry: u16,
     entries: *k_fs_directory_entry_t,
     entry_size: *u32,
-    entry_offset: u32,
-    flags: u32) i32
+    entry_offset: u32) i32
 {
     if (!dev) {
         return K_ERR_DEV_UNKNOWN;
@@ -568,7 +565,6 @@ fn k_disk_fs_read_directory_entries(
     def read_size: u32 = DATA_SIZE;
     def current_ind: u32 = 0;
     def current: *k_fs_directory_entry_t = entries;
-    def include_null: u8 = (flags & K_DISK_FS_READ_ALL_ENTRIES);
 
     def max_size: u32 = *entry_size;
 
@@ -577,10 +573,8 @@ fn k_disk_fs_read_directory_entries(
             return K_ERR_FS_ENTRY_END;
         }
 
-        if ((current->base_block != NULL) || include_null) {
-            current_ind += 1;
-            current += 1;
-        }
+        current_ind += 1;
+        current += 1;
     }
 
     *entry_size = current_ind;
@@ -905,9 +899,11 @@ fn k_disk_fs_move_entry(
 
     // Check if name already exists
     def tmp: k_fs_directory_entry_t;
-    res = k_disk_fs_get_dir_entry_by_name(dev, new_parent, &dir_entry.name[0], &tmp);
+    res = k_disk_fs_get_dir_entry_by_name(dev, new_parent, &dir_entry.name, &tmp);
     if (res == 0) {
         return K_ERR_FS_DUPLICATE_NAME;
+    } else if (res != K_ERR_FS_NO_ENT) {
+        return res;
     }
 
     // Attempt to remove the entry from the original parent

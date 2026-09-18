@@ -116,7 +116,7 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
 
     while (test_entry_size > 0) {
         test_entry_size = ENTRY_SIZE_LIM;
-        def res: i32 = k_fs_read_directory_entries(target_dir, &test_entries, &test_entry_size, test_entry_offset, 0);
+        def res: i32 = k_fs_read_directory_entries(target_dir, &test_entries, &test_entry_size, test_entry_offset);
         if (test_entry_size == 0) {
             break;
         }
@@ -129,23 +129,25 @@ fn k_shell_fn_ls(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             k_memset(&name_tmp, 0, K_FS_ENTRY_NAME_LEN + 1);
             while (ii < test_entry_size) {
                 def ent: *k_fs_directory_entry_t = &test_entries[ii];
-                k_memcpy(&name_tmp, &(ent->name), K_FS_ENTRY_NAME_LEN);
-                if (ent->entry_type == K_FS_ENTRY_TYPE_FILE) {
-                    if (ent->attributes & K_FS_ATTRIBUTE_EXECUTABLE) {
-                        k_io_print("f:* ");
+                if (ent->base_block != NULL) {
+                    k_memcpy(&name_tmp, &(ent->name), K_FS_ENTRY_NAME_LEN);
+                    if (ent->entry_type == K_FS_ENTRY_TYPE_FILE) {
+                        if (ent->attributes & K_FS_ATTRIBUTE_EXECUTABLE) {
+                            k_io_print("f:* ");
+                        } else {
+                            k_io_print("f:  ");
+                        }
+                        k_io_print(name_tmp);
+                        k_io_print("\n");
+                    } else if (ent->entry_type == K_FS_ENTRY_TYPE_DIR) {
+                        k_io_print("d:  ");
+                        k_io_print(name_tmp);
+                        k_io_print("/\n");
                     } else {
-                        k_io_print("f:  ");
+                        k_io_print("?:  ");
+                        k_io_print(name_tmp);
+                        k_io_print("\n");
                     }
-                    k_io_print(name_tmp);
-                    k_io_print("\n");
-                } else if (ent->entry_type == K_FS_ENTRY_TYPE_DIR) {
-                    k_io_print("d:  ");
-                    k_io_print(name_tmp);
-                    k_io_print("/\n");
-                } else {
-                    k_io_print("?:  ");
-                    k_io_print(name_tmp);
-                    k_io_print("\n");
                 }
                 ii += 1;
             }

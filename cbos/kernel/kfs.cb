@@ -30,11 +30,10 @@ export fn k_fs_read_directory_entries(
     entry: k_fs_entry_id_t,
     entries: *k_fs_directory_entry_t,
     entry_size: *u32,
-    entry_offset: u32,
-    flags: u32) i32
+    entry_offset: u32) i32
 {
     def dev: *k_disk_fs_t = k_disk_get(entry.disk_index);
-    return k_disk_fs_read_directory_entries(dev, entry.entry, entries, entry_size, entry_offset, flags);
+    return k_disk_fs_read_directory_entries(dev, entry.entry, entries, entry_size, entry_offset);
 }
 
 fn k_fs_get_dir_entry_by_parent_id(parent: k_fs_entry_id_t, base_block: u16, entry: *k_fs_directory_entry_t) i32 {
