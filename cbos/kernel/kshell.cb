@@ -261,6 +261,11 @@ fn k_shell_fn_mv(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
             return res;
         }
 
+        if (src_loc.disk_index != target_loc.disk_index) {
+            k_io_print("cannot currently move between different drives\n");
+            return -1;
+        }
+
         res = k_disk_fs_move_entry(
             k_disk_get(src_loc.disk_index),
             src_loc.entry,
@@ -271,6 +276,39 @@ fn k_shell_fn_mv(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
         }
 
         return 0;
+    } else {
+        k_io_print("invalid number of entries for an explicit target provided\n");
+        return K_ERR_BAD_ARG_NUM;
+    }
+}
+
+fn k_shell_copy_entry(src_entry: k_fs_entry_id_t, target_entry: k_fs_entry_id_t) i32 {
+    // TODO - Does copying, plus recursive copying of directories
+}
+
+fn k_shell_fn_cp(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    if (argc < 3) {
+        k_io_print("copy requires [from] and [to] entries\n");
+        return K_ERR_BAD_ARG_NUM;
+    }
+
+    // Get the last argument and see if it already exists as a directory
+    def target_loc: k_fs_entry_id_t;
+    def res: i32 = k_fs_readlink(argv[argc - 1], K_FS_ENTRY_TYPE_DIR, &state->fs, &target_loc);
+
+    if (res == 0) {
+        // Allow copying multiple entries into the target directory
+        def i: u32 = 1;
+        argc -= 1;
+        while (i < argc) {
+            return -1;
+
+            i += 1;
+        }
+
+        return 0;
+    } else if (argc == 3) {
+        return -1;
     } else {
         k_io_print("invalid number of entries for an explicit target provided\n");
         return K_ERR_BAD_ARG_NUM;
