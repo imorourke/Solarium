@@ -35,7 +35,7 @@ fn os_main() void {
 
     while (run_shell) {
         k_io_print("~> ");
-        while (sh_state.auto_halt && SERIAL_DEV->input_size == 0) {
+        while (sh_state.auto_halt && (SERIAL_DEV->input_size == 0)) {
             asm { "halt"; }
         }
 
