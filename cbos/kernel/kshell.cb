@@ -59,6 +59,8 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     k_io_print("  mv <p1> <p2>  -> moves a path value from one location to another\n");
     k_io_print("  cp <p1> <p2>  -> copies a path value from one location to another\n");
     k_io_print("  rm <path>     -> removes the file or folder (and subitems)\n");
+    k_io_print("  chmod [+x/-x] <path> ...\n");
+    k_io_print("                -> Changes the executable state for the given files\n");
     k_io_print("  sync [path]   -> syncs the disk state to the disk for disk with the given path\n");
     k_io_print("  reset         -> resets the processor\n");
     k_io_print("  halt          -> halts the CPU\n");
@@ -440,6 +442,39 @@ fn k_shell_fn_cp(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     } else {
         k_io_print("invalid number of entries for an explicit target provided\n");
         return K_ERR_BAD_ARG_NUM;
+    }
+}
+
+fn k_shell_fn_chmod(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
+    if (argc < 3) {
+        k_io_print("chmod [x/n] [file...]\n");
+        return K_ERR_BAD_ARG_NUM;
+    }
+
+    // Enable or disable
+    def executable: u8 = 0;
+    if (strcmp(argv[1], "+x") == 0) {
+        executable = 1;
+    } else if (strcmp(argv[1], "-x") == 0) {
+        executable = 0;
+    } else {
+        return K_ERR_INVALID_ARG;
+    }
+
+    def i: u32 = 2;
+    while (i < argc) {
+        def target_loc: k_fs_entry_id_t;
+        def res: i32 = k_fs_readlink(argv[i], K_FS_ENTRY_TYPE_FILE, &state->fs, &target_loc);
+        if (res != 0) {
+            return res;
+        }
+
+        res = k_disk_fs_set_executable(target_loc, executable);
+        if (res != 0) {
+            return res;
+        }
+
+        i += 1;
     }
 }
 
@@ -1230,6 +1265,8 @@ fn k_shell_run_cmd(state: *k_shell_state_t, argv: **u8, argc: i32) i32 {
             sh_fn = k_shell_fn_mv;
         } else if (strcmp(cmd, "cp") == 0) {
             sh_fn = k_shell_fn_cp;
+        } else if (strcmp(cmd, "chmod") == 0) {
+            sh_fn = k_shell_fn_chmod;
         }
 
         def res: i32;

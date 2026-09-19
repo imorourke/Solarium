@@ -82,6 +82,77 @@ export fn k_fs_get_dir_entry_by_id(entry: k_fs_entry_id_t, dir_entry: *k_fs_dire
     return k_fs_get_dir_entry_by_parent_id(parent, entry.entry, dir_entry);
 }
 
+export fn k_disk_fs_get_executable(entry: k_fs_entry_id_t, executable: u8) i32 {
+    def header: k_fs_directory_entry_t;
+    def res: i32 = k_fs_get_dir_entry_by_id(entry, &header);
+    if (res != 0) {
+        return res;
+    }
+
+    return header.attributes & K_FS_ATTRIBUTE_EXECUTABLE;
+}
+
+fn k_disk_fs_set_executable(entry: k_fs_entry_id_t, executable: u8) i32 {
+    def entry_header: k_fs_entry_header_t;
+    def res: i32 = k_fs_read_entry_header(entry, &entry_header);
+    if (res != 0) {
+        return res;
+    }
+
+    if (entry_header.entry_type != K_FS_ENTRY_TYPE_FILE) {
+        return K_ERR_FS_NOT_FILE;
+    }
+
+    def dev: *k_disk_fs_t = k_disk_get(entry.disk_index);
+    def dir_entry: k_fs_entry_header_t;
+    def state: k_fs_io_state_t;
+    res = k_disk_fs_io_state_init_hdr(dev, entry_header.parent, 0, 0, &state, &dir_entry);
+    if (res < 0) {
+        return res;
+    } else if (dir_entry.entry_type != K_FS_ENTRY_TYPE_DIR) {
+        return K_ERR_FS_NOT_DIR;
+    }
+
+    // Search for an empty section
+    def current: k_fs_directory_entry_t;
+    const DATA_SIZE: u32 = sizeof(current);
+    def read_size: u32 = DATA_SIZE;
+    def current_offset: u32 = 0;
+    def found: u8 = 0;
+    while (k_fs_io_state_read_next_section(&state, &current, &read_size) > 0) {
+        if (read_size != DATA_SIZE) {
+            return K_ERR_FS_ENTRY_END;
+        }
+
+        if (current.base_block == entry.entry) {
+            current.attributes = current.attributes & (~K_FS_ATTRIBUTE_EXECUTABLE);
+            if (executable) {
+                current.attributes = current.attributes | K_FS_ATTRIBUTE_EXECUTABLE;
+            }
+
+            res = k_disk_fs_write_data(
+                dev,
+                entry_header.parent,
+                current_offset * sizeof(k_fs_directory_entry_t),
+                &current,
+                sizeof(current));
+            if (res != 0) {
+                return res;
+            }
+
+            found = 1;
+        }
+
+        current_offset += 1;
+    }
+
+    if (found) {
+        return 0;
+    } else {
+        return K_ERR_FS_NO_ENT;
+    }
+}
+
 export fn k_fs_get_dir_entry_by_name(parent: k_fs_entry_id_t, name: *u8, entry: *k_fs_directory_entry_t) i32 {
     def disk: *k_disk_fs_t = k_disk_get(parent.disk_index);
     return k_disk_fs_get_dir_entry_by_name(disk, parent.entry, name, entry);
