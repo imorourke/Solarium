@@ -270,7 +270,7 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
     if ((res == 0) && (out_entry.entry_type == pathtype)) {
         output->entry = start_loc.entry;
         return 0;
-    } else {
+    } else if (res != 0) {
 #ifdef DEBUG
         if (K_DBG_ENABLED) {
             k_io_print("'");
@@ -287,6 +287,8 @@ export fn k_fs_readlink(pathname: *u8, pathtype: u8, base: *k_fs_entry_id_t, out
         }
 #endif
         return res;
+    } else {
+        return K_ERR_FS_NO_ENT;
     }
 }
 
