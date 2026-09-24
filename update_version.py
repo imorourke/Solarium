@@ -14,6 +14,7 @@ class ProgramArguments(argparse.Namespace):
         super().__init__()
         self.version_str: str
         self.no_cargo: bool = False
+        self.tag: bool = True
 
 
 def main():
@@ -26,9 +27,16 @@ def main():
         help="The version string to update versions to. Must be of the form 0.0.0",
     )
     _ = p.add_argument(
+        "-n",
         "--no-cargo",
         action="store_true",
         help="skip running the cargo command to update the lock file",
+    )
+    _ = p.add_argument(
+        "-t",
+        "--tag",
+        action="store_true",
+        help="tag the current build with the given release name"
     )
 
     nsp = ProgramArguments()
@@ -77,6 +85,22 @@ def main():
         _ = p.communicate()
         if p.returncode != 0:
             raise RuntimeError("unable to process output")
+
+    if args.tag:
+        p = subprocess.Popen(["git", "add", "."])
+        _ = p.communicate()
+        if p.returncode != 0:
+            raise RuntimeError("unable to add new files")
+
+        p = subprocess.Popen(["git", "commit", "-m", "Update Version"])
+        _ = p.communicate()
+        if p.returncode != 0:
+            raise RuntimeError("unable to commit the tag values")
+
+        p = subprocess.Popen(["git", "tag", f"v{version_str}", "-m", f"Release v{version_str}"])
+        _ = p.communicate()
+        if p.returncode != 0:
+            raise RuntimeError("unable to set the current tag value")
 
 
 if __name__ == "__main__":
