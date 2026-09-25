@@ -4,6 +4,7 @@ Updates common files to a consistent version number
 """
 
 import argparse
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -13,8 +14,20 @@ class ProgramArguments(argparse.Namespace):
     def __init__(self):
         super().__init__()
         self.version_str: str
-        self.no_cargo: bool = False
+        self.run_test: bool = True
         self.tag: bool = True
+
+
+def run_cmd(args: list[str], cwd: os.PathLike | None = None):
+    p = subprocess.Popen(
+        args,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=cwd,
+    )
+    _, se = p.communicate()
+    if p.returncode != 0:
+        raise RuntimeError(f"unable to run '{' '.join([f'"{s}"' for s in args])}' - {se.decode('utf-8')}")
 
 
 def main():
@@ -28,15 +41,16 @@ def main():
     )
     _ = p.add_argument(
         "-n",
-        "--no-cargo",
-        action="store_true",
+        "--no-test",
+        dest="run_test",
+        action="store_false",
         help="skip running the cargo command to update the lock file",
     )
     _ = p.add_argument(
         "-t",
         "--tag",
         action="store_true",
-        help="tag the current build with the given release name"
+        help="tag the current build with the given release name",
     )
 
     nsp = ProgramArguments()
@@ -73,34 +87,21 @@ def main():
         data = re.sub(re_str, replace_val, data)
         _ = file_path.write_text(data)
 
-    should_run_cargo: bool = not args.no_cargo
+    run_cmd(
+        ["cargo", "update", "--offline"],
+        cwd=base_path,
+    )
 
-    if should_run_cargo:
-        p = subprocess.Popen(
+    if args.run_test:
+        run_cmd(
             ["cargo", "test", "--workspace"],
-            stdin=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             cwd=base_path,
         )
-        _ = p.communicate()
-        if p.returncode != 0:
-            raise RuntimeError("unable to process output")
 
     if args.tag:
-        p = subprocess.Popen(["git", "add", "."])
-        _ = p.communicate()
-        if p.returncode != 0:
-            raise RuntimeError("unable to add new files")
-
-        p = subprocess.Popen(["git", "commit", "-m", "Update Version"])
-        _ = p.communicate()
-        if p.returncode != 0:
-            raise RuntimeError("unable to commit the tag values")
-
-        p = subprocess.Popen(["git", "tag", f"v{version_str}", "-m", f"Release v{version_str}"])
-        _ = p.communicate()
-        if p.returncode != 0:
-            raise RuntimeError("unable to set the current tag value")
+        run_cmd(["git", "add", "."])
+        run_cmd(["git", "commit", "-m", "Change version number"])
+        run_cmd(["git", "tag", f"v{version_str}", "-m", f"Release v{version_str}"])
 
 
 if __name__ == "__main__":
