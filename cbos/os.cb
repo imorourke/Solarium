@@ -18,12 +18,15 @@
 #include <std/string.cb>
 
 fn os_main() void {
-    k_io_print("Starting C/Buoy OS\n");
+    k_io_print("Starting C/Buoy OS");
+#ifdef DEBUG
+    k_io_print(" Debug");
+#endif
     if (K_OS_VERSION != 0) {
-        k_io_print("v");
+        k_io_print(" v");
         k_io_print(K_OS_VERSION);
-        k_io_print("\n");
     }
+    k_io_print("\n");
 
     def input_buffer: [K_SHELL_DEFAULT_INPUT_BUFFER_SIZE]u8;
     def arg_buffer: [K_SHELL_DEFAULT_ARG_SPLIT_SIZE]*u8;

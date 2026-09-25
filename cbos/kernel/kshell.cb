@@ -32,6 +32,9 @@ fn k_shell_fn_help(state: *k_shell_state_t, argv: **u8, argc: u32) i32 {
     } else {
         k_io_print("??");
     }
+#ifdef DEBUG
+    k_io_print(" Debug");
+#endif
     k_io_print("\n");
     k_io_print("Supported Commands:\n");
     k_io_print("  ? / help      -> shows this help command\n");
