@@ -9,40 +9,37 @@ use app::VisualJib;
 cfg_select! {
     not(target_arch = "wasm32") => {
         fn main() -> eframe::Result<()> {
-            use eframe::egui::ViewportBuilder;
+            use eframe::egui::{ViewportBuilder, IconData};
 
             const APP_NAME: &str = cfg_select! {
                 target_os = "linux" => "visual-jib",
                 _ => "VisualJib",
             };
 
-            cfg_select! {
+            let icon_data = cfg_select! {
                 target_os = "macos" => {
-                    fn viewport_icon(viewport: ViewportBuilder) -> ViewportBuilder {
-                        viewport
-                    }
+                    IconData::default()
                 }
                 _ => {
-                    fn viewport_icon(viewport: ViewportBuilder) -> ViewportBuilder {
-                        use eframe::egui::IconData;
-
+                    {
                         let img = image::load_from_memory(include_bytes!("../../doc/images/logo.png")).unwrap();
                         let img_bytes = img.to_rgba8();
 
-                        viewport.with_icon(IconData {
+                        IconData {
                             rgba: img_bytes.into_raw(),
                             width: img.width(),
                             height: img.height(),
-                        })
+                        }
                     }
                 }
-            }
+            };
 
             let native_options = eframe::NativeOptions {
-                viewport: viewport_icon(ViewportBuilder::default()
+                viewport: ViewportBuilder::default()
                     .with_inner_size((1024.0, 600.0))
                     .with_title("VisualJib")
-                    .with_app_id(APP_NAME)),
+                    .with_app_id(APP_NAME)
+                    .with_icon(icon_data),
                 ..eframe::NativeOptions::default()
             };
 
