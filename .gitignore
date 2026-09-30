@@ -3,8 +3,9 @@
 /.idea
 /.fleet
 *.kate-swp
-build*
+/build
 .cache
+compile_flags.txt
 
 target
 __cmake_systeminformation
