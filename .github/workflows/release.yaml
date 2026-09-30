@@ -13,46 +13,47 @@ jobs:
   linux:
     runs-on: ${{ matrix.host }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: fedora
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 44
             pkgmgr: dnf
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: fedora
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 45
             pkgmgr: dnf
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: debian
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 13
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: ubuntu
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 22.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: ubuntu
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 24.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: ubuntu
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 26.04
             pkgmgr: apt
             toolchain: x86_64-unknown-linux-gnu
             arch: x86_64
           - os: alpine
-            host: ubuntu-latest
+            host: ubuntu-26.04
             version: 3.24
             pkgmgr: apk
             toolchain: x86_64-unknown-linux-musl
@@ -114,7 +115,7 @@ jobs:
         if: ${{ matrix.pkgmgr == 'apk' }}
         run: |
           apk update
-          apk add g++ gcc fuse3-dev git curl bash
+          apk add g++ gcc fuse3-dev fuse3-static git curl bash
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -153,7 +154,7 @@ jobs:
           path: solarium-${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}.tar.gz
 
   freebsd:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v5
@@ -319,7 +320,7 @@ jobs:
           path: solarium-windows-${{ matrix.arch }}.zip
 
   common:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Install dependencies
         run: |
@@ -376,7 +377,7 @@ jobs:
   release:
     name: Publish release
     needs: [macos, linux, windows, freebsd, common]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: ${{ startsWith(github.ref_name, 'v') && github.ref_type == 'tag' }}
 
     steps:
