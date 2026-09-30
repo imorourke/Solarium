@@ -114,7 +114,7 @@ jobs:
         if: ${{ matrix.pkgmgr == 'apk' }}
         run: |
           apk update
-          apk add g++ gcc cmake ninja fuse3-dev git curl bash
+          apk add g++ gcc fuse3-dev git curl bash
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -128,25 +128,20 @@ jobs:
         run: |
           cargo build --release --target ${{ matrix.toolchain }} -p visual-jib
           cargo build --release --target ${{ matrix.toolchain }} -p cbfs-util
+          cargo build --release --target ${{ matrix.toolchain }} -p cbfs
           cargo build --release --target ${{ matrix.toolchain }} -p cbc
           cargo build --release --target ${{ matrix.toolchain }} -p jib-term
-
-      - name: Build FUSE Driver
-        run: |
-          cargo install --locked cbindgen
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=${{ matrix.toolchain }} -GNinja
-          ninja -C build
 
       - name: Copy executables
         run: |
           mkdir dist
           cp target/${{ matrix.toolchain }}/release/visual-jib dist/visual-jib
           cp target/${{ matrix.toolchain }}/release/cbfs-util dist/cbfs-util
+          cp target/${{ matrix.toolchain }}/release/cbfs dist/cbfs
           cp target/${{ matrix.toolchain }}/release/cbc dist/cbc
           cp target/${{ matrix.toolchain }}/release/jib-term dist/jib-term
           cp visual-jib/desktop/visual-jib.desktop dist/visual-jib.desktop
           cp doc/images/logo.svg dist/visual-jib.svg
-          cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
 
       - name: Package binary
         run: tar -czvf solarium-${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}.tar.gz -C dist visual-jib cbfs cbfs-util cbc jib-term visual-jib.desktop visual-jib.svg
@@ -169,27 +164,24 @@ jobs:
         with:
           release: "15"
           sync: rsync
-          prepare: pkg install -y cmake fusefs-libs3 rust ninja
+          prepare: pkg install -y fusefs-libs3 rust
           run: |
             cargo test --workspace
+            cargo build --release --target x86_64-unknown-freebsd -p cbfs
             cargo build --release --target x86_64-unknown-freebsd -p cbfs-util
             cargo build --release --target x86_64-unknown-freebsd -p cbc
             cargo build --release --target x86_64-unknown-freebsd -p jib-term
             cargo build --release --target x86_64-unknown-freebsd -p visual-jib
-            cargo install --locked cbindgen
-            export PATH="$PATH:/root/.cargo/bin"
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=x86_64-unknown-freebsd -GNinja
-            ninja -C build
             mkdir dist
+            cp target/x86_64-unknown-freebsd/release/cbfs dist/cbfs
             cp target/x86_64-unknown-freebsd/release/cbfs-util dist/cbfs-util
             cp target/x86_64-unknown-freebsd/release/cbc dist/cbc
             cp target/x86_64-unknown-freebsd/release/jib-term dist/jib-term
             cp target/x86_64-unknown-freebsd/release/visual-jib dist/visual-jib
             cp visual-jib/desktop/visual-jib.desktop dist/visual-jib.desktop
             cp doc/images/logo.svg dist/visual-jib.svg
-            cp build/cbfs/cbfs-fuse/cbfs dist/cbfs
             tar -czvf solarium-freebsd-15-x86_64.tar.gz -C dist cbfs cbfs-util cbc jib-term visual-jib visual-jib.desktop visual-jib.svg
-            rm -rf target build
+            rm -rf target
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
@@ -223,25 +215,18 @@ jobs:
         run: |
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p visual-jib
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbfs-util
+          cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbfs
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p cbc
           cargo build --release --target x86_64-apple-darwin --target aarch64-apple-darwin -p jib-term
-
-      - name: Build FUSE Driver
-        run: |
-          cargo install --locked cbindgen
-          cmake -S . -B build/x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCARGO_TARGET=x86_64-apple-darwin -GNinja
-          ninja -Cbuild/x64
-          cmake -S . -B build/arm64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCARGO_TARGET=aarch64-apple-darwin -GNinja
-          ninja -Cbuild/arm64
 
       - name: Create a fat executable for all targets
         run: |
           mkdir dist
           lipo -create -output dist/visual-jib target/x86_64-apple-darwin/release/visual-jib target/aarch64-apple-darwin/release/visual-jib
           lipo -create -output dist/cbfs-util target/x86_64-apple-darwin/release/cbfs-util target/aarch64-apple-darwin/release/cbfs-util
+          lipo -create -output dist/cbfs target/x86_64-apple-darwin/release/cbfs target/aarch64-apple-darwin/release/cbfs
           lipo -create -output dist/cbc target/x86_64-apple-darwin/release/cbc target/aarch64-apple-darwin/release/cbc
           lipo -create -output dist/jib-term target/x86_64-apple-darwin/release/jib-term target/aarch64-apple-darwin/release/jib-term
-          lipo -create -output dist/cbfs build/x64/cbfs/cbfs-fuse/cbfs build/arm64/cbfs/cbfs-fuse/cbfs
 
       - name: Create a bundle
         run: |
@@ -252,7 +237,7 @@ jobs:
 
       - name: Package binary
         run: |
-          tar -czvf solarium-macos.tar.gz -C dist cbfs-util cbc jib-term VisualJib.app cbfs
+          tar -czvf solarium-macos.tar.gz -C dist cbfs cbfs-util cbc jib-term VisualJib.app
 
       - name: Upload release binaries
         uses: actions/upload-artifact@v7
@@ -288,6 +273,7 @@ jobs:
       - name: Build the executable
         run: |
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p visual-jib
+          cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs-util
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbc
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p jib-term
@@ -303,23 +289,15 @@ jobs:
           $procMain.WaitForExit()
           $procLog.Kill()
 
-      - name: Build FUSE Driver
-        run: |
-          Import-Module "${{ matrix.msvc }}\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
-          Enter-VsDevShell -VsInstallPath "${{ matrix.msvc }}" -SkipAutomaticLocation -DevCmdArguments "-arch=${{ matrix.msarch }}"
-          cargo install --locked cbindgen
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCARGO_TARGET=${{ matrix.arch }}-pc-windows-msvc -DCBFS_WIN_ARCH=${{ matrix.msarch }} -GNinja
-          ninja -C build
-
       - name: Copy binaries
         shell: pwsh
         run: |
           New-Item -Path . -Name dist -ItemType Directory
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\visual-jib.exe dist
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs-util.exe dist
+          Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbfs.exe dist
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\cbc.exe dist
           Copy-Item target\${{ matrix.arch }}-pc-windows-msvc\release\jib-term.exe dist
-          Copy-Item build\cbfs\cbfs-fuse\cbfs.exe dist
 
       - name: Update icon
         shell: pwsh
