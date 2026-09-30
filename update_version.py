@@ -75,11 +75,6 @@ def main():
             r"\[workspace.package\]\nversion = \"[\d\.]+\"",
             f'[workspace.package]\nversion = "{version_str}"',
         ),
-        (
-            base_path / "CMakeLists.txt",
-            r"project\(SolariumProcessor VERSION (?P<current>[\d\.]+)\)",
-            f"project(SolariumProcessor VERSION {version_str})",
-        ),
     ]
 
     for file_path, re_str, replace_val in files_to_check:
