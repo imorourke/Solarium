@@ -32,7 +32,7 @@ fn main() {
                 println!("cargo:rustc-link-lib=framework=CoreFoundation");
             } else if cfg!(target_os = "freebsd") {
                 println!("cargo:rustc-link-lib=dylib=pthread");
-                println!("cargo:rustc-link-lib=native=/usr/local/lib");
+                println!("cargo:rustc-link-search=native=/usr/local/lib");
                 cx = cx.include("/usr/local/include");
             }
 
