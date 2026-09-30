@@ -15,11 +15,12 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <span>
 #include <sys/stat.h>
 #include <unordered_map>
 
-#include "cbfs_fuse.hpp"
 #include "cbfs/src/main.rs.h"
+#include "cbfs_fuse.hpp"
 
 #ifdef WIN32
 #define fuse_file_info_t fuse_file_info
@@ -50,7 +51,8 @@
 struct cbfs_error {
     CbFsError result;
 
-    cbfs_error(CbFsError err) : result{err} {}
+    cbfs_error(CbFsError err)
+        : result{ err } {}
 
     int get_return_code() const {
         switch (result) {
@@ -80,8 +82,8 @@ struct CbFuseState {
     bool read_only{ false };
     std::unordered_map<uint16_t, fuse_mode_t> current_modes{};
 
-    CbFuseState(const std::string& base_name, bool randomize)
-        : fs{ CbFs::open(base_name, randomize) } {
+    CbFuseState(const std::string& base_file, bool randomize)
+        : fs{ CbFs::open(base_file, randomize) }, base_file{base_file} {
         // Empty Constructor
     }
 
@@ -338,9 +340,7 @@ static int cbfs_fuse_create(const char* path, fuse_mode_t mode, struct fuse_file
 
     const bool can_truncate = (mode & (O_CREAT | O_TRUNC)) == (O_CREAT | O_TRUNC);
 
-    return cbfs_check_err([&]() {
-        fi->fh = state->fs->create_entry(path, CbFsEntryType::File, can_truncate);
-    });
+    return cbfs_check_err([&]() { fi->fh = state->fs->create_entry(path, CbFsEntryType::File, can_truncate); });
 }
 
 static int cbfs_fuse_rename(const char* path, const char* new_path, [[maybe_unused]] unsigned int flags) {
