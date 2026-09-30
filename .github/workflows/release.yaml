@@ -264,6 +264,17 @@ jobs:
         with:
           targets: ${{ matrix.arch }}-pc-windows-msvc
 
+      - name: Install WinFSP
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi" -OutFile ".\winfsp-2.1.25156.msi"
+          $file = "winfsp-2.1.25156.msi"
+          $log = "install.log"
+          $procMain = Start-Process "msiexec" "/i `"$file`" ADDLOCAL=all /qn /l*! `"$log`"" -NoNewWindow -PassThru
+          $procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru
+          $procMain.WaitForExit()
+          $procLog.Kill()
+
       - name: Checkout the repository
         uses: actions/checkout@v5
 
@@ -277,17 +288,6 @@ jobs:
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbfs-util
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p cbc
           cargo build --release --target ${{ matrix.arch }}-pc-windows-msvc -p jib-term
-
-      - name: Install WinFSP
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi" -OutFile ".\winfsp-2.1.25156.msi"
-          $file = "winfsp-2.1.25156.msi"
-          $log = "install.log"
-          $procMain = Start-Process "msiexec" "/i `"$file`" ADDLOCAL=all /qn /l*! `"$log`"" -NoNewWindow -PassThru
-          $procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru
-          $procMain.WaitForExit()
-          $procLog.Kill()
 
       - name: Copy binaries
         shell: pwsh
