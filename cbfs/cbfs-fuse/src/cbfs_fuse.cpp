@@ -83,7 +83,8 @@ struct CbFuseState {
     std::unordered_map<uint16_t, fuse_mode_t> current_modes{};
 
     CbFuseState(const std::string& base_file, bool randomize)
-        : fs{ CbFs::open(base_file, randomize) }, base_file{base_file} {
+        : fs{ CbFs::open(base_file, randomize) },
+          base_file{ base_file } {
         // Empty Constructor
     }
 
