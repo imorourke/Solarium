@@ -30,6 +30,7 @@ fn main() {
         _ => {
             if cfg!(target_os = "macos") {
                 println!("cargo:rustc-link-lib=framework=CoreFoundation");
+                println!("cargo:rustc-link-search=native=/usr/local/lib");
             } else if cfg!(target_os = "freebsd") {
                 println!("cargo:rustc-link-lib=dylib=pthread");
                 println!("cargo:rustc-link-search=native=/usr/local/lib");
