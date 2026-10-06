@@ -348,26 +348,30 @@ impl PartialEq for UserTypeReference {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgramType {
     Application,
-    Kernel {
-        base_location: u32,
-        stack_loc_init: Option<u32>,
-    },
+    Kernel(KernelOptions),
 }
 
-impl ProgramType {
-    pub const DEFAULT_STACK_LOC: u32 = jib_cpu::locations::DEFAULT_STACK_LOC;
-    pub const DEFAULT_START_ADDR: u32 = jib_cpu::locations::DEFAULT_START_ADDR;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KernelOptions {
+    pub base_location: u32,
+    pub stack_loc_init: u32,
+}
+
+impl Default for KernelOptions {
+    fn default() -> Self {
+        Self {
+            stack_loc_init: jib_computer_defs::STACK_ADDR,
+            base_location: jib_computer_defs::START_ADDR,
+        }
+    }
 }
 
 impl Default for ProgramType {
     fn default() -> Self {
-        Self::Kernel {
-            stack_loc_init: Some(Self::DEFAULT_START_ADDR),
-            base_location: Self::DEFAULT_STACK_LOC,
-        }
+        Self::Kernel(Default::default())
     }
 }
 
@@ -581,7 +585,7 @@ impl CompilingState {
             let prog_offset: u32 = export_offset + export_size;
             let prog_size: u32 = asm.bytes.len() as u32;
             let attributes: u32 = match self.options.prog_type {
-                ProgramType::Kernel { base_location, .. } => base_location,
+                ProgramType::Kernel(ko) => ko.base_location,
                 _ => 0,
             };
 
@@ -616,7 +620,7 @@ impl CompilingState {
         let init_label = "program_init".to_string();
 
         let base_loc = match &self.options.prog_type {
-            ProgramType::Kernel { base_location, .. } => *base_location,
+            ProgramType::Kernel(ko) => ko.base_location,
             _ => 0,
         };
 
@@ -658,11 +662,9 @@ impl CompilingState {
             init_label.clone(),
         )));
 
-        if let ProgramType::Kernel { stack_loc_init, .. } = &self.options.prog_type
-            && let Some(stack_loc) = stack_loc_init
-        {
+        if let ProgramType::Kernel(ko) = &self.options.prog_type {
             asm.extend(
-                load_to_register(Register::StackPointer, *stack_loc)
+                load_to_register(Register::StackPointer, ko.stack_loc_init)
                     .into_iter()
                     .map(Self::blank_token_loc),
             );

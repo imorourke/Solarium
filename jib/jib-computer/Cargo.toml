@@ -8,9 +8,10 @@ documentation.workspace = true
 
 [dependencies]
 jib-cpu.workspace = true
+jib-computer-defs.workspace = true
 cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
 circ-buff.workspace = true
 
 [build-dependencies]
 cblang.workspace = true
-jib-cpu.workspace = true
+jib-computer-defs.workspace = true

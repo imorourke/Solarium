@@ -172,9 +172,9 @@ impl JibComputer {
         let mut reset_vec_data: Vec<u8> = vec![0; INIT_RO_LEN as usize];
 
         let start_loc = if self.bootloader {
-            jib_cpu::locations::BOOTLOADER_START_ADDR
+            jib_computer_defs::BOOTLOADER_START_ADDR
         } else {
-            jib_cpu::locations::DEFAULT_START_ADDR
+            jib_computer_defs::START_ADDR
         };
 
         for (i, x) in start_loc.to_be_bytes().iter().enumerate() {
@@ -201,18 +201,18 @@ impl JibComputer {
         self.cpu.memory_add_segment(
             INIT_RO_LEN,
             Rc::new(RefCell::new(ReadWriteSegment::new(
-                (jib_cpu::locations::INIT_MEMORY_SIZE - INIT_RO_LEN) as usize,
+                (jib_computer_defs::MEMORY_SIZE - INIT_RO_LEN) as usize,
             ))),
         )?;
 
         assert!(
             Self::BOOTLOADER_BIN.len()
-                <= (jib_cpu::locations::DEVICE_START_ADDR
-                    - jib_cpu::locations::BOOTLOADER_START_ADDR) as usize
+                <= (jib_computer_defs::DEVICE_START_ADDR - jib_computer_defs::BOOTLOADER_START_ADDR)
+                    as usize
         );
 
         self.cpu.memory_add_segment(
-            jib_cpu::locations::BOOTLOADER_START_ADDR,
+            jib_computer_defs::BOOTLOADER_START_ADDR,
             Rc::new(RefCell::new(ReadWriteSegment::new(
                 Self::BOOTLOADER_BIN.len(),
             ))),
@@ -228,8 +228,8 @@ impl JibComputer {
             self.dev_pram.clone(),
         ];
 
-        for i in 0..jib_cpu::locations::DEVICE_COUNT {
-            let dev_loc = jib_cpu::locations::DEVICE_START_ADDR + (i as u32) * DEVICE_MEM_SIZE;
+        for i in 0..jib_computer_defs::DEVICE_COUNT {
+            let dev_loc = jib_computer_defs::DEVICE_START_ADDR + (i as u32) * DEVICE_MEM_SIZE;
 
             let dev = if let Some(d) = devices.get(i) {
                 self.cpu.device_add(d.clone())?;
@@ -244,14 +244,14 @@ impl JibComputer {
         if let Some(hd) = self.hard_drive.as_ref() {
             self.cpu.device_add(hd.clone())?;
             self.cpu
-                .memory_add_segment(jib_cpu::locations::DEVICE_HD_START_ADDR, hd.clone())?;
+                .memory_add_segment(jib_computer_defs::DEVICE_HD_START_ADDR, hd.clone())?;
         }
 
         self.cpu.reset(ResetType::Hard)?;
 
         // Include bootloader
         self.cpu.memory_set_range(
-            jib_cpu::locations::BOOTLOADER_START_ADDR,
+            jib_computer_defs::BOOTLOADER_START_ADDR,
             Self::BOOTLOADER_BIN,
         )?;
 

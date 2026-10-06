@@ -1,15 +1,15 @@
 use std::path::Path;
 
-use cblang::{CodeGenerationOptions, Compiler, ProgramType};
+use cblang::{CodeGenerationOptions, Compiler, ProgramType, compiler::KernelOptions};
 
 fn main() {
     pub const BOOTLOADER_CODE: &str = include_str!("../../cbos/bootloader.cb");
     let compiler = Compiler {
         options: CodeGenerationOptions {
-            prog_type: ProgramType::Kernel {
-                stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                base_location: jib_cpu::locations::BOOTLOADER_START_ADDR,
-            },
+            prog_type: ProgramType::Kernel(KernelOptions {
+                base_location: jib_computer_defs::BOOTLOADER_START_ADDR,
+                ..Default::default()
+            }),
             trim_code: true,
             ..Default::default()
         },

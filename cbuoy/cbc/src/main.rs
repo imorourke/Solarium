@@ -9,7 +9,7 @@ use std::{
 
 use cblang::{
     CodeGenerationOptions, Compiler, ProgramType,
-    compiler::InterfaceDefinition,
+    compiler::{InterfaceDefinition, KernelOptions},
     preprocessor::{OverlayFilesystem, RealFilesystem, VirtualFilesystem},
 };
 use clap::Parser;
@@ -40,7 +40,7 @@ struct CompilerArguments {
     #[arg(
         short = 'K',
         long = "kernel-start-loc",
-        default_value_t = ProgramType::DEFAULT_START_ADDR,
+        default_value_t = jib_computer_defs::START_ADDR,
         help="Initial program location when generating in kernel mode"
     )]
     kernel_start_offset: u32,
@@ -48,7 +48,7 @@ struct CompilerArguments {
     #[arg(
         short = 's',
         long = "kernel-stack-loc",
-        default_value_t = ProgramType::DEFAULT_STACK_LOC,
+        default_value_t = jib_computer_defs::STACK_ADDR,
         help = "Initial stack location when generating in kernel mode",
     )]
     kernel_stack_loc: u32,
@@ -136,10 +136,10 @@ impl CompilerArguments {
     fn compiler_options(&self) -> CodeGenerationOptions {
         CodeGenerationOptions {
             prog_type: if self.kernel_program {
-                ProgramType::Kernel {
-                    stack_loc_init: Some(self.kernel_stack_loc),
+                ProgramType::Kernel(KernelOptions {
+                    stack_loc_init: self.kernel_stack_loc,
                     base_location: self.kernel_start_offset,
-                }
+                })
             } else {
                 ProgramType::Application
             },

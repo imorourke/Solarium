@@ -8,5 +8,6 @@ documentation.workspace = true
 
 [dependencies]
 cblang = { path = "../cblang", version = "*", features = ["cbfs"] }
-jib-asm = { workspace = true }
-clap = { workspace = true }
+jib-asm.workspace = true
+jib-computer-defs.workspace = true
+clap.workspace = true

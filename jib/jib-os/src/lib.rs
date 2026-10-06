@@ -1,6 +1,7 @@
 use cbfs_lib::{FileSystem, FileSystemError, SectorHandle, VolumeHeader};
 use cblang::{
     CodeGenerationOptions, CompileResults, Compiler, CompilerError, ProgramType,
+    compiler::KernelOptions,
     preprocessor::{PreprocessorFileError, VirtualFilesystem},
 };
 use std::{
@@ -48,7 +49,6 @@ impl From<std::io::Error> for JibOsError {
 pub struct JibOsImage {
     pub kernel: Vec<u8>,
     pub kernel_dbg: Vec<u8>,
-    pub bootloader: Vec<u8>,
     pub kernel_header: String,
     pub applications: Vec<(String, Vec<u8>, ApplicationCategory)>,
     pub app_sys_root: Rc<VirtualFilesystem>,
@@ -75,11 +75,21 @@ macro_rules! os_dir {
     };
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct KernelOptions {
-    pub start_offset: Option<u32>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KernelCompileOptions {
+    pub start_offset: u32,
     pub trim_code: bool,
     pub debug: bool,
+}
+
+impl Default for KernelCompileOptions {
+    fn default() -> Self {
+        Self {
+            start_offset: KernelOptions::default().base_location,
+            trim_code: false,
+            debug: false,
+        }
+    }
 }
 
 impl JibOsImage {
@@ -152,7 +162,7 @@ impl JibOsImage {
     pub fn compile_kernel_code(
         code: &str,
         name: &str,
-        options: KernelOptions,
+        options: KernelCompileOptions,
     ) -> Result<CompileResults, JibOsError> {
         let mut defs = HashMap::new();
         defs.insert("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into());
@@ -164,12 +174,10 @@ impl JibOsImage {
         let compiler = Compiler {
             definitions: defs,
             options: CodeGenerationOptions {
-                prog_type: ProgramType::Kernel {
-                    stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                    base_location: options
-                        .start_offset
-                        .unwrap_or(ProgramType::DEFAULT_START_ADDR),
-                },
+                prog_type: ProgramType::Kernel(KernelOptions {
+                    base_location: options.start_offset,
+                    ..Default::default()
+                }),
                 trim_code: options.trim_code,
                 ..Default::default()
             },
@@ -210,23 +218,13 @@ impl JibOsImage {
         let kernel_dbg_compiled = Self::compile_kernel_code(
             Self::CODE_OS,
             "os.cb",
-            KernelOptions {
+            KernelCompileOptions {
                 debug: true,
                 ..Default::default()
             },
         )?;
         let kernel_compiled =
-            Self::compile_kernel_code(Self::CODE_OS, "os.cb", KernelOptions::default())?;
-
-        let bootloader_compiled = Self::compile_kernel_code(
-            Self::BOOTLOADER_CODE,
-            "bootloader.cb",
-            KernelOptions {
-                start_offset: Some(jib_cpu::locations::BOOTLOADER_START_ADDR),
-                trim_code: true,
-                debug: false,
-            },
-        )?;
+            Self::compile_kernel_code(Self::CODE_OS, "os.cb", KernelCompileOptions::default())?;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();
@@ -253,7 +251,6 @@ impl JibOsImage {
         let mut os_image = JibOsImage {
             kernel_dbg: kernel_dbg_compiled.binary,
             kernel: kernel_compiled.binary,
-            bootloader: bootloader_compiled.asm.bytes,
             kernel_header: interface_str,
             applications: Vec::new(),
             app_sys_root: Rc::new(app_sys_fs),
@@ -388,14 +385,14 @@ impl JibOsImage {
 
 #[cfg(test)]
 mod test {
-    use crate::{JibOsImage, KernelOptions};
+    use crate::{JibOsImage, KernelCompileOptions};
     use jib_computer::{JibCode, JibComputer, StopMode};
 
     fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
         let asm = JibOsImage::compile_kernel_code(
             in_code,
             "input.cb",
-            KernelOptions {
+            KernelCompileOptions {
                 trim_code: true,
                 ..Default::default()
             },

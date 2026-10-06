@@ -7,9 +7,10 @@ authors.workspace = true
 documentation.workspace = true
 
 [dependencies]
-regex = "1"
-jib-cpu = { workspace = true }
-jib-asm = { workspace = true }
+regex.workspace = true
+jib-cpu.workspace = true
+jib-computer-defs.workspace = true
+jib-asm.workspace = true
 cbfs-lib = { workspace = true, optional = true }
 
 [features]
