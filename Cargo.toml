@@ -35,7 +35,7 @@ jib-cpu = { path = "jib/jib-cpu", version = "*" }
 jib-os = { path = "jib/jib-os", version = "*" }
 jib-os-image = { path = "jib/jib-os-image", version = "*" }
 cblang = { path = "cbuoy/cblang", version = "*" }
-cbfs-lib = { path = "cbfs/cbfs-lib", version = "*" }
+cbfs-lib = { path = "cbfs/cbfs-lib", version = "*", default-features = false }
 regex = "1"
 
 [profile.release]

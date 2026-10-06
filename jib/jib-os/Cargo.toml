@@ -7,11 +7,9 @@ documentation.workspace = true
 
 [dependencies]
 jib-cpu = { workspace = true }
-#jib-asm = { workspace = true }
 jib-computer.workspace = true
-cblang = { workspace = true }
-cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
-#circ-buff = { workspace = true }
+cblang.workspace = true
+cbfs-lib.workspace = true
 
 [build-dependencies]
 chrono = { workspace = true }

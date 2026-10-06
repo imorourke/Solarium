@@ -6,8 +6,8 @@ authors.workspace = true
 documentation.workspace = true
 
 [dependencies]
-cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
+cbfs-lib.workspace = true
 
 [build-dependencies]
 jib-os.workspace = true
-cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
+cbfs-lib.workspace = true

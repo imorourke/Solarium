@@ -8,7 +8,7 @@ documentation.workspace = true
 
 [dependencies]
 chrono.workspace = true
-cbfs-lib.workspace = true
+cbfs-lib = { path = "../cbfs-lib", features = ["time", "gzip", "rand"] }
 cxx = "1"
 
 [build-dependencies]
