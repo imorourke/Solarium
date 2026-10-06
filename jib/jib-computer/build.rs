@@ -8,7 +8,7 @@ fn main() {
         options: CodeGenerationOptions {
             prog_type: ProgramType::Kernel {
                 stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
-                base_location: 0xFFFF0000,
+                base_location: jib_cpu::locations::BOOTLOADER_START_ADDR,
             },
             trim_code: true,
             ..Default::default()

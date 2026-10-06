@@ -9,7 +9,7 @@ use std::{
 };
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().into_iter().collect();
+    let args: Vec<String> = std::env::args().collect();
     let retcode = ffi::cxx_fuse_main(&args);
     if retcode == 0 {
         ExitCode::SUCCESS
@@ -160,6 +160,7 @@ fn cbfs_get_version() -> &'static str {
 
 impl ffi::CbFsTime {
     /// Converts the given time structure to a millisecond count
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_millis(&self) -> i64 {
         let dt: DateTime = (*self).into();
         dt.to_posix_millis().unwrap_or_default()
@@ -417,7 +418,7 @@ impl CbFs {
             self.fs.directory_entry(id)?
         };
 
-        Ok(self.entry_from_dir_val(&dir_entry)?)
+        self.entry_from_dir_val(&dir_entry)
     }
 
     /// Reads the entries provided in a directory directory entry

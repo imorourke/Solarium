@@ -40,7 +40,7 @@ struct CompilerArguments {
     #[arg(
         short = 'K',
         long = "kernel-start-loc",
-        default_value_t = ProgramType::DEFAULT_START_OFFSET,
+        default_value_t = ProgramType::DEFAULT_START_ADDR,
         help="Initial program location when generating in kernel mode"
     )]
     kernel_start_offset: u32,

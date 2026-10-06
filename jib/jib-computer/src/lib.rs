@@ -47,16 +47,9 @@ pub struct StopMode {
 }
 
 impl JibComputer {
-    const INIT_MEMORY_SIZE: u32 = 0x40000000;
-    const DEVICE_START_ADDR: u32 = 0xFFFFA000;
-    const DEVICE_HD_START_ADDR: u32 = 0xFFFFB000;
-    const DEVICE_COUNT: usize =
-        ((Self::DEVICE_HD_START_ADDR - Self::DEVICE_START_ADDR) / DEVICE_MEM_SIZE) as usize;
     pub const THREAD_LOOP_MS: u64 = 50;
 
     pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/bootloader.cb");
-    pub const BOOTLOADER_START: u32 = 0xFFFF0000;
-
     pub const BOOTLOADER_BIN: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bootloader.bin"));
 
     pub fn new() -> Result<Self, ComputerError> {
@@ -179,9 +172,9 @@ impl JibComputer {
         let mut reset_vec_data: Vec<u8> = vec![0; INIT_RO_LEN as usize];
 
         let start_loc = if self.bootloader {
-            Self::BOOTLOADER_START
+            jib_cpu::locations::BOOTLOADER_START_ADDR
         } else {
-            Processor::DEFAULT_START_LOC
+            jib_cpu::locations::DEFAULT_START_ADDR
         };
 
         for (i, x) in start_loc.to_be_bytes().iter().enumerate() {
@@ -208,17 +201,18 @@ impl JibComputer {
         self.cpu.memory_add_segment(
             INIT_RO_LEN,
             Rc::new(RefCell::new(ReadWriteSegment::new(
-                (Self::INIT_MEMORY_SIZE - INIT_RO_LEN) as usize,
+                (jib_cpu::locations::INIT_MEMORY_SIZE - INIT_RO_LEN) as usize,
             ))),
         )?;
 
         assert!(
             Self::BOOTLOADER_BIN.len()
-                <= (Self::DEVICE_START_ADDR - Self::BOOTLOADER_START) as usize
+                <= (jib_cpu::locations::DEVICE_START_ADDR
+                    - jib_cpu::locations::BOOTLOADER_START_ADDR) as usize
         );
 
         self.cpu.memory_add_segment(
-            Self::BOOTLOADER_START,
+            jib_cpu::locations::BOOTLOADER_START_ADDR,
             Rc::new(RefCell::new(ReadWriteSegment::new(
                 Self::BOOTLOADER_BIN.len(),
             ))),
@@ -234,8 +228,8 @@ impl JibComputer {
             self.dev_pram.clone(),
         ];
 
-        for i in 0..Self::DEVICE_COUNT {
-            let dev_loc = Self::DEVICE_START_ADDR + (i as u32) * DEVICE_MEM_SIZE;
+        for i in 0..jib_cpu::locations::DEVICE_COUNT {
+            let dev_loc = jib_cpu::locations::DEVICE_START_ADDR + (i as u32) * DEVICE_MEM_SIZE;
 
             let dev = if let Some(d) = devices.get(i) {
                 self.cpu.device_add(d.clone())?;
@@ -250,14 +244,16 @@ impl JibComputer {
         if let Some(hd) = self.hard_drive.as_ref() {
             self.cpu.device_add(hd.clone())?;
             self.cpu
-                .memory_add_segment(Self::DEVICE_HD_START_ADDR, hd.clone())?;
+                .memory_add_segment(jib_cpu::locations::DEVICE_HD_START_ADDR, hd.clone())?;
         }
 
         self.cpu.reset(ResetType::Hard)?;
 
         // Include bootloader
-        self.cpu
-            .memory_set_range(Self::BOOTLOADER_START, Self::BOOTLOADER_BIN)?;
+        self.cpu.memory_set_range(
+            jib_cpu::locations::BOOTLOADER_START_ADDR,
+            Self::BOOTLOADER_BIN,
+        )?;
 
         if !self.bootloader
             && let Some(code) = input_code

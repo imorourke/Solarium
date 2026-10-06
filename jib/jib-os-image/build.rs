@@ -19,7 +19,7 @@ fn main() {
     .unwrap();
 
     std::fs::write(
-        &Path::new(&out_dir).join("cbos.cb"),
+        Path::new(&out_dir).join("cbos.cb"),
         os_img.kernel_header.as_bytes(),
     )
     .unwrap();

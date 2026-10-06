@@ -13,3 +13,4 @@ circ-buff.workspace = true
 
 [build-dependencies]
 cblang.workspace = true
+jib-cpu.workspace = true

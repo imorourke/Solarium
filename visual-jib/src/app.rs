@@ -160,7 +160,7 @@ impl Default for VisualJib {
             )
             .expect("unable to add cbapp data");
         sys_root
-            .add_file(Path::new(&JibOsImage::DEFS_FILENAME), &cbos_defs)
+            .add_file(Path::new(&JibOsImage::DEFS_FILENAME), cbos_defs)
             .expect("unable to add cbos defs");
 
         let root_rc = Rc::new(sys_root);

@@ -3,7 +3,6 @@ use cblang::{
     CodeGenerationOptions, CompileResults, Compiler, CompilerError, ProgramType,
     preprocessor::{PreprocessorFileError, VirtualFilesystem},
 };
-use jib_computer::JibComputer;
 use std::{
     collections::HashMap,
     format,
@@ -169,7 +168,7 @@ impl JibOsImage {
                     stack_loc_init: Some(ProgramType::DEFAULT_STACK_LOC),
                     base_location: options
                         .start_offset
-                        .unwrap_or(ProgramType::DEFAULT_START_OFFSET),
+                        .unwrap_or(ProgramType::DEFAULT_START_ADDR),
                 },
                 trim_code: options.trim_code,
                 ..Default::default()
@@ -223,7 +222,7 @@ impl JibOsImage {
             Self::BOOTLOADER_CODE,
             "bootloader.cb",
             KernelOptions {
-                start_offset: Some(JibComputer::BOOTLOADER_START),
+                start_offset: Some(jib_cpu::locations::BOOTLOADER_START_ADDR),
                 trim_code: true,
                 debug: false,
             },
