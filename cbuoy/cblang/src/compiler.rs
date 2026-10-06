@@ -10,7 +10,7 @@ use jib_asm::{
     ArgumentType, AsmToken, AsmTokenLoc, AssemblerErrorLoc, AssemblerOutput, LocationInfo, OpCall,
     OpCopy, OpHalt, OpLd, OpLdn, OpLdno, OpRet, assemble_tokens,
 };
-use jib_cpu::cpu::{DataType, Register};
+use jib_cpu::cpu::{DataType, Processor, Register};
 
 use crate::{
     TokenError,
@@ -358,15 +358,15 @@ pub enum ProgramType {
 }
 
 impl ProgramType {
-    pub const DEFAULT_STACK_LOC: u32 = 0x1000;
-    pub const DEFAULT_START_OFFSET: u32 = 0x2000;
+    pub const DEFAULT_STACK_LOC: u32 = Processor::DEFAULT_STACK_LOC;
+    pub const DEFAULT_START_OFFSET: u32 = Processor::DEFAULT_START_LOC;
 }
 
 impl Default for ProgramType {
     fn default() -> Self {
         Self::Kernel {
-            stack_loc_init: Some(Self::DEFAULT_STACK_LOC),
-            base_location: Self::DEFAULT_START_OFFSET,
+            stack_loc_init: Some(Self::DEFAULT_START_OFFSET),
+            base_location: Self::DEFAULT_STACK_LOC,
         }
     }
 }

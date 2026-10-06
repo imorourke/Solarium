@@ -479,6 +479,9 @@ impl Processor {
         code: 6,
     };
 
+    pub const DEFAULT_START_LOC: u32 = 0x2000;
+    pub const DEFAULT_STACK_LOC: u32 = 0x1000;
+
     /// Resets the current CPU based on the given soft/hard reset vector
     pub fn reset(&mut self, reset_type: ResetType) -> Result<(), ProcessorError> {
         if ResetType::Hard == reset_type {

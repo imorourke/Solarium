@@ -2,6 +2,7 @@ use crate::messages::{ThreadToUi, UiToThread};
 use jib_asm::InstructionList;
 use jib_computer::{ComputerError, ComputerPram, JibCode, JibComputer, StopMode};
 use jib_cpu::cpu::Register;
+use jib_os_image::get_os_image;
 use std::sync::mpsc::{Receiver, RecvError, Sender, TryRecvError};
 
 pub struct CpuState {
@@ -38,8 +39,7 @@ impl CpuState {
             tx,
         };
 
-        s.computer
-            .set_disk_filesystem(s.computer.get_os_image().create_hard_drive()?)?;
+        s.computer.set_disk_filesystem(get_os_image()?)?;
         s.computer.use_bootloader(true)?;
 
         s.tx.send(ThreadToUi::BootloaderState(s.computer.using_bootloader()))
@@ -153,8 +153,7 @@ impl CpuState {
                         .unwrap();
                 }
                 UiToThread::DiskReset => {
-                    let new_hd = state.computer.get_os_image().create_hard_drive()?;
-                    state.computer.set_disk_filesystem(new_hd)?;
+                    state.computer.set_disk_filesystem(get_os_image()?)?;
                     state.reset()?;
                 }
                 #[cfg(not(target_arch = "wasm32"))]

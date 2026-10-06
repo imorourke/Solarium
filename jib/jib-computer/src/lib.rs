@@ -1,11 +1,8 @@
-mod jibos;
 mod pram;
 
 use cbfs_lib::{FileSystem, FileSystemError};
-use cblang::{CompilerError, ProgramType, TokenError, preprocessor::PreprocessorError};
 use circ_buff::CircularBuffer;
 use core::{cell::RefCell, fmt::Display};
-use jib_asm::{AssemblerError, AssemblerErrorLoc, AssemblerOutput};
 #[cfg(not(target_arch = "wasm32"))]
 use jib_cpu::device::RtcTimerDevice;
 use jib_cpu::{
@@ -19,10 +16,7 @@ use jib_cpu::{
 };
 use std::{rc::Rc, vec::Vec};
 
-pub use crate::{
-    jibos::{ApplicationCategory, JibApplication, JibOsImage, KernelOptions},
-    pram::ComputerPram,
-};
+pub use crate::pram::ComputerPram;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JibCode {
@@ -30,21 +24,11 @@ pub struct JibCode {
     pub code: Vec<u8>,
 }
 
-impl From<AssemblerOutput> for JibCode {
-    fn from(value: AssemblerOutput) -> Self {
-        Self {
-            start_location: value.start_address,
-            code: value.bytes,
-        }
-    }
-}
-
 pub struct JibComputer {
     running: bool,
     running_requested: bool,
     bootloader: bool,
     cpu: Processor,
-    os_image: JibOsImage,
     dev_serial_io: Rc<RefCell<SerialInputOutputDevice>>,
     #[cfg(not(target_arch = "wasm32"))]
     dev_rtc_timer: Rc<RefCell<RtcTimerDevice>>,
@@ -64,7 +48,6 @@ pub struct StopMode {
 
 impl JibComputer {
     const INIT_MEMORY_SIZE: u32 = 0x40000000;
-    pub const BOOTLOADER_START: u32 = 0xFFFF0000;
     const DEVICE_START_ADDR: u32 = 0xFFFFA000;
     const DEVICE_HD_START_ADDR: u32 = 0xFFFFB000;
     const DEVICE_COUNT: usize =
@@ -72,14 +55,15 @@ impl JibComputer {
     pub const THREAD_LOOP_MS: u64 = 50;
 
     pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/bootloader.cb");
+    pub const BOOTLOADER_START: u32 = 0xFFFF0000;
+
+    pub const BOOTLOADER_BIN: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bootloader.bin"));
 
     pub fn new() -> Result<Self, ComputerError> {
-        let os_image = JibOsImage::compile_os_image()?;
         let mut s = Self {
             running: false,
             running_requested: false,
             bootloader: false,
-            os_image,
             cpu: Processor::default(),
             dev_serial_io: Rc::new(RefCell::new(SerialInputOutputDevice::new(2048))),
             #[cfg(not(target_arch = "wasm32"))]
@@ -94,16 +78,6 @@ impl JibComputer {
 
         s.reset(None)?;
         Ok(s)
-    }
-
-    pub fn new_default() -> Result<Self, ComputerError> {
-        let mut s = Self::new()?;
-        s.set_disk_filesystem(s.os_image.create_hard_drive()?)?;
-        Ok(s)
-    }
-
-    pub fn get_os_image(&self) -> &JibOsImage {
-        &self.os_image
     }
 
     pub fn get_pram_settings(&self) -> ComputerPram {
@@ -207,7 +181,7 @@ impl JibComputer {
         let start_loc = if self.bootloader {
             Self::BOOTLOADER_START
         } else {
-            ProgramType::DEFAULT_START_OFFSET
+            Processor::DEFAULT_START_LOC
         };
 
         for (i, x) in start_loc.to_be_bytes().iter().enumerate() {
@@ -238,10 +212,15 @@ impl JibComputer {
             ))),
         )?;
 
+        assert!(
+            Self::BOOTLOADER_BIN.len()
+                <= (Self::DEVICE_START_ADDR - Self::BOOTLOADER_START) as usize
+        );
+
         self.cpu.memory_add_segment(
             Self::BOOTLOADER_START,
             Rc::new(RefCell::new(ReadWriteSegment::new(
-                (Self::DEVICE_START_ADDR - Self::BOOTLOADER_START) as usize,
+                Self::BOOTLOADER_BIN.len(),
             ))),
         )?;
 
@@ -276,23 +255,9 @@ impl JibComputer {
 
         self.cpu.reset(ResetType::Hard)?;
 
-        // Compile and setup bootloader
-        for (i, x) in JibOsImage::compile_kernel_code(
-            Self::BOOTLOADER_CODE,
-            "bootloader.cb",
-            KernelOptions {
-                start_offset: Some(Self::BOOTLOADER_START),
-                trim_code: true,
-                debug: false,
-            },
-        )?
-        .asm
-        .bytes
-        .iter()
-        .enumerate()
-        {
-            self.cpu.memory_set(Self::BOOTLOADER_START + i as u32, *x)?;
-        }
+        // Include bootloader
+        self.cpu
+            .memory_set_range(Self::BOOTLOADER_START, Self::BOOTLOADER_BIN)?;
 
         if !self.bootloader
             && let Some(code) = input_code
@@ -353,10 +318,8 @@ impl JibComputer {
         if running_requested != self.running_requested {
             self.running = running_requested;
             self.running_requested = running_requested;
-            true
-        } else {
-            false
         }
+        self.running_requested
     }
 
     pub fn get_running(&self) -> bool {
@@ -452,13 +415,8 @@ impl JibComputer {
 #[derive(Debug)]
 pub enum ComputerError {
     ProcessorError(ProcessorError),
-    AssemblerError(AssemblerError),
-    AssemblerErrorLoc(AssemblerErrorLoc),
     DiskError(FileSystemError),
-    TokenError(TokenError),
-    PreprocessorError(PreprocessorError),
     CharacterError(CharacterError),
-    FilesystemError(cblang::preprocessor::FilesystemError),
     Utf8Error,
     IoError(std::io::Error),
 }
@@ -466,28 +424,11 @@ pub enum ComputerError {
 impl Display for ComputerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PreprocessorError(e) => write!(f, "preprocessor => {e}"),
-            Self::AssemblerError(e) => write!(f, "assembler => {e}"),
-            Self::AssemblerErrorLoc(e) => write!(f, "assembler => {e}"),
             Self::DiskError(e) => write!(f, "disk => {e}"),
-            Self::TokenError(e) => write!(f, "token => {e}"),
             Self::ProcessorError(e) => write!(f, "processor => {e}"),
             Self::CharacterError(e) => write!(f, "character => {e}"),
-            Self::FilesystemError(e) => write!(f, "filesystem => {e}"),
             Self::Utf8Error => write!(f, "utf8 error"),
             Self::IoError(e) => write!(f, "io error => {e}"),
-        }
-    }
-}
-
-impl From<CompilerError> for ComputerError {
-    fn from(value: CompilerError) -> Self {
-        match value {
-            CompilerError::AssemblerError(v) => Self::AssemblerErrorLoc(v),
-            CompilerError::TokenError(v) => Self::TokenError(v),
-            CompilerError::TokenErrorFancy(v, _) => Self::TokenError(v),
-            CompilerError::IoError(v) => Self::IoError(v),
-            CompilerError::PreprocessorError(v) => Self::PreprocessorError(v),
         }
     }
 }
@@ -495,30 +436,6 @@ impl From<CompilerError> for ComputerError {
 impl From<ProcessorError> for ComputerError {
     fn from(value: ProcessorError) -> Self {
         Self::ProcessorError(value)
-    }
-}
-
-impl From<AssemblerError> for ComputerError {
-    fn from(value: AssemblerError) -> Self {
-        Self::AssemblerError(value)
-    }
-}
-
-impl From<AssemblerErrorLoc> for ComputerError {
-    fn from(value: AssemblerErrorLoc) -> Self {
-        Self::AssemblerErrorLoc(value)
-    }
-}
-
-impl From<TokenError> for ComputerError {
-    fn from(value: TokenError) -> Self {
-        Self::TokenError(value)
-    }
-}
-
-impl From<PreprocessorError> for ComputerError {
-    fn from(value: PreprocessorError) -> Self {
-        Self::PreprocessorError(value)
     }
 }
 
@@ -534,92 +451,8 @@ impl From<CharacterError> for ComputerError {
     }
 }
 
-impl From<cblang::preprocessor::FilesystemError> for ComputerError {
-    fn from(value: cblang::preprocessor::FilesystemError) -> Self {
-        Self::FilesystemError(value)
-    }
-}
-
 impl From<std::io::Error> for ComputerError {
     fn from(value: std::io::Error) -> Self {
         Self::IoError(value)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::JibComputer;
-    use crate::{JibCode, JibOsImage, jibos::KernelOptions};
-
-    fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
-        let asm = JibOsImage::compile_kernel_code(
-            in_code,
-            "input.cb",
-            KernelOptions {
-                trim_code: true,
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .asm;
-
-        let mut cpu = JibComputer::new().unwrap();
-        cpu.set_code(&JibCode {
-            start_location: asm.start_address,
-            code: asm.bytes,
-        })
-        .unwrap();
-
-        let mut serial_output = Vec::new();
-        let mut iter_count = 0;
-
-        while !cpu.cpu.should_stop().unwrap() {
-            cpu.step_cpu(None, None).unwrap();
-            while let Some(c) = cpu.dev_serial_io.borrow_mut().pop_output() {
-                serial_output.push(c);
-            }
-            iter_count += 1;
-            assert!(iter_count < 40000);
-        }
-
-        println!("Step Count: {}", cpu.step_count);
-        println!("{}", str::from_utf8(&serial_output).unwrap());
-
-        assert_eq!(
-            str::from_utf8(&serial_output).unwrap(),
-            expected_out.replace("\r\n", "\n")
-        );
-    }
-
-    #[test]
-    fn test_malloc() {
-        run_cpu_serial_out_test(
-            include_str!("../../../cbuoy/cblang/tests/test_kmalloc.cb"),
-            include_str!("../../../cbuoy/cblang/tests/test_kmalloc.out"),
-        );
-    }
-
-    #[test]
-    fn test_struct_ptr() {
-        run_cpu_serial_out_test(
-            include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.cb"),
-            include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.out"),
-        );
-    }
-
-    #[test]
-    fn test_struct_func() {
-        run_cpu_serial_out_test(
-            include_str!("../../../cbuoy/cblang/tests/test_struct_func.cb"),
-            include_str!("../../../cbuoy/cblang/tests/test_struct_func.out"),
-        );
-    }
-
-    #[test]
-    fn test_math() {
-        run_cpu_serial_out_test(
-            include_str!("../../../cbuoy/cblang/tests/test_math.cb"),
-            include_str!("../../../cbuoy/cblang/tests/test_math.out"),
-        );
     }
 }

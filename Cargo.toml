@@ -9,6 +9,8 @@ members = [
     "jib/jib-asm",
     "jib/jib-cpu",
     "jib/jib-computer",
+    "jib/jib-os",
+    "jib/jib-os-image",
     "jib/jib-term",
     "visual-jib",
     "utils/circ-buff",
@@ -28,6 +30,8 @@ circ-buff = { path = "utils/circ-buff", version = "*" }
 jib-asm = { path = "jib/jib-asm", version = "*" }
 jib-computer = { path = "jib/jib-computer", version = "*" }
 jib-cpu = { path = "jib/jib-cpu", version = "*" }
+jib-os = { path = "jib/jib-os", version = "*" }
+jib-os-image = { path = "jib/jib-os-image", version = "*" }
 cblang = { path = "cbuoy/cblang", version = "*" }
 cbfs-lib = { path = "cbfs/cbfs-lib", version = "*" }
 

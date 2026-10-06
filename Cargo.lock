@@ -2071,9 +2071,7 @@ version = "0.11.1"
 dependencies = [
  "cbfs-lib",
  "cblang",
- "chrono",
  "circ-buff",
- "jib-asm",
  "jib-cpu",
 ]
 
@@ -2086,6 +2084,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "jib-os"
+version = "0.11.1"
+dependencies = [
+ "cbfs-lib",
+ "cblang",
+ "chrono",
+ "jib-computer",
+ "jib-cpu",
+]
+
+[[package]]
+name = "jib-os-image"
+version = "0.11.1"
+dependencies = [
+ "cbfs-lib",
+ "jib-os",
+]
+
+[[package]]
 name = "jib-term"
 version = "0.11.1"
 dependencies = [
@@ -2094,6 +2111,8 @@ dependencies = [
  "ctrlc",
  "jib-computer",
  "jib-cpu",
+ "jib-os",
+ "jib-os-image",
 ]
 
 [[package]]
@@ -4239,6 +4258,8 @@ dependencies = [
  "jib-asm",
  "jib-computer",
  "jib-cpu",
+ "jib-os",
+ "jib-os-image",
  "log",
  "wasm-bindgen-futures",
  "wasm-stopwatch",

@@ -8,8 +8,9 @@ use eframe::egui::{
     TextBuffer, TextEdit, ThemePreference,
 };
 use jib_asm::{AssemblerErrorLoc, InstructionList};
-use jib_computer::{ApplicationCategory, ComputerPram, JibCode, JibComputer, JibOsImage};
+use jib_computer::{ComputerPram, JibCode, JibComputer};
 use jib_cpu::cpu::RegisterManager;
+use jib_os::{ApplicationCategory, JibOsImage};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -147,9 +148,9 @@ impl Default for VisualJib {
         let tx_thread_local = tx_thread.clone();
         let (tx_window, rx_window) = std::sync::mpsc::channel::<CodeWindowAction>();
 
-        let jibos_img =
-            jib_computer::JibOsImage::compile_os_image().expect("unable to compile jibos");
-        let cbos_defs = jibos_img.kernel_header;
+        //let jibos_img = ;
+        //    jib_computer::JibOsImage::compile_os_image().expect("unable to compile jibos");
+        let cbos_defs = jib_os_image::JIB_OS_DEFS;
 
         let mut sys_root = VirtualFilesystem::new_system();
         sys_root
@@ -173,7 +174,7 @@ impl Default for VisualJib {
             CodeComponent {
                 name: JibOsImage::DEFS_FILENAME.into(),
                 path: JibOsImage::DEFS_FILENAME.into(),
-                code: cbos_defs,
+                code: cbos_defs.to_string(),
             },
         ];
 
@@ -805,7 +806,12 @@ impl CodeWindow {
         let asm = &self.code;
         match jib_asm::assemble_text(asm.as_str()) {
             Ok(v) => {
-                self.tx_ui.send(UiToThread::SetCode(v.into())).unwrap();
+                self.tx_ui
+                    .send(UiToThread::SetCode(JibCode {
+                        start_location: v.start_address,
+                        code: v.bytes,
+                    }))
+                    .unwrap();
                 self.tx_thread
                     .send(ThreadToUi::LogMessage(format!(
                         "{} Successful",

@@ -1,7 +1,9 @@
-use cbfs_lib::{FileSystem, SectorHandle, VolumeHeader};
+use cbfs_lib::{FileSystem, FileSystemError, SectorHandle, VolumeHeader};
 use cblang::{
-    CodeGenerationOptions, CompileResults, Compiler, ProgramType, preprocessor::VirtualFilesystem,
+    CodeGenerationOptions, CompileResults, Compiler, CompilerError, ProgramType,
+    preprocessor::{PreprocessorFileError, VirtualFilesystem},
 };
+use jib_computer::JibComputer;
 use std::{
     collections::HashMap,
     format,
@@ -10,12 +12,44 @@ use std::{
     vec::Vec,
 };
 
-use crate::ComputerError;
+#[derive(Debug)]
+pub enum JibOsError {
+    CompilerError(CompilerError),
+    FileSystemError(FileSystemError),
+    PreprocessorFileError(PreprocessorFileError),
+    IoError(std::io::Error),
+    Utf8Error,
+}
+
+impl From<CompilerError> for JibOsError {
+    fn from(value: CompilerError) -> Self {
+        Self::CompilerError(value)
+    }
+}
+
+impl From<FileSystemError> for JibOsError {
+    fn from(value: FileSystemError) -> Self {
+        Self::FileSystemError(value)
+    }
+}
+
+impl From<PreprocessorFileError> for JibOsError {
+    fn from(value: PreprocessorFileError) -> Self {
+        Self::PreprocessorFileError(value)
+    }
+}
+
+impl From<std::io::Error> for JibOsError {
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct JibOsImage {
     pub kernel: Vec<u8>,
     pub kernel_dbg: Vec<u8>,
+    pub bootloader: Vec<u8>,
     pub kernel_header: String,
     pub applications: Vec<(String, Vec<u8>, ApplicationCategory)>,
     pub app_sys_root: Rc<VirtualFilesystem>,
@@ -52,6 +86,9 @@ pub struct KernelOptions {
 impl JibOsImage {
     /// OS Code
     pub const CODE_OS: &str = include_str!(os_dir!("os.cb"));
+
+    /// Bootloader Code
+    pub const BOOTLOADER_CODE: &str = include_str!(os_dir!("bootloader.cb"));
 
     /// Definitions name
     pub const DEFS_FILENAME: &str = "cbos_defs.cb";
@@ -117,7 +154,7 @@ impl JibOsImage {
         code: &str,
         name: &str,
         options: KernelOptions,
-    ) -> Result<CompileResults, ComputerError> {
+    ) -> Result<CompileResults, JibOsError> {
         let mut defs = HashMap::new();
         defs.insert("K_OS_VER".into(), env!("CARGO_PKG_VERSION").into());
 
@@ -147,7 +184,7 @@ impl JibOsImage {
         &self,
         code: &str,
         name: Option<&str>,
-    ) -> Result<CompileResults, ComputerError> {
+    ) -> Result<CompileResults, JibOsError> {
         const DEFAULT_NAME: &str = "main.cb";
 
         let compiler = Compiler {
@@ -169,7 +206,7 @@ impl JibOsImage {
         Ok(compiler.compile_fs(path_val, Rc::new(fs))?)
     }
 
-    pub fn compile_os_image() -> Result<JibOsImage, ComputerError> {
+    pub fn compile_os_image() -> Result<JibOsImage, JibOsError> {
         // Compile OS into a file
         let kernel_dbg_compiled = Self::compile_kernel_code(
             Self::CODE_OS,
@@ -181,6 +218,16 @@ impl JibOsImage {
         )?;
         let kernel_compiled =
             Self::compile_kernel_code(Self::CODE_OS, "os.cb", KernelOptions::default())?;
+
+        let bootloader_compiled = Self::compile_kernel_code(
+            Self::BOOTLOADER_CODE,
+            "bootloader.cb",
+            KernelOptions {
+                start_offset: Some(JibComputer::BOOTLOADER_START),
+                trim_code: true,
+                debug: false,
+            },
+        )?;
 
         // Obtain the default interface value
         let mut interface_data = Vec::new();
@@ -197,7 +244,7 @@ impl JibOsImage {
             Ok(x) => format!(
                 "#ifndef {CBOS_INTF_GUARD}\n#define {CBOS_INTF_GUARD}\n{x}\n#endif // {CBOS_INTF_GUARD}\n"
             ),
-            Err(_) => return Err(ComputerError::Utf8Error),
+            Err(_) => return Err(JibOsError::Utf8Error),
         };
 
         let mut app_sys_fs = VirtualFilesystem::default();
@@ -207,6 +254,7 @@ impl JibOsImage {
         let mut os_image = JibOsImage {
             kernel_dbg: kernel_dbg_compiled.binary,
             kernel: kernel_compiled.binary,
+            bootloader: bootloader_compiled.asm.bytes,
             kernel_header: interface_str,
             applications: Vec::new(),
             app_sys_root: Rc::new(app_sys_fs),
@@ -250,14 +298,14 @@ impl JibOsImage {
     fn set_executable_attribute(
         fs: &mut FileSystem,
         entry: SectorHandle,
-    ) -> Result<(), ComputerError> {
+    ) -> Result<(), JibOsError> {
         let mut dir_vals = fs.directory_entry(entry)?;
         dir_vals.attributes.set_executable(true);
         fs.set_entry_attributes(entry, dir_vals.attributes)?;
         Ok(())
     }
 
-    pub fn create_hard_drive(&self) -> Result<FileSystem, ComputerError> {
+    pub fn create_hard_drive(&self) -> Result<FileSystem, JibOsError> {
         let mut fs = FileSystem::new("cbos", 256, 4096)?;
 
         fs.create_file(fs.root_sector(), "boot.bin", &self.kernel)?;
@@ -336,5 +384,86 @@ impl JibOsImage {
         }
 
         Ok(fs)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{JibOsImage, KernelOptions};
+    use jib_computer::{JibCode, JibComputer, StopMode};
+
+    fn run_cpu_serial_out_test(in_code: &str, expected_out: &str) {
+        let asm = JibOsImage::compile_kernel_code(
+            in_code,
+            "input.cb",
+            KernelOptions {
+                trim_code: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .asm;
+
+        let mut cpu = JibComputer::new().unwrap();
+        cpu.set_running_request(true);
+        cpu.reset(Some(&JibCode {
+            start_location: asm.start_address,
+            code: asm.bytes,
+        }))
+        .unwrap();
+        cpu.set_running_request(true);
+
+        let mut serial_output = Vec::new();
+        let mut iter_count = 0;
+
+        let stop_mode = Some(StopMode {
+            cancel_run: true,
+            debug: false,
+        });
+
+        while cpu.get_running() {
+            cpu.step_cpu(None, stop_mode).unwrap();
+            cpu.step_devices().unwrap();
+            serial_output.extend(cpu.get_serial_output().unwrap());
+            iter_count += 1;
+            assert!(iter_count < 40000);
+        }
+
+        let serial_str: String = serial_output.into_iter().collect();
+        println!("{}", serial_str);
+
+        assert_eq!(serial_str, expected_out.replace("\r\n", "\n"));
+    }
+
+    #[test]
+    fn test_malloc() {
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_kmalloc.cb"),
+            include_str!("../../../cbuoy/cblang/tests/test_kmalloc.out"),
+        );
+    }
+
+    #[test]
+    fn test_struct_ptr() {
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.cb"),
+            include_str!("../../../cbuoy/cblang/tests/test_struct_ptr.out"),
+        );
+    }
+
+    #[test]
+    fn test_struct_func() {
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_struct_func.cb"),
+            include_str!("../../../cbuoy/cblang/tests/test_struct_func.out"),
+        );
+    }
+
+    #[test]
+    fn test_math() {
+        run_cpu_serial_out_test(
+            include_str!("../../../cbuoy/cblang/tests/test_math.cb"),
+            include_str!("../../../cbuoy/cblang/tests/test_math.out"),
+        );
     }
 }

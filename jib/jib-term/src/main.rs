@@ -6,9 +6,10 @@ use std::{
     time::Duration,
 };
 
-use cbfs_lib::{CbContainerOptions, ContainerHeader, read_container, save_container};
+use cbfs_lib::{read_container, save_container};
 use clap::Parser;
 use jib_computer::{ComputerError, JibComputer};
+use jib_os::JibOsError;
 
 #[derive(Default, Debug, Parser)]
 #[command(version, about)]
@@ -45,7 +46,31 @@ struct Args {
     boot_debug: bool,
 }
 
-fn main() -> Result<(), ComputerError> {
+#[derive(Debug)]
+pub enum TerminalError {
+    ComputerError(ComputerError),
+    JibOsError(JibOsError),
+}
+
+impl From<ComputerError> for TerminalError {
+    fn from(value: ComputerError) -> Self {
+        Self::ComputerError(value)
+    }
+}
+
+impl From<JibOsError> for TerminalError {
+    fn from(value: JibOsError) -> Self {
+        Self::JibOsError(value)
+    }
+}
+
+impl From<cbfs_lib::FileSystemError> for TerminalError {
+    fn from(value: cbfs_lib::FileSystemError) -> Self {
+        Self::JibOsError(JibOsError::FileSystemError(value))
+    }
+}
+
+fn main() -> Result<(), TerminalError> {
     let args = Args::parse();
     let mut computer = JibComputer::new()?;
 
@@ -53,13 +78,7 @@ fn main() -> Result<(), ComputerError> {
         let mut file = File::open(hd_file).expect("unable to open HD file");
         read_container(&mut file)?
     } else {
-        (
-            ContainerHeader::new(CbContainerOptions {
-                sparse: true,
-                compressed: false,
-            }),
-            computer.get_os_image().create_hard_drive()?,
-        )
+        read_container(&mut std::io::Cursor::new(jib_os_image::JIB_OS_IMAGE))?
     };
 
     computer.set_disk_filesystem(hd)?;

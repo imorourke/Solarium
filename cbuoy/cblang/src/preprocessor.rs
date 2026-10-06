@@ -416,12 +416,12 @@ impl PreprocessorState {
 }
 
 #[derive(Debug, Clone)]
-pub enum FilesystemError {
+pub enum PreprocessorFileError {
     FileNotFound(PathBuf),
     UnableToLoadFile(PathBuf, String),
 }
 
-impl FilesystemError {
+impl PreprocessorFileError {
     fn get_path(&self) -> PathBuf {
         match self {
             Self::FileNotFound(f) => f.clone(),
@@ -430,7 +430,7 @@ impl FilesystemError {
     }
 }
 
-impl Display for FilesystemError {
+impl Display for PreprocessorFileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::FileNotFound(file) => write!(f, "file \"{}\" not found", file.display()),
@@ -442,7 +442,7 @@ impl Display for FilesystemError {
 }
 
 pub trait PreprocessorFilesystem: Debug {
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError>;
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, PreprocessorFileError>;
     fn file_exists(&self, file: &Path) -> bool;
 }
 
@@ -466,7 +466,7 @@ impl RealFilesystem {
 }
 
 impl RealFilesystem {
-    fn full_path(&self, file: &Path) -> Result<PathBuf, FilesystemError> {
+    fn full_path(&self, file: &Path) -> Result<PathBuf, PreprocessorFileError> {
         match self
             .base
             .as_ref()
@@ -474,7 +474,7 @@ impl RealFilesystem {
             .canonicalize()
         {
             Ok(path) => Ok(path),
-            Err(e) => Err(FilesystemError::UnableToLoadFile(
+            Err(e) => Err(PreprocessorFileError::UnableToLoadFile(
                 file.to_path_buf(),
                 e.to_string(),
             )),
@@ -491,12 +491,12 @@ impl PreprocessorFilesystem for RealFilesystem {
         }
     }
 
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, PreprocessorFileError> {
         let mut stored = self.files.borrow_mut();
 
         let file_path = self.full_path(file)?;
         if !file_path.exists() {
-            return Err(FilesystemError::FileNotFound(file_path));
+            return Err(PreprocessorFileError::FileNotFound(file_path));
         }
 
         match stored.entry(file_path.clone()) {
@@ -505,7 +505,7 @@ impl PreprocessorFilesystem for RealFilesystem {
                 let txt: Rc<str> = match std::fs::read_to_string(file_path) {
                     Ok(s) => s.into(),
                     Err(e) => {
-                        return Err(FilesystemError::UnableToLoadFile(
+                        return Err(PreprocessorFileError::UnableToLoadFile(
                             file.to_path_buf(),
                             e.to_string(),
                         ));
@@ -532,7 +532,7 @@ impl PreprocessorFilesystem for ImageFilesystem {
         self.read_file(file).is_ok()
     }
 
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, PreprocessorFileError> {
         let mut current = self.root.unwrap_or(self.fs.root_sector());
 
         'next_path: for p in file.iter() {
@@ -541,7 +541,7 @@ impl PreprocessorFilesystem for ImageFilesystem {
             let lists = match self.fs.directory_listing(current) {
                 Ok(v) => v,
                 Err(_) => {
-                    return Err(FilesystemError::FileNotFound(file.into()));
+                    return Err(PreprocessorFileError::FileNotFound(file.into()));
                 }
             };
 
@@ -552,13 +552,13 @@ impl PreprocessorFilesystem for ImageFilesystem {
                 }
             }
 
-            return Err(FilesystemError::FileNotFound(file.into()));
+            return Err(PreprocessorFileError::FileNotFound(file.into()));
         }
 
         let (entry_header, file_data) = match self.fs.entry_data(current) {
             Ok(v) => v,
             Err(e) => {
-                return Err(FilesystemError::UnableToLoadFile(
+                return Err(PreprocessorFileError::UnableToLoadFile(
                     file.into(),
                     format!("unable to load entry data - {e}"),
                 ));
@@ -566,7 +566,7 @@ impl PreprocessorFilesystem for ImageFilesystem {
         };
 
         if entry_header.get_entry_type() != cbfs_lib::EntryType::File {
-            return Err(FilesystemError::UnableToLoadFile(
+            return Err(PreprocessorFileError::UnableToLoadFile(
                 file.into(),
                 format!(
                     "selected entry is not a file - {}",
@@ -577,7 +577,7 @@ impl PreprocessorFilesystem for ImageFilesystem {
 
         match std::str::from_utf8(&file_data) {
             Ok(val) => Ok(val.into()),
-            Err(e) => Err(FilesystemError::UnableToLoadFile(
+            Err(e) => Err(PreprocessorFileError::UnableToLoadFile(
                 file.into(),
                 format!(
                     "unable to load as utf8 '{}' - {e}",
@@ -598,16 +598,16 @@ impl PreprocessorFilesystem for OverlayFilesystem {
         self.systems.iter().rev().any(|x| x.file_exists(file))
     }
 
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, PreprocessorFileError> {
         for s in self.systems.iter().rev() {
             match s.read_file(file) {
                 Ok(f) => return Ok(f),
-                Err(FilesystemError::FileNotFound(_)) => continue,
+                Err(PreprocessorFileError::FileNotFound(_)) => continue,
                 Err(e) => return Err(e),
             }
         }
 
-        Err(FilesystemError::FileNotFound(file.into()))
+        Err(PreprocessorFileError::FileNotFound(file.into()))
     }
 }
 
@@ -634,10 +634,10 @@ impl VirtualFilesystem {
         fs
     }
 
-    pub fn add_file(&mut self, file: &Path, code: &str) -> Result<(), FilesystemError> {
+    pub fn add_file(&mut self, file: &Path, code: &str) -> Result<(), PreprocessorFileError> {
         match self.files.entry(file.to_path_buf()) {
             std::collections::hash_map::Entry::Occupied(_) => {
-                Err(FilesystemError::UnableToLoadFile(
+                Err(PreprocessorFileError::UnableToLoadFile(
                     file.to_path_buf(),
                     "file already exists in virtual filesystem".into(),
                 ))
@@ -655,11 +655,11 @@ impl PreprocessorFilesystem for VirtualFilesystem {
         self.files.contains_key(file)
     }
 
-    fn read_file(&self, file: &Path) -> Result<Rc<str>, FilesystemError> {
+    fn read_file(&self, file: &Path) -> Result<Rc<str>, PreprocessorFileError> {
         if let Some(val) = self.files.get(file) {
             Ok(val.clone())
         } else {
-            Err(FilesystemError::FileNotFound(file.to_path_buf()))
+            Err(PreprocessorFileError::FileNotFound(file.to_path_buf()))
         }
     }
 }
@@ -671,8 +671,8 @@ pub struct PreprocessorError {
     pub error: String,
 }
 
-impl From<FilesystemError> for PreprocessorError {
-    fn from(value: FilesystemError) -> Self {
+impl From<PreprocessorFileError> for PreprocessorError {
+    fn from(value: PreprocessorFileError) -> Self {
         Self {
             loc: None,
             text: value.get_path().display().to_string(),

@@ -7,8 +7,10 @@ authors.workspace = true
 documentation.workspace = true
 
 [dependencies]
-jib-cpu = { workspace = true }
-jib-computer = { workspace = true }
-clap = { workspace = true }
-cbfs-lib = { workspace = true }
+jib-cpu.workspace = true
+jib-os.workspace = true
+jib-os-image.workspace = true
+jib-computer.workspace = true
+clap.workspace = true
+cbfs-lib.workspace = true
 ctrlc = "3.5"

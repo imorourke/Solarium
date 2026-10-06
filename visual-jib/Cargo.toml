@@ -10,9 +10,11 @@ documentation.workspace = true
 nothread = []
 
 [dependencies]
-jib-cpu = { workspace = true }
-jib-computer = { workspace = true }
 jib-asm = { workspace = true }
+jib-computer = { workspace = true }
+jib-cpu = { workspace = true }
+jib-os = { workspace = true }
+jib-os-image = { workspace = true }
 cblang = { workspace = true }
 cbfs-lib = { path = "../cbfs/cbfs-lib", version = "*", default-features = false }
 eframe = "0.36"

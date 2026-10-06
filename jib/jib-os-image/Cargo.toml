@@ -1,15 +1,13 @@
 [package]
-name = "jib-computer"
+name = "jib-os-image"
 edition = "2024"
-description = "Implementation of a standard Jib computer"
 version.workspace = true
 authors.workspace = true
 documentation.workspace = true
 
 [dependencies]
-jib-cpu.workspace = true
 cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
-circ-buff.workspace = true
 
 [build-dependencies]
-cblang.workspace = true
+jib-os.workspace = true
+cbfs-lib = { path = "../../cbfs/cbfs-lib", version = "*", default-features = false }
