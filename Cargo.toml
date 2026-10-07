@@ -20,7 +20,7 @@ default-members = ["visual-jib"]
 resolver = "3"
 
 [workspace.package]
-version = "0.11.3"
+version = "0.11.4"
 authors = ["Ian O'Rourke <cessna.ian@gmail.com>"]
 documentation = "https://imo.pgs.sh"
 
