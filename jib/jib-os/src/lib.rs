@@ -6,6 +6,7 @@ use cblang::{
 };
 use std::{
     collections::HashMap,
+    fmt::Display,
     format,
     path::{Component, Path},
     rc::Rc,
@@ -19,6 +20,18 @@ pub enum JibOsError {
     PreprocessorFileError(PreprocessorFileError),
     IoError(std::io::Error),
     Utf8Error,
+}
+
+impl Display for JibOsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CompilerError(e) => write!(f, "{e}"),
+            Self::FileSystemError(e) => write!(f, "{e}"),
+            Self::PreprocessorFileError(e) => write!(f, "{e}"),
+            Self::IoError(e) => write!(f, "{e}"),
+            Self::Utf8Error => write!(f, "UTF-8 Error"),
+        }
+    }
 }
 
 impl From<CompilerError> for JibOsError {
