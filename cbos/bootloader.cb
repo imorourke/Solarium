@@ -4,13 +4,18 @@
 #include <kernel/kfs.cb>
 #include <kernel/kpram.cb>
 #include <kernel/krtc.cb>
+#include <kernel/kirq.cb>
 #include <kernel/kserialio.cb>
 #include <kernel/klink.cb>
 
 global BOOT_KERNEL_NAME: *u8 = "boot.bin";
 global BOOT_KERNEL_NAME_DBG: *u8 = "boot_dbg.bin";
+const NAME_BUFFER_LEN: u32 = 16;
+global NAME_BUFFER: [NAME_BUFFER_LEN]u8;
 
 fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32;
+
+fnint irq_noop() void {}
 
 fn main() void {
     k_device_init(0);
@@ -18,6 +23,9 @@ fn main() void {
     k_disk_init();
     k_rtc_init();
     k_device_pram_init();
+
+    SERIAL_DEV->interrupt_num = 4;
+    SERIAL_DEV->interrupt_char = '\n';
 
     def cwd: u16; // Current Directory
 
@@ -36,36 +44,95 @@ fn main() void {
         name = BOOT_KERNEL_NAME_DBG;
     }
 
-    k_io_print("Looking for '");
-    k_io_print(name);
-    k_io_print("'...\n");
+    while (1) {
+        k_io_print("Looking for '");
+        k_io_print(name);
+        k_io_print("'...\n");
 
-    def out_entry: k_fs_directory_entry_t;
-    if (k_disk_fs_get_dir_entry_by_name(disk, cwd, name, &out_entry) == 0) {
-        k_io_print("Found boot entry\n");
-        if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
-            def load_loc: u32;
-            if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
-                def t1: u32 = k_rtc_elapsed_msecs();
-                k_io_print("Finished bootloader after ");
-                k_io_print_uint(t1 - t0);
-                k_io_print(" msec\n");
+        def out_entry: k_fs_directory_entry_t;
+        if (k_disk_fs_get_dir_entry_by_name(disk, cwd, name, &out_entry) == 0) {
+            k_io_print("Found boot entry\n");
+            if (out_entry.entry_type == K_FS_ENTRY_TYPE_FILE) {
+                def load_loc: u32;
+                if (k_link_start_kernel(disk, out_entry.base_block, &load_loc) == 0) {
+                    def t1: u32 = k_rtc_elapsed_msecs();
+                    k_io_print("Finished bootloader after ");
+                    k_io_print_uint(t1 - t0);
+                    k_io_print(" msec\n");
 
-                asm {
-                    "copy 8 6";
-                    "ldi 9:u16 @{load_loc}@";
-                    "add 8:u32 8 9";
-                    "ld 8:u32 8";
-                    "jmp 8";
+                    asm {
+                        "copy 8 6";
+                        "ldi 9:u16 @{load_loc}@";
+                        "add 8:u32 8 9";
+                        "ld 8:u32 8";
+                        "jmp 8";
+                    }
+                } else {
+                    k_io_print("unable to initialize kernel\n");
                 }
             } else {
-                k_io_print("unable to initialize kernel\n");
+                k_io_print("no boot file found - directory found instead\n");
             }
         } else {
-            k_io_print("no boot file found - directory found instead\n");
+            k_io_print("no boot file found\n");
         }
-    } else {
-        k_io_print("no boot file found\n");
+
+        k_io_print("\nAvailable files:\n");
+
+        const ENTRY_SIZE_LIM: u32 = 10;
+        def test_entries: [ENTRY_SIZE_LIM]k_fs_directory_entry_t;
+        def test_entry_size: u32 = ENTRY_SIZE_LIM;
+        def test_entry_offset: u32 = 0;
+
+        while (test_entry_size > 0) {
+            test_entry_size = ENTRY_SIZE_LIM;
+            def res: i32 = k_disk_fs_read_directory_entries(disk, cwd, &test_entries, &test_entry_size, test_entry_offset);
+            if (test_entry_size == 0) {
+                break;
+            }
+
+            if (res == 0) {
+                test_entry_offset += test_entry_size;
+
+                def ii: u32 = 0;
+                def name_tmp: [K_FS_ENTRY_NAME_LEN+1]u8;
+                k_memset(&name_tmp, 0, K_FS_ENTRY_NAME_LEN + 1);
+                while (ii < test_entry_size) {
+                    def ent: *k_fs_directory_entry_t = &test_entries[ii];
+                    if (ent->base_block != NULL) {
+                        k_memcpy(&name_tmp, &(ent->name), K_FS_ENTRY_NAME_LEN);
+                        if (ent->entry_type == K_FS_ENTRY_TYPE_FILE) {
+                            k_io_print("> ");
+                            k_io_print(name_tmp);
+                            k_io_print("\n");
+                        }
+                    }
+                    ii += 1;
+                }
+            } else {
+                k_io_print("Error getting entries - ");
+                k_io_print(k_err_to_string(res));
+                k_io_print("\n");
+            }
+        }
+
+        k_io_print("\nPlease enter a boot file name:\n");
+
+        k_irq_set(4, irq_noop);
+        asm { "inton"; }
+
+        while (SERIAL_DEV->input_size == 0) {
+            asm { "halt"; }
+        }
+
+        asm { "intoff"; }
+        k_irq_set(4, NULL);
+
+        if (k_io_read_str_until(NAME_BUFFER, NAME_BUFFER_LEN, '\n') > 0) {
+            name = strtrim_word(NAME_BUFFER);
+        }
+
+        t0 = k_rtc_elapsed_msecs();
     }
 
     asm { "halt"; }
