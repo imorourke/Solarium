@@ -93,7 +93,8 @@ fn main() void {
 
     k_io_print_uint(strlen(TEST_STR));
     k_io_print("\n");
-    k_io_print_uint(strlens(TEST_STR).len);
+    def s2temp: LenStruct = strlens(TEST_STR);
+    k_io_print_uint(s2temp.len);
     k_io_print("\n");
 
     def s1: u32 = strlen(TEST_STR);
