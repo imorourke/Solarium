@@ -655,6 +655,10 @@ impl Expression for FunctionLabelExpr {
         &self.name
     }
 
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(Type::Function(Rc::new(self.dtype.clone())))
     }
@@ -737,6 +741,8 @@ impl Statement for IfStatement {
         required_stack: &mut TemporaryStackTracker,
     ) -> Result<Vec<AsmTokenLoc>, TokenError> {
         let def = RegisterDef::default();
+
+        self.test_expr.check_consistency(0)?;
 
         let label_base = format!("___{KEYWORD_IF}_statement_{}", self.id);
 
@@ -845,6 +851,8 @@ impl Statement for WhileStatement {
     ) -> Result<Vec<AsmTokenLoc>, TokenError> {
         let def = RegisterDef::default();
 
+        self.test_expr.check_consistency(0)?;
+
         let label_base = Self::base_label_fmt(self.id);
         let test_label = format!("{label_base}_test");
         let end_label = Self::end_label_fmt(self.id);
@@ -945,6 +953,7 @@ impl Statement for ExpressionStatement {
         options: &CodeGenerationOptions,
         required_stack: &mut TemporaryStackTracker,
     ) -> Result<Vec<AsmTokenLoc>, TokenError> {
+        self.expr.check_consistency(0)?;
         Ok(self
             .expr
             .load_value_to_register(options, RegisterDef::default(), required_stack)?
@@ -1021,6 +1030,7 @@ impl Statement for ReturnStatementRegVar {
 
         if let Some((ret_type, e)) = &self.expr {
             let expr_type = e.get_primitive_type()?;
+            e.check_consistency(1)?;
             let rd = RegisterDef::default();
             asm.extend(
                 e.load_value_to_register(options, rd, temporary_stack_tracker)?

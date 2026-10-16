@@ -91,6 +91,10 @@ impl Expression for GlobalVariable {
         &self.name
     }
 
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(self.dtype.clone())
     }
@@ -225,6 +229,7 @@ impl GlobalStatement for GlobalVariableStatement {
             && let Some(init_expr) = &self.global_var.init_expr
         {
             let name = self.global_var.get_token();
+            init_expr.check_consistency(0)?;
 
             if let Ok(init_type) = init_expr.get_primitive_type() {
                 let var = &self.global_var;
@@ -365,6 +370,10 @@ impl Expression for LocalVariable {
         &self.token
     }
 
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(self.dtype.clone())
     }
@@ -453,6 +462,8 @@ impl Statement for LocalVariableStatement {
         }
 
         if let Some(e) = &var.init_expr {
+            e.check_consistency(0)?;
+
             asm.push_asm(var.token.to_asm(AsmToken::Comment(format!(
                 "initializing local variable \"{}\" with offset {} from {}",
                 var.token.get_value(),

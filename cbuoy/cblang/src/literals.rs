@@ -228,6 +228,10 @@ impl Expression for Literal {
         &self.token
     }
 
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         //Ok(Type::Primitive(self.value.get_dtype()))
         Ok(self.dtype.clone())
@@ -482,6 +486,10 @@ impl Display for StringLiteral {
 impl Expression for StringLiteral {
     fn get_token(&self) -> &Token {
         &self.token
+    }
+
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
     }
 
     fn load_value_to_register(

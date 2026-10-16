@@ -117,6 +117,18 @@ impl Type {
         matches!(self.remove_const(), Self::Pointer(_) | Self::Function(_))
     }
 
+    pub fn fits_in_register(&self) -> bool {
+        match self {
+            Self::Const(b) => b.fits_in_register(),
+            Self::Struct(_) => false,
+            Self::Array(_, _) => false,
+            Self::Pointer(_) => true,
+            Self::Primitive(_) => true,
+            Self::Function(_) => false,
+            Self::Opaque(_) => false,
+        }
+    }
+
     pub fn coerce_type(a: DataType, b: DataType) -> DataType {
         a.max(b)
     }

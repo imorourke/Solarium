@@ -70,6 +70,10 @@ impl Expression for MemcpyStatement {
         &self.token
     }
 
+    fn check_consistency(&self, _level: u32) -> Result<(), TokenError> {
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(Type::Primitive(DataType::U32))
     }

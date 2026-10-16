@@ -146,6 +146,8 @@ pub trait Expression: Debug + Display {
 
     fn get_type(&self) -> Result<Type, TokenError>;
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError>;
+
     fn get_primitive_type(&self) -> Result<DataType, TokenError> {
         if let Some(t) = self.get_type()?.primitive_type() {
             Ok(t)
@@ -223,6 +225,10 @@ impl Expression for UnaryExpression {
         &self.token
     }
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.base.check_consistency(level + 1)
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         if let Some(Type::Primitive(t)) = self.base.get_type()?.base_type() {
             Ok(Type::Primitive(t))
@@ -298,6 +304,10 @@ impl Expression for DereferenceExpression {
         }
     }
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.base.check_consistency(level + 1)
+    }
+
     fn get_token(&self) -> &Token {
         &self.token
     }
@@ -354,6 +364,10 @@ impl Expression for AddressOfExpression {
 
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(Type::Pointer(Box::new(self.base.get_type()?)))
+    }
+
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.base.check_consistency(level + 1)
     }
 
     fn load_value_to_register(
@@ -581,6 +595,12 @@ impl BinaryArithmeticExpression {
 impl Expression for BinaryArithmeticExpression {
     fn get_token(&self) -> &Token {
         &self.token
+    }
+
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.lhs.check_consistency(level + 1)?;
+        self.rhs.check_consistency(level + 1)?;
+        Ok(())
     }
 
     fn get_type(&self) -> Result<Type, TokenError> {
@@ -889,6 +909,10 @@ impl Expression for AsExpression {
         &self.token
     }
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.expr.check_consistency(level + 1)
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(self.data_type.clone())
     }
@@ -1018,6 +1042,10 @@ impl Expression for FieldAccessExpression {
         &self.token
     }
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.s_expression.check_consistency(level + 1)
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         Ok(self.get_field()?.dtype.clone())
     }
@@ -1100,6 +1128,12 @@ impl Display for AssignmentExpression {
 impl Expression for AssignmentExpression {
     fn get_token(&self) -> &Token {
         &self.token
+    }
+
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.rh_val_expr.check_consistency(level)?;
+        self.lh_addr_expr.check_consistency(level + 1)?;
+        Ok(())
     }
 
     fn get_type(&self) -> Result<Type, TokenError> {
@@ -1246,6 +1280,12 @@ impl Expression for ArrayIndexExpression {
         &self.token
     }
 
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        self.address_expr.check_consistency(level + 1)?;
+        self.index_expr.check_consistency(level + 1)?;
+        Ok(())
+    }
+
     fn get_type(&self) -> Result<Type, TokenError> {
         match self.address_expr.get_type()? {
             Type::Array(_, inner) => Ok(inner.as_ref().clone()),
@@ -1377,6 +1417,31 @@ impl Display for FunctionCallExpression {
 impl Expression for FunctionCallExpression {
     fn get_token(&self) -> &Token {
         &self.token
+    }
+
+    fn check_consistency(&self, level: u32) -> Result<(), TokenError> {
+        for a in self.args.iter() {
+            a.check_consistency(level + 1)?;
+        }
+
+        if let Type::Function(f) = self.func.get_type()? {
+            if let Some(rt) = f.return_type.clone()
+                && !rt.fits_in_register()
+                && level > 0
+            {
+                Err(self.token.clone().into_err(format!(
+                    "provided return type {} uses an invalid temporary",
+                    rt
+                )))
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(self
+                .token
+                .clone()
+                .into_err("cannot call a non-function type"))
+        }
     }
 
     fn get_type(&self) -> Result<Type, TokenError> {
