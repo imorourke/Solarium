@@ -34,9 +34,12 @@ cfg_select! {
                 }
             };
 
+            let start_size = (900.0, 650.0);
+
             let native_options = eframe::NativeOptions {
                 viewport: ViewportBuilder::default()
-                    .with_inner_size((1024.0, 600.0))
+                    .with_inner_size(start_size)
+                    .with_min_inner_size(start_size)
                     .with_title("VisualJib")
                     .with_app_id(APP_NAME)
                     .with_icon(icon_data),
