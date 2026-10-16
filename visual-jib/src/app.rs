@@ -53,7 +53,7 @@ impl MemoryViewWindow {
             base: 0,
             base_str: "0".into(),
             values: [None; Self::SIZE],
-            memory_id: Id::from(format!("mem{id}")),
+            memory_id: Id::unique(format!("mem{id}")),
             shown: true,
         }
     }
