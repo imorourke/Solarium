@@ -9,17 +9,18 @@ Give the [demo](https://imorourke.github.io/Solarium/) a try!
 ## Libraries
 
 Several libraries are provided:
-* jib implements the processor and ISA itself in a simple virtual machine
-* jib-asm implements a basic assembler
-* cbuoy implements the high-level language
-* cbfs-lib implements a FAT-style filesystem
+* `jib/jib-cpu` implements the processor and ISA itself in a simple virtual machine
+* `jib/jib-asm` implements a basic assembler
+* `cbuoy` implements the high-level language
+* `cbfs/cbfs-lib` implements a FAT-style filesystem
 
 ## Programs
 
 Programs included are listed below:
-* virtual-jib provides a visual test-bench to compile and run programs
-* cbc provides a front-end to the cbuoy compiler
-* cbfs provides a FUSE driver for the cbfs filesystem
-* cbfs-utils provides helpers to modify CBFS file system images
+* `visual-jib` provides a visual test-bench to compile and run programs
+* `jib-term` provides a terminal-based emulation running `CB/OS`
+* `cbc` provides a front-end to the cbuoy compiler
+* `cbfs` provides a FUSE driver for the cbfs filesystem
+* `cbfs-utils` provides helpers to modify CBFS file system images
 
 <img src="doc/images/visual-jib.png" alt="VisualJib Program" width="700"/>
