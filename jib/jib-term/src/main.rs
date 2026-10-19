@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use cbfs_lib::{read_container, save_container};
+use cbfs_lib::{ContainerHeader, read_container, save_container};
 use cbos::CbOsError;
 use clap::Parser;
 use jib_computer::{ComputerError, JibComputer};
@@ -78,7 +78,13 @@ fn main() -> Result<(), TerminalError> {
         let mut file = File::open(hd_file).expect("unable to open HD file");
         read_container(&mut file)?
     } else {
-        read_container(&mut std::io::Cursor::new(cbos_image::JIB_OS_IMAGE))?
+        (
+            ContainerHeader::new(cbfs_lib::CbContainerOptions {
+                sparse: true,
+                compressed: false,
+            }),
+            cbos_image::get_os_image()?,
+        )
     };
 
     computer.set_disk_filesystem(hd)?;
