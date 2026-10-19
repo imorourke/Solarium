@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "cbos",
     "cbuoy/cbc",
     "cbuoy/cblang",
     "cbfs/cbfs-fuse",
@@ -10,7 +11,6 @@ members = [
     "jib/jib-cpu",
     "jib/jib-computer",
     "jib/jib-computer-defs",
-    "jib/jib-os",
     "jib/jib-os-image",
     "jib/jib-term",
     "visual-jib",
@@ -32,7 +32,7 @@ jib-asm = { path = "jib/jib-asm", version = "*" }
 jib-computer = { path = "jib/jib-computer", version = "*" }
 jib-computer-defs = { path = "jib/jib-computer-defs", version = "*" }
 jib-cpu = { path = "jib/jib-cpu", version = "*" }
-jib-os = { path = "jib/jib-os", version = "*" }
+cbos = { path = "cbos", version = "*" }
 jib-os-image = { path = "jib/jib-os-image", version = "*" }
 cblang = { path = "cbuoy/cblang", version = "*" }
 cbfs-lib = { path = "cbfs/cbfs-lib", version = "*", default-features = false }

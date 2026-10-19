@@ -49,7 +49,7 @@ pub struct StopMode {
 impl JibComputer {
     pub const THREAD_LOOP_MS: u64 = 50;
 
-    pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/bootloader.cb");
+    pub const BOOTLOADER_CODE: &str = include_str!("../../../cbos/cb/bootloader.cb");
     pub const BOOTLOADER_BIN: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bootloader.bin"));
 
     pub fn new() -> Result<Self, ComputerError> {

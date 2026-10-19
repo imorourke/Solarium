@@ -3,6 +3,7 @@ use crate::messages::{ThreadToUi, UiToThread};
 use cblang::preprocessor::{PreprocessorFilesystem, VirtualFilesystem};
 use cblang::{CompileResults, Compiler};
 use cblang::{CompilerError, TokenError};
+use cbos::{ApplicationCategory, CbOsImage};
 use eframe::egui::{
     self, CentralPanel, Context, Grid, Id, Key, Layout, MenuBar, Modifiers, ScrollArea, Slider,
     TextBuffer, TextEdit, ThemePreference,
@@ -10,7 +11,6 @@ use eframe::egui::{
 use jib_asm::{AssemblerErrorLoc, InstructionList};
 use jib_computer::{ComputerPram, JibCode, JibComputer};
 use jib_cpu::cpu::RegisterManager;
-use jib_os::{ApplicationCategory, JibOsImage};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -154,26 +154,23 @@ impl Default for VisualJib {
 
         let mut sys_root = VirtualFilesystem::new_system();
         sys_root
-            .add_file(
-                Path::new(&JibOsImage::CBAPP_FILENAME),
-                JibOsImage::CBAPP_DATA,
-            )
+            .add_file(Path::new(&CbOsImage::CBAPP_FILENAME), CbOsImage::CBAPP_DATA)
             .expect("unable to add cbapp data");
         sys_root
-            .add_file(Path::new(&JibOsImage::DEFS_FILENAME), cbos_defs)
+            .add_file(Path::new(&CbOsImage::DEFS_FILENAME), cbos_defs)
             .expect("unable to add cbos defs");
 
         let root_rc = Rc::new(sys_root);
 
         let mut cbos_components = vec![
             CodeComponent {
-                name: JibOsImage::CBAPP_FILENAME.into(),
-                path: JibOsImage::CBAPP_FILENAME.into(),
-                code: JibOsImage::CBAPP_DATA.into(),
+                name: CbOsImage::CBAPP_FILENAME.into(),
+                path: CbOsImage::CBAPP_FILENAME.into(),
+                code: CbOsImage::CBAPP_DATA.into(),
             },
             CodeComponent {
-                name: JibOsImage::DEFS_FILENAME.into(),
-                path: JibOsImage::DEFS_FILENAME.into(),
+                name: CbOsImage::DEFS_FILENAME.into(),
+                path: CbOsImage::DEFS_FILENAME.into(),
                 code: cbos_defs.to_string(),
             },
         ];
@@ -221,7 +218,7 @@ impl Default for VisualJib {
         CodeWindow::new(
             0,
             &window,
-            include_str!("../../cbos/os.cb").to_string(),
+            include_str!("../../cbos/cb/os.cb").to_string(),
             CodeWindowType::Cbuoy,
             None,
         )
@@ -414,7 +411,7 @@ impl eframe::App for VisualJib {
                     if ui.button("CB/OS").clicked() {
                         self.open_code_window(
                             CodeWindowType::Cbuoy,
-                            JibOsImage::CODE_OS.into(),
+                            CbOsImage::CODE_OS.into(),
                             Some("os.cb".to_string()),
                         );
                     }
@@ -443,7 +440,7 @@ impl eframe::App for VisualJib {
 
                     for (name, filter_val) in NAMED_VALS.iter() {
                         ui.menu_button(*name, |ui| {
-                            for a in JibOsImage::CODE_APP_BIN
+                            for a in CbOsImage::CODE_APP_BIN
                                 .iter()
                                 .filter(|x| filter_val(x.category))
                             {

@@ -1,5 +1,5 @@
 [package]
-name = "jib-os"
+name = "cbos"
 edition = "2024"
 version.workspace = true
 authors.workspace = true

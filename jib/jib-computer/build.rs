@@ -3,7 +3,7 @@ use std::path::Path;
 use cblang::{CodeGenerationOptions, Compiler, ProgramType, compiler::KernelOptions};
 
 fn main() {
-    pub const BOOTLOADER_CODE: &str = include_str!("../../cbos/bootloader.cb");
+    pub const BOOTLOADER_CODE: &str = include_str!("../../cbos/cb/bootloader.cb");
     let compiler = Compiler {
         options: CodeGenerationOptions {
             prog_type: ProgramType::Kernel(KernelOptions {

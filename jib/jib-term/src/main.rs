@@ -7,9 +7,9 @@ use std::{
 };
 
 use cbfs_lib::{read_container, save_container};
+use cbos::CbOsError;
 use clap::Parser;
 use jib_computer::{ComputerError, JibComputer};
-use jib_os::JibOsError;
 
 #[derive(Default, Debug, Parser)]
 #[command(version, about)]
@@ -49,7 +49,7 @@ struct Args {
 #[derive(Debug)]
 pub enum TerminalError {
     ComputerError(ComputerError),
-    JibOsError(JibOsError),
+    JibOsError(CbOsError),
 }
 
 impl From<ComputerError> for TerminalError {
@@ -58,15 +58,15 @@ impl From<ComputerError> for TerminalError {
     }
 }
 
-impl From<JibOsError> for TerminalError {
-    fn from(value: JibOsError) -> Self {
+impl From<CbOsError> for TerminalError {
+    fn from(value: CbOsError) -> Self {
         Self::JibOsError(value)
     }
 }
 
 impl From<cbfs_lib::FileSystemError> for TerminalError {
     fn from(value: cbfs_lib::FileSystemError) -> Self {
-        Self::JibOsError(JibOsError::FileSystemError(value))
+        Self::JibOsError(CbOsError::FileSystemError(value))
     }
 }
 

@@ -1,4 +1,4 @@
-#include <cb_app.cb>
+#include <cbapp.cb>
 
 fn main(argv: **u8, argc: u32) i32 {
     k_io_print("Hello, world!\n");

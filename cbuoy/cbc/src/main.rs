@@ -186,7 +186,7 @@ fn main() -> std::process::ExitCode {
             };
 
             let res = kernel_compiler
-                .compile_string(include_str!("../../../cbos/os.cb"), None)
+                .compile_string(include_str!("../../../cbos/cb/os.cb"), None)
                 .unwrap();
             let mut intf = Vec::new();
             res.export_interface.write_interface(&mut intf).unwrap();
@@ -200,7 +200,7 @@ fn main() -> std::process::ExitCode {
             let mut vfs = VirtualFilesystem::default();
             vfs.add_file(
                 Path::new("cb_app.cb"),
-                include_str!("../../../cbos/cb_app.cb"),
+                include_str!("../../../cbos/cb/app/cbapp.cb"),
             )
             .unwrap();
             vfs.add_file(Path::new("cbos_defs.cb"), &interface_str)

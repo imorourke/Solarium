@@ -9,5 +9,5 @@ documentation.workspace = true
 cbfs-lib.workspace = true
 
 [build-dependencies]
-jib-os.workspace = true
+cbos.workspace = true
 cbfs-lib.workspace = true
