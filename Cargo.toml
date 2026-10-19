@@ -7,11 +7,11 @@ members = [
     "cbfs/cbfs-fuse",
     "cbfs/cbfs-lib",
     "cbfs/cbfs-util",
+    "jib/cbos-image",
     "jib/jib-asm",
     "jib/jib-cpu",
     "jib/jib-computer",
     "jib/jib-computer-defs",
-    "jib/jib-os-image",
     "jib/jib-term",
     "visual-jib",
     "utils/circ-buff",
@@ -33,7 +33,7 @@ jib-computer = { path = "jib/jib-computer", version = "*" }
 jib-computer-defs = { path = "jib/jib-computer-defs", version = "*" }
 jib-cpu = { path = "jib/jib-cpu", version = "*" }
 cbos = { path = "cbos", version = "*" }
-jib-os-image = { path = "jib/jib-os-image", version = "*" }
+cbos-image = { path = "jib/cbos-image", version = "*" }
 cblang = { path = "cbuoy/cblang", version = "*" }
 cbfs-lib = { path = "cbfs/cbfs-lib", version = "*", default-features = false }
 regex = "1"

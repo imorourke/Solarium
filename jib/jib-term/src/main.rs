@@ -78,7 +78,7 @@ fn main() -> Result<(), TerminalError> {
         let mut file = File::open(hd_file).expect("unable to open HD file");
         read_container(&mut file)?
     } else {
-        read_container(&mut std::io::Cursor::new(jib_os_image::JIB_OS_IMAGE))?
+        read_container(&mut std::io::Cursor::new(cbos_image::JIB_OS_IMAGE))?
     };
 
     computer.set_disk_filesystem(hd)?;

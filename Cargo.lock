@@ -794,6 +794,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbos-image"
+version = "0.11.7"
+dependencies = [
+ "cbfs-lib",
+ "cbos",
+]
+
+[[package]]
 name = "cc"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2167,24 +2175,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "jib-os-image"
-version = "0.11.7"
-dependencies = [
- "cbfs-lib",
- "cbos",
-]
-
-[[package]]
 name = "jib-term"
 version = "0.11.7"
 dependencies = [
  "cbfs-lib",
  "cbos",
+ "cbos-image",
  "clap",
  "ctrlc",
  "jib-computer",
  "jib-cpu",
- "jib-os-image",
 ]
 
 [[package]]
@@ -4414,12 +4414,12 @@ dependencies = [
  "cbfs-lib",
  "cblang",
  "cbos",
+ "cbos-image",
  "eframe",
  "image",
  "jib-asm",
  "jib-computer",
  "jib-cpu",
- "jib-os-image",
  "log",
  "wasm-bindgen-futures",
  "wasm-stopwatch",

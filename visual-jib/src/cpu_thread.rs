@@ -1,8 +1,8 @@
 use crate::messages::{ThreadToUi, UiToThread};
+use cbos_image::get_os_image;
 use jib_asm::InstructionList;
 use jib_computer::{ComputerError, ComputerPram, JibCode, JibComputer, StopMode};
 use jib_cpu::cpu::Register;
-use jib_os_image::get_os_image;
 use std::sync::mpsc::{Receiver, RecvError, Sender, TryRecvError};
 
 pub struct CpuState {

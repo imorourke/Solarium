@@ -150,7 +150,7 @@ impl Default for VisualJib {
 
         //let jibos_img = ;
         //    jib_computer::JibOsImage::compile_os_image().expect("unable to compile jibos");
-        let cbos_defs = jib_os_image::JIB_OS_DEFS;
+        let cbos_defs = cbos_image::CBOS_DEFS;
 
         let mut sys_root = VirtualFilesystem::new_system();
         sys_root

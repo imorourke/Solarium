@@ -8,7 +8,7 @@ documentation.workspace = true
 
 [dependencies]
 jib-cpu.workspace = true
-jib-os-image.workspace = true
+cbos-image.workspace = true
 jib-computer.workspace = true
 clap.workspace = true
 cbos.workspace = true
