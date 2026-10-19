@@ -159,9 +159,9 @@ mod test {
         ("tests/test_kmalloc.cb", &[]),
         ("tests/test_math.cb", &[]),
         ("tests/test_struct_ptr.cb", &[]),
-        ("../../cbos/bootloader.cb", &[]),
-        ("../../cbos/os.cb", &[]),
-        ("../../cbos/os.cb", &["DEBUG"]),
+        ("../../cbos/cb/bootloader.cb", &[]),
+        ("../../cbos/cb/os.cb", &[]),
+        ("../../cbos/cb/os.cb", &["DEBUG"]),
     ];
 
     #[test]
