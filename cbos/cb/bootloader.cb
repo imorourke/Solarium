@@ -170,17 +170,18 @@ fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
         def read_size: u32 = DATA_SIZE;
 
         // Copy code into location
-        def print_i: u32 = 0;
+        const TIME_INCR: u32 = 500;
+        def next_time: u32 = k_rtc_elapsed_msecs() + TIME_INCR;
         while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
             copy_loc = copy_loc + read_size;
             read_size = DATA_SIZE;
 
-            print_i = (print_i + 1) % 24;
-            if (print_i == 0) {
+            if (k_rtc_elapsed_msecs() >= next_time) {
                 k_io_print_uint(read_state.bytes_read);
                 k_io_print(" / ");
                 k_io_print_int(read_state.span_size);
                 k_io_print("\n");
+                next_time += TIME_INCR;
             }
         }
     } else {
@@ -221,7 +222,6 @@ fn k_link_start_kernel(disk: *k_disk_fs_t, entry: u16, load_loc: *u32) u32 {
 
             // Read link data into buffer
             while (k_fs_io_state_read_next_section(&read_state, copy_loc, &read_size) > 0) {
-                //k_memcpy(copy_loc, &run_data[0], read_size);
                 copy_loc = copy_loc + read_size;
                 read_size = DATA_SIZE;
             }
