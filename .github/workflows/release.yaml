@@ -354,7 +354,7 @@ jobs:
           path: LICENSE
 
       - name: Generate sysroot
-        working-directory: cbos
+        working-directory: cbos/cb
         run: |
             cargo run -p cbc -- -k -z -W app/cbos_defs.cb -S os.cb
             tar -zcvf defs.tar.gz kernel std app
@@ -363,7 +363,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: defs.tar.gz
-          path: cbos/defs.tar.gz
+          path: cbos/cb/defs.tar.gz
 
       - name: Generate hard disk image
         run: cargo run -p jib-term -- -n -e hd.cbfs
