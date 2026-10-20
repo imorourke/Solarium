@@ -4,7 +4,7 @@
 
 Solarium provides interfaces to provide a processor (jib), assembler (jasm), and basic high-level language (c/buoy) around a hypothetical 32-bit processor that provides a simple ISA. See the isa.tex document in the doc/ folder for more information.
 
-Give the [demo](https://imorourke.github.io/Solarium/) a try!
+Give the [demo](https://imorourke.github.io/Solarium/) a try, or check out the [documentation](https://github.com/imorourke/Solarium/releases/latest/download/isa.pdf).
 
 ## Libraries
 
