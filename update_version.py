@@ -83,7 +83,7 @@ def main():
         _ = file_path.write_text(data)
 
     run_cmd(
-        ["cargo", "update", "--offline"],
+        ["cargo", "update"],
         cwd=base_path,
     )
 
