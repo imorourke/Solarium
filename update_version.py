@@ -16,6 +16,7 @@ class ProgramArguments(argparse.Namespace):
         self.version_str: str
         self.run_test: bool = True
         self.tag: bool = True
+        self.online_update: bool = False
 
 
 def run_cmd(args: list[str], cwd: os.PathLike | None = None):
@@ -52,6 +53,12 @@ def main():
         action="store_true",
         help="tag the current build with the given release name",
     )
+    _ = p.add_argument(
+        "-o",
+        "--online",
+        dest="online_update",
+        help="Runs an online update",
+    )
 
     nsp = ProgramArguments()
     args = p.parse_args(namespace=nsp)
@@ -82,8 +89,12 @@ def main():
         data = re.sub(re_str, replace_val, data)
         _ = file_path.write_text(data)
 
+    cargo_cmd = ["cargo", "update"]
+    if not args.online_update:
+        cargo_cmd.append("--offline")
+
     run_cmd(
-        ["cargo", "update"],
+        cargo_cmd,
         cwd=base_path,
     )
 
