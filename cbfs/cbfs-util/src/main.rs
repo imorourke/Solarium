@@ -1,9 +1,12 @@
 use cbfs_lib::{
     CbContainerOptions, ContainerHeader, EntryType, FileSystem, FileSystemError, SectorHandle,
-    open_container, save_container,
+    open_container, read_container, save_container,
 };
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::{File, OpenOptions},
+    path::{Path, PathBuf},
+};
 
 const DEFAULT_SECTOR_SIZE: u16 = 256;
 const DEFAULT_SECTOR_COUNT: u16 = 32768;
@@ -23,6 +26,8 @@ enum CommandOptions {
     Info(InfoOptions),
     Extract(ExtractOptions),
     Archive(ArchiveOptions),
+    ToRaw(ConvertToRaw),
+    FromRaw(ConvertFromRaw),
 }
 
 #[derive(Debug, Parser)]
@@ -48,6 +53,8 @@ struct CreateOptions {
     sparse: bool,
     #[arg(short = 'n', long = "name", help = "filesystem name")]
     name: Option<String>,
+    #[arg(short = 'r', long = "raw", help = "creates a raw filesystem")]
+    raw: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -62,6 +69,26 @@ struct ModifyOptions {
     zero: bool,
     #[arg(short = 'n', long = "name", help = "filesystem name")]
     name: Option<String>,
+}
+
+#[derive(Debug, Parser)]
+struct ConvertToRaw {
+    #[arg(help = "input image")]
+    file: PathBuf,
+    #[arg(help = "output raw file")]
+    output_file: PathBuf,
+}
+
+#[derive(Debug, Parser)]
+struct ConvertFromRaw {
+    #[arg(help = "input raw file")]
+    raw_file: PathBuf,
+    #[arg(help = "output cbfs image")]
+    output_file: PathBuf,
+    #[arg(short = 'g', long = "gz", help = "enable gzip compression")]
+    gzip: bool,
+    #[arg(short = 'c', long = "sparse", help = "enable sparse file support")]
+    sparse: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -121,11 +148,50 @@ fn main() {
             let name = opt.name.as_deref().unwrap_or("cbfs");
             let fs = FileSystem::new(name, opt.secsize, opt.seccount)
                 .expect("unable to create filesystem");
+
+            if opt.raw {
+                if opt.sparse || opt.gzip {
+                    panic!("cannot select a raw output with either a sparse or gzip file");
+                }
+
+                let mut f = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&opt.file)
+                    .expect("unable to open fs file");
+                fs.write_bytes(&mut f).expect("unable to write filesystem");
+            } else {
+                let header = ContainerHeader::new(CbContainerOptions {
+                    sparse: opt.sparse,
+                    compressed: opt.gzip,
+                });
+                save_container(&header, &fs, &opt.file).expect("unable to write fs to a file");
+            }
+        }
+        CommandOptions::FromRaw(opt) => {
+            let mut raw_file = File::open(&opt.raw_file).expect("unable to open input raw file");
+            let fs =
+                FileSystem::read_bytes(&mut raw_file).expect("unable to read filesystem image");
+
             let header = ContainerHeader::new(CbContainerOptions {
                 sparse: opt.sparse,
                 compressed: opt.gzip,
             });
-            save_container(&header, &fs, &opt.file).expect("unable to write fs to a file");
+
+            save_container(&header, &fs, &opt.output_file).expect("unable to write fs to a file");
+        }
+        CommandOptions::ToRaw(opt) => {
+            let mut image_file = File::open(&opt.file).expect("unable to open image file");
+            let (_, fs) = read_container(&mut image_file).expect("unable to read cbfs image");
+
+            let mut f = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&opt.file)
+                .expect("unable to open fs file");
+            fs.write_bytes(&mut f).expect("unable to write filesystem");
         }
         CommandOptions::Modify(opt) => {
             let (mut header, mut filesystem) =
