@@ -399,7 +399,7 @@ impl JibComputer {
 
     pub fn get_disk_data(&self) -> Result<Vec<u8>, ComputerError> {
         if let Some(hd) = self.hard_drive.as_ref() {
-            Ok(hd.borrow().data.clone())
+            Ok(hd.borrow_mut().get_backing_data())
         } else {
             Err(ComputerError::DiskError(FileSystemError::UnknownError(
                 "no disk attached".into(),

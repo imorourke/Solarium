@@ -7,17 +7,152 @@ use crate::{
     memory::{MemorySegment, MemorySegmentError},
 };
 
-type BlockSyncFunc = dyn Fn(&[u8]) -> bool;
+pub trait BlockDeviceBacking {
+    fn set_window(&mut self, offset: usize, length: usize);
+    fn get_window(&self) -> &[u8];
+    fn set_in_window(&mut self, index: usize, value: u8);
+    fn sync(&mut self) -> bool;
+    fn get_data(&mut self) -> Vec<u8>;
+}
+
+pub struct MemoryBacking {
+    pub data: Vec<u8>,
+    pub offset: usize,
+    pub length: usize,
+}
+
+impl BlockDeviceBacking for MemoryBacking {
+    fn set_window(&mut self, offset: usize, length: usize) {
+        self.offset = offset;
+        self.length = length;
+    }
+
+    fn get_window(&self) -> &[u8] {
+        if self.offset < self.data.len() {
+            let window_bottom = self.offset;
+            let window_top = (window_bottom + self.length).min(self.data.len());
+            &self.data[window_bottom..window_top]
+        } else {
+            &[]
+        }
+    }
+
+    fn set_in_window(&mut self, index: usize, value: u8) {
+        if let Some(v) = self.data.get_mut(index + self.offset) {
+            *v = value;
+        }
+    }
+
+    fn sync(&mut self) -> bool {
+        true
+    }
+
+    fn get_data(&mut self) -> Vec<u8> {
+        self.data.clone()
+    }
+}
+
+#[cfg(feature = "std")]
+mod file {
+    use super::*;
+    use std::fs::{File, OpenOptions};
+    use std::io::{Read, Seek, Write};
+    use std::path::Path;
+    use std::vec;
+
+    pub struct FileBacking {
+        pub file: File,
+        pub max_size: u64,
+        pub base_offset: usize,
+        pub max_written: usize,
+        pub temp_data: Vec<u8>,
+    }
+
+    impl FileBacking {
+        pub fn new(path: &Path) -> Self {
+            let f = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(path)
+                .unwrap();
+            let size = f.metadata().unwrap().len();
+
+            Self {
+                file: f,
+                max_size: size,
+                base_offset: 0,
+                max_written: 0,
+                temp_data: Vec::default(),
+            }
+        }
+    }
+
+    impl BlockDeviceBacking for FileBacking {
+        fn set_window(&mut self, offset: usize, length: usize) {
+            if offset != self.base_offset {
+                self.sync();
+            }
+
+            if offset < self.max_size as usize {
+                let window_bottom = offset;
+                let window_top = (window_bottom + length).min(self.max_size as usize);
+                let temp_length = window_top - window_bottom;
+
+                if self.base_offset != offset && temp_length != self.temp_data.len() {
+                    self.temp_data = vec![0; temp_length];
+                    self.file
+                        .seek(std::io::SeekFrom::Start(offset as u64))
+                        .unwrap();
+                    self.file
+                        .read_exact(&mut self.temp_data.as_mut_slice())
+                        .unwrap();
+                }
+            }
+        }
+
+        fn get_window(&self) -> &[u8] {
+            &self.temp_data
+        }
+
+        fn set_in_window(&mut self, index: usize, value: u8) {
+            if let Some(v) = self.temp_data.get_mut(index) {
+                *v = value;
+                self.max_written = self.max_written.max(index);
+            }
+        }
+
+        fn sync(&mut self) -> bool {
+            if self.max_written > 0 {
+                self.file
+                    .seek(std::io::SeekFrom::Start(self.base_offset as u64))
+                    .unwrap();
+                self.file
+                    .write_all(&self.temp_data[..self.max_written])
+                    .unwrap();
+                self.max_written = 0;
+                true
+            } else {
+                false
+            }
+        }
+
+        fn get_data(&mut self) -> Vec<u8> {
+            self.file.seek(std::io::SeekFrom::Start(0)).unwrap();
+            let mut data = Vec::new();
+            self.file.read_to_end(&mut data).unwrap();
+            data
+        }
+    }
+}
 
 pub struct BlockDevice {
-    pub data: Vec<u8>,
+    data: Box<dyn BlockDeviceBacking>,
     current_offset: u32,
     target_offset: u32,
     parked: bool,
     memory_size: u16,
     write_enabled: bool,
     read_only_set: bool,
-    on_sync: Option<Box<BlockSyncFunc>>,
 }
 
 impl BlockDevice {
@@ -27,69 +162,51 @@ impl BlockDevice {
 
     pub fn new<T: IntoIterator<Item = u8>>(data: T) -> Self {
         Self {
-            data: data.into_iter().collect(),
+            data: Box::new(MemoryBacking {
+                data: data.into_iter().collect(),
+                offset: 0,
+                length: 0,
+            }),
             current_offset: 0,
             target_offset: 0,
             parked: true,
             memory_size: 0,
             write_enabled: false,
             read_only_set: false,
-            on_sync: None,
         }
     }
 
     #[cfg(feature = "std")]
     pub fn new_file(file: &std::path::Path) -> Result<Self, String> {
-        let data = match std::fs::read(file) {
-            Ok(v) => v,
-            Err(e) => return Err(std::format!("{e}")),
-        };
-
-        let pb = file.to_path_buf();
+        use crate::device::block_device::file::FileBacking;
 
         Ok(Self {
-            data,
+            data: Box::new(FileBacking::new(file)),
             current_offset: 0,
             target_offset: 0,
             parked: true,
             memory_size: 0,
             write_enabled: false,
             read_only_set: false,
-            on_sync: Some(Box::new(move |data| std::fs::write(&pb, data).is_ok())),
         })
     }
 
     pub fn set_offset(&mut self, target: u32) {
         self.target_offset = target;
         self.current_offset = target;
+        self.data.set_window(target as usize, Self::WINDOW_SIZE_MAX);
     }
 
-    pub fn sync(&self) -> bool {
-        if let Some(sync_func) = self.on_sync.as_ref() {
-            sync_func(&self.data)
-        } else {
-            false
-        }
+    pub fn sync(&mut self) -> bool {
+        self.data.sync()
     }
 
-    pub fn get_data_window(&self) -> &[u8] {
-        if (self.target_offset as usize) < self.data.len() {
-            let window_bottom = self.target_offset as usize;
-            let window_top = (window_bottom + Self::WINDOW_SIZE_MAX).min(self.data.len());
-            &self.data[window_bottom..window_top]
-        } else {
-            &[]
-        }
+    pub fn get_backing_data(&mut self) -> Vec<u8> {
+        self.data.get_data()
     }
 
-    pub fn get_data_window_mut(&mut self) -> &mut [u8] {
-        if (self.target_offset as usize) < self.data.len() {
-            let window_bottom = self.target_offset as usize;
-            let window_top = (window_bottom + Self::WINDOW_SIZE_MAX).min(self.data.len());
-            &mut self.data[window_bottom..window_top]
-        } else {
-            &mut []
-        }
+    fn get_data_window(&self) -> &[u8] {
+        self.data.get_window()
     }
 
     fn reported_size(&self) -> u16 {
@@ -141,7 +258,8 @@ impl MemorySegment for BlockDevice {
             10..12 => Ok(self.reported_size().to_be_bytes()[local_offset - 10]),
             Self::CONTROL_SIZE..Self::DATA_TOP => {
                 if let Some(v) = self
-                    .get_data_window()
+                    .data
+                    .get_window()
                     .get(local_offset - Self::CONTROL_SIZE)
                 {
                     Ok(*v)
@@ -184,12 +302,9 @@ impl MemorySegment for BlockDevice {
                 Ok(())
             }
             Self::CONTROL_SIZE..Self::DATA_TOP => {
-                if self.can_write()
-                    && let Some(v) = self
-                        .get_data_window_mut()
-                        .get_mut(local_offset - Self::CONTROL_SIZE)
-                {
-                    *v = val;
+                if self.can_write() {
+                    self.data
+                        .set_in_window(local_offset - Self::CONTROL_SIZE, val);
                 }
                 Ok(())
             }
