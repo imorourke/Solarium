@@ -57,6 +57,7 @@ def main():
         "-o",
         "--online",
         dest="online_update",
+        action="store_true",
         help="Runs an online update",
     )
 
