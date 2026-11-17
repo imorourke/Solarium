@@ -6,8 +6,8 @@ pub const START_ADDR: u32 = 0x2000;
 /// The stack location for kernel programs
 pub const STACK_ADDR: u32 = 0x1000;
 
-/// Overall memory size for the coomputer
-pub const MEMORY_SIZE: u32 = 0x40000000;
+/// Overall memory size for the computer
+pub const MEMORY_SIZE: u32 = 0x200000;
 
 /// Starting address for standard-sized devices
 pub const DEVICE_START_ADDR: u32 = 0xFFFFA000;
